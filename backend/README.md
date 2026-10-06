@@ -34,21 +34,27 @@ Check that the container is running:
 docker compose ps
 ```
 
-The current Windows development setup uses:
+MySQL runs inside the Docker container on port `3306`.
+
+The host-side port is controlled by `DB_PORT` in your local `.env` file. For example:
 
 ```text
-Host: localhost
-Port: 3307
-Database: assessment_helper
+DB_PORT=3306
 ```
 
-Docker maps the host port to MySQL's internal port:
+If port `3306` is already in use on your computer, use another available port, such as:
+
+```text
+DB_PORT=3307
+```
+
+The host-side port can be different for each developer. The important thing is that `DB_PORT` in `.env` matches the port exposed by Docker.
+
+For example:
 
 ```text
 localhost:3307 → MySQL:3306
 ```
-
-The host port is controlled by `DB_PORT` in `.env`. If port 3306 is available on your computer, you can use `DB_PORT=3306` instead.
 
 ## 3. Set Up the Python Environment
 
