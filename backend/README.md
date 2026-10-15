@@ -12,7 +12,7 @@ Make sure Docker Desktop is running before starting the MySQL container.
 
 ## 1. Create the Environment File
 
-From the repository root:
+From the backend folder:
 
 ```powershell
 Copy-Item .env.example .env
@@ -21,8 +21,6 @@ Copy-Item .env.example .env
 The `.env` file contains local database settings. **Do not commit `.env` to Git.**
 
 ## 2. Start MySQL
-
-From the repository root:
 
 ```powershell
 docker compose up -d mysql
@@ -57,12 +55,6 @@ localhost:3307 → MySQL:3306
 ```
 
 ## 3. Set Up the Python Environment
-
-From the repository root:
-
-```powershell
-cd backend
-```
 
 Create the virtual environment using Python 3.14:
 
