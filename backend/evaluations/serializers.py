@@ -9,19 +9,57 @@ User = get_user_model()
 class ProfessorSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "first_name", "last_name"]
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "role",
+            "academic_level",
+        ]
 
 
 class CourseSerializer(serializers.ModelSerializer):
+    department_id = serializers.IntegerField(read_only=True)
+    department_name = serializers.CharField(
+        source="department.name",
+        read_only=True,
+    )
+    department_code = serializers.CharField(
+        source="department.department_code",
+        read_only=True,
+    )
+    instructor_id = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Course
-        fields = ["id", "course_code", "course_name", "semester"]
+        fields = [
+            "course_id",
+            "department_id",
+            "department_name",
+            "department_code",
+            "instructor_id",
+            "course_number",
+            "course_level",
+            "section",
+            "schedule",
+        ]
+
+
+class SignupCreateSerializer(serializers.Serializer):
+    course_id = serializers.IntegerField(min_value=1)
 
 
 class SignupSerializer(serializers.ModelSerializer):
-    course_id = serializers.IntegerField(write_only=True)
+    cycle_id = serializers.IntegerField(read_only=True)
+    course_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Signup
-        fields = ["id", "course_id", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = [
+            "signup_id",
+            "cycle_id",
+            "course_id",
+            "status",
+            "availability",
+        ]

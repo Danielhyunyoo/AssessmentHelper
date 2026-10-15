@@ -4,21 +4,22 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework import status
 from rest_framework.decorators import api_view
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotAuthenticated, NotFound, ValidationError
 from rest_framework.response import Response
 
-from .models import Course, EvaluationCycle, Signup
-from .serializers import CourseSerializer, ProfessorSerializer, SignupSerializer
+from .models import Course, Cycle, Signup
+from .serializers import (
+    CourseSerializer,
+    ProfessorSerializer,
+    SignupCreateSerializer,
+    SignupSerializer,
+)
 
 User = get_user_model()
 
 
 def get_current_professor(request):
-    """Resolve the current professor.
-
-    Development only: unauthenticated requests may identify a demo user
-    through X-Demo-Username while DEBUG is enabled.
-    """
+    """Return the authenticated user or a DEBUG-only demo user."""
     if request.user.is_authenticated:
         return request.user
 
@@ -27,7 +28,6 @@ def get_current_professor(request):
         if username:
             return get_object_or_404(User, username=username)
 
-    from rest_framework.exceptions import NotAuthenticated
     raise NotAuthenticated(
         "Sign in first, or use X-Demo-Username with an existing demo user "
         "while DEBUG is enabled."
@@ -35,11 +35,12 @@ def get_current_professor(request):
 
 
 def get_current_cycle():
-    cycles = EvaluationCycle.objects.filter(is_current=True)
+    """Return the one active evaluation cycle."""
+    cycles = Cycle.objects.filter(status="active")
 
     if cycles.count() != 1:
         raise NotFound(
-            "There must be exactly one current evaluation cycle configured."
+            "There must be exactly one active evaluation cycle configured."
         )
 
     return cycles.get()
@@ -50,19 +51,21 @@ def my_professor(request):
     professor = get_current_professor(request)
     cycle = get_current_cycle()
 
-    signup = Signup.objects.filter(
-        professor=professor,
-        cycle=cycle,
-    ).select_related("course").first()
+    signup = (
+        Signup.objects.filter(user=professor, cycle=cycle)
+        .select_related("course")
+        .first()
+    )
 
     data = {
         "professor": ProfessorSerializer(professor).data,
-        "evaluation_cycle": cycle.name,
+        "evaluation_cycle": cycle.semester,
         "evaluation_status": "signed_up" if signup else "not_signed_up",
         "selected_course": (
             CourseSerializer(signup.course).data if signup else None
         ),
     }
+
     return Response(data)
 
 
@@ -70,10 +73,11 @@ def my_professor(request):
 def my_courses(request):
     professor = get_current_professor(request)
 
-    courses = Course.objects.filter(
-        professor=professor,
-        is_current=True,
-    ).order_by("course_code")
+    courses = (
+        Course.objects.filter(instructor=professor)
+        .select_related("department")
+        .order_by("department__department_code", "course_number", "section")
+    )
 
     return Response(CourseSerializer(courses, many=True).data)
 
@@ -83,24 +87,23 @@ def create_signup(request):
     professor = get_current_professor(request)
     cycle = get_current_cycle()
 
-    serializer = SignupSerializer(data=request.data)
+    serializer = SignupCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     course_id = serializer.validated_data["course_id"]
 
     course = get_object_or_404(
         Course,
         pk=course_id,
-        professor=professor,
-        is_current=True,
+        instructor=professor,
     )
 
-    if Signup.objects.filter(professor=professor, cycle=cycle).exists():
+    if Signup.objects.filter(user=professor, cycle=cycle).exists():
         raise ValidationError(
             {"detail": "You have already signed up for this evaluation cycle."}
         )
 
     signup = Signup.objects.create(
-        professor=professor,
+        user=professor,
         course=course,
         cycle=cycle,
     )

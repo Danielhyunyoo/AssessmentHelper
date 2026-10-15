@@ -40,10 +40,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     "rest_framework",
     "evaluations",
 ]
+
+# Custom User model for Assessment Helper
+AUTH_USER_MODEL = "evaluations.User"
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
