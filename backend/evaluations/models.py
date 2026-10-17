@@ -68,6 +68,14 @@ class Course(models.Model):
 
     course_level = models.IntegerField()
 
+    title = models.CharField(max_length=200, blank=True)
+
+    classroom = models.CharField(max_length=100, blank=True)
+
+    semester = models.CharField(max_length=20, blank=True)
+
+    year = models.IntegerField(null=True, blank=True)
+
     section = models.CharField(max_length=10)
 
     schedule = models.CharField(max_length=255)
@@ -107,6 +115,11 @@ class Signup(models.Model):
         related_name="signups"
     )
 
+    matches_released_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
     user = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -116,7 +129,9 @@ class Signup(models.Model):
     course = models.ForeignKey(
         Course,
         on_delete=models.PROTECT,
-        related_name="signups"
+        related_name="signups",
+        null=True,
+        blank=True,
     )
 
     availability = models.TextField(blank=True)
@@ -169,6 +184,11 @@ class Pairing(models.Model):
         default="pending"
     )
 
+    confirmed_datetime = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
     def __str__(self):
         return f"{self.observer} observing {self.observee}"
 
@@ -182,6 +202,15 @@ class Template(models.Model):
     )
 
     version = models.IntegerField(default=1)
+
+    instructions = models.TextField(blank=True)
+
+    questions = models.JSONField(default=list, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        default="draft"
+    )
 
     def __str__(self):
         return f"{self.name} (Version {self.version})"
@@ -217,6 +246,12 @@ class Invitation(models.Model):
         max_length=20,
         default="pending"
     )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    responded_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return (
@@ -325,6 +360,19 @@ class Survey(models.Model):
 
     improvements = models.TextField(blank=True)
 
+    submitted_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    template = models.ForeignKey(
+        Template,
+        on_delete=models.PROTECT,
+        related_name="surveys",
+        null=True,
+        blank=True
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -351,5 +399,50 @@ class Notification(models.Model):
 
     is_read = models.BooleanField(default=False)
 
+    title = models.CharField(max_length=200, blank=True)
+
+    is_urgent = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    destination = models.CharField(max_length=255, blank=True)
+
     def __str__(self):
         return f"{self.user} - {self.type}"
+
+class MatchCandidate(models.Model):
+    signup = models.ForeignKey(
+        Signup,
+        on_delete=models.CASCADE,
+        related_name="match_candidates"
+    )
+
+    observer = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="candidate_matches"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["signup", "observer"],
+                name="unique_signup_observer_candidate"
+            )
+        ]
+
+class EvaluationCarryForward(models.Model):
+    source_signup = models.OneToOneField(
+        Signup, on_delete=models.PROTECT, related_name="carry_forward"
+    )
+    target_cycle = models.ForeignKey(
+        Cycle, on_delete=models.PROTECT, related_name="carry_forwards_received"
+    )
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="carry_forward_decisions"
+    )
+
+    def __str__(self):
+        return f"{self.source_signup.user_id}: {self.source_signup.cycle_id} -> {self.target_cycle_id}"
