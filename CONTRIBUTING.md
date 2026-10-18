@@ -28,7 +28,8 @@ git rebase origin/main
 ## Rules
 
 - **No secrets in git.** Real values go in `.env`.
-- **No real faculty data.** Use made-up names and courses (Prof A, Prof B).
+- **No real faculty data.** Use made-up people (Prof A, Prof B). Public
+  course numbers and titles are fine.
 - **Schema changes go through Django migrations.** No separate SQL schema
   file.
 - **Requirements come from the [project documents](README.md#project-documents).**
@@ -44,4 +45,11 @@ git rebase origin/main
 
 ## CI
 
-There is no CI yet.
+Every PR runs Django's checks, a missing-migration check, and the tests.
+If CI fails, run the same commands locally from `backend/`:
+
+```sh
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
+```
