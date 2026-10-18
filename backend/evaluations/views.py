@@ -50,6 +50,21 @@ def get_current_cycle():
     return cycles.get()
 
 
+def current_courses(professor, cycle):
+    """Return the professor's courses in the active cycle's term."""
+    term, _, year = cycle.semester.rpartition(" ")
+
+    if not term or not year.isdigit():
+        raise NotFound(
+            f'The active cycle "{cycle.semester}" must be named like "Fall 2026" '
+            "so its courses can be found. Rename the cycle."
+        )
+
+    return Course.objects.filter(
+        instructor=professor, semester__iexact=term, year=int(year)
+    )
+
+
 @api_view(["GET"])
 def my_professor(request):
     professor = get_current_professor(request)
@@ -78,9 +93,10 @@ def my_professor(request):
 @api_view(["GET"])
 def my_courses(request):
     professor = get_current_professor(request)
+    cycle = get_current_cycle()
 
     courses = (
-        Course.objects.filter(instructor=professor)
+        current_courses(professor, cycle)
         .select_related("department")
         .order_by("department__department_code", "course_number", "section")
     )
@@ -118,7 +134,11 @@ def create_signup(request):
     course_id = serializer.validated_data.get("course_id")
     course = None
     if course_id is not None:
-        course = get_object_or_404(Course, pk=course_id, instructor=professor)
+        course = get_object_or_404(current_courses(professor, cycle), pk=course_id)
+
+    already_registered = Signup.objects.filter(user=professor, cycle=cycle).exists()
+    if not already_registered and timezone.localdate() > cycle.signup_deadline:
+        raise ValidationError({"detail": "The signup deadline has passed. Contact the Assessment Committee to register late."})
 
     # get_or_create honors unique_user_cycle_signup, including concurrent clicks.
     signup, created = Signup.objects.get_or_create(
@@ -146,7 +166,7 @@ def select_signup_course(request):
     serializer = CourseSelectionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     course = get_object_or_404(
-        Course, pk=serializer.validated_data["course_id"], instructor=professor,
+        current_courses(professor, cycle), pk=serializer.validated_data["course_id"],
     )
     if signup.matches_released_at or Invitation.objects.filter(cycle=cycle, sender=professor).exists():
         raise ValidationError({"detail": "Course selection is locked after matches are released."})
@@ -346,7 +366,7 @@ def committee_candidate_pool(request, signup_id):
     signup = get_object_or_404(Signup.objects.select_related("user", "course"), pk=signup_id, cycle=get_current_cycle())
     if not signup.course_id:
         raise ValidationError({"detail": "Observee has not selected a course."})
-    people = User.objects.filter(is_active=True, department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
+    people = User.objects.filter(is_active=True, role="faculty", department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
     return Response({
         "signup_id": signup.pk,
         "screening_only": True,
@@ -375,7 +395,7 @@ def committee_release_candidates(request, signup_id):
         if Invitation.objects.filter(cycle=cycle, sender=signup.user).exists():
             raise ValidationError({"detail": "Cannot replace matches after invitations have been sent."})
         ids = data.validated_data["observer_ids"]
-        faculty = list(User.objects.filter(pk__in=ids, is_active=True, department_id=signup.course.department_id))
+        faculty = list(User.objects.filter(pk__in=ids, is_active=True, role="faculty", department_id=signup.course.department_id))
         if len(faculty) != len(ids) or signup.user_id in ids:
             raise ValidationError({"detail": "Every observer must be an active, different faculty member from the same department."})
         MatchCandidate.objects.filter(signup=signup).delete()

@@ -112,7 +112,7 @@ course, _ = Course.objects.get_or_create(
     course_number="2337",
     course_level=2000,
     section="001",
-    defaults={"schedule": "MWF 10:00-10:50"},
+    defaults={"schedule": "MWF 10:00-10:50", "semester": "Fall", "year": 2026},
 )
 
 print("Professor:", professor.username)
@@ -178,18 +178,18 @@ Before signup, the response should contain:
     "academic_level": ""
   },
   "evaluation_cycle": "Fall 2026",
-  "evaluation_status": "not_signed_up",
+  "registration_status": "not_signed_up",
   "selected_course": null
 }
 ```
 
 The database IDs may differ in another environment.
 
-After signup, `evaluation_status` should be `"signed_up"` and `selected_course` should contain the saved course.
+After signup, `registration_status` should be `"signed_up"` and `selected_course` should contain the saved course.
 
 ## 6. Test the professor's course list
 
-This endpoint returns courses assigned to the identified professor.
+This endpoint returns courses assigned to the identified professor in the active cycle's semester.
 
 **Request:** `GET /api/me/courses/`
 
@@ -219,8 +219,6 @@ The response should be a JSON array containing the professor's courses. A sample
 ```
 
 Use `course_id` when submitting a signup.
-
-**Current limitation:** The current `Course` model has no field that identifies whether a course is current or historical. The endpoint filters by instructor but cannot yet exclude old courses. Confirm the intended behavior with the backend/database lead before treating this as complete.
 
 ## 7. Submit a signup
 
@@ -273,7 +271,7 @@ Invoke-RestMethod `
 The response should now show:
 
 ```json
-"evaluation_status": "signed_up"
+"registration_status": "signed_up"
 ```
 
 The `selected_course` field should contain the saved course. You can also stop and restart the Django server, repeat the request, and confirm that the signup remains saved.
@@ -283,23 +281,15 @@ The `selected_course` field should contain the saved course. You can also stop a
 Try submitting the same signup again:
 
 ```powershell
-try {
-    Invoke-RestMethod `
-        -Method Post `
-        -Uri "http://127.0.0.1:8000/api/signups/" `
-        -Headers $headers `
-        -ContentType "application/json" `
-        -Body $body
-}
-catch {
-    Write-Host "Expected error:"
-    Write-Host $_.ErrorDetails.Message
-}
+Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://127.0.0.1:8000/api/signups/" `
+    -Headers $headers `
+    -ContentType "application/json" `
+    -Body $body
 ```
 
-The request should return HTTP `400 Bad Request` with a message indicating that the professor has already signed up for the cycle.
-
-This confirms that a professor cannot create a second signup for the same cycle.
+The request should return HTTP `200 OK` with the same `signup_id`. No second signup is created.
 
 ## 10. Run the automated tests
 
@@ -309,10 +299,9 @@ From the backend directory, run:
 python manage.py test evaluations
 ```
 
-The current test suite contains seven tests. A successful run ends with:
+A successful run ends with:
 
 ```text
-Ran 7 tests
 OK
 ```
 
