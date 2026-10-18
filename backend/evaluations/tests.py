@@ -49,6 +49,8 @@ class EvaluationAPITests(APITestCase):
             course_number="2337",
             course_level=2000,
             section="001",
+            semester="Fall",
+            year=2026,
             schedule="MWF 10:00-10:50",
         )
 
@@ -58,6 +60,8 @@ class EvaluationAPITests(APITestCase):
             course_number="2305",
             course_level=2000,
             section="001",
+            semester="Fall",
+            year=2026,
             schedule="TR 11:30-12:45",
         )
 
@@ -79,6 +83,32 @@ class EvaluationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["course_number"], "2337")
+
+    def test_courses_from_other_semesters_are_hidden_and_not_selectable(self):
+        past_course = Course.objects.create(
+            department=self.department,
+            instructor=self.professor,
+            course_number="1337",
+            course_level=1000,
+            section="001",
+            semester="Spring",
+            year=2026,
+            schedule="TR 1:00-2:15",
+        )
+
+        list_response = self.client.get("/api/me/courses/")
+        signup_response = self.client.post(
+            "/api/signups/",
+            {"course_id": past_course.course_id},
+            format="json",
+        )
+
+        self.assertEqual(
+            [course["course_id"] for course in list_response.data],
+            [self.course.course_id],
+        )
+        self.assertEqual(signup_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(Signup.objects.count(), 0)
 
     def test_signup_succeeds_and_updates_status(self):
         response = self.client.post(
@@ -130,6 +160,8 @@ class EvaluationAPITests(APITestCase):
             course_number="3345",
             course_level=3000,
             section="002",
+            semester="Fall",
+            year=2026,
             schedule="TR 1:00-2:15",
         )
 

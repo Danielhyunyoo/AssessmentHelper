@@ -50,6 +50,21 @@ def get_current_cycle():
     return cycles.get()
 
 
+def current_courses(professor, cycle):
+    """Return the professor's courses in the active cycle's term."""
+    term, _, year = cycle.semester.rpartition(" ")
+
+    if not term or not year.isdigit():
+        raise NotFound(
+            f'The active cycle "{cycle.semester}" must be named like "Fall 2026" '
+            "so its courses can be found. Rename the cycle."
+        )
+
+    return Course.objects.filter(
+        instructor=professor, semester__iexact=term, year=int(year)
+    )
+
+
 @api_view(["GET"])
 def my_professor(request):
     professor = get_current_professor(request)
@@ -78,9 +93,10 @@ def my_professor(request):
 @api_view(["GET"])
 def my_courses(request):
     professor = get_current_professor(request)
+    cycle = get_current_cycle()
 
     courses = (
-        Course.objects.filter(instructor=professor)
+        current_courses(professor, cycle)
         .select_related("department")
         .order_by("department__department_code", "course_number", "section")
     )
@@ -118,7 +134,7 @@ def create_signup(request):
     course_id = serializer.validated_data.get("course_id")
     course = None
     if course_id is not None:
-        course = get_object_or_404(Course, pk=course_id, instructor=professor)
+        course = get_object_or_404(current_courses(professor, cycle), pk=course_id)
 
     # get_or_create honors unique_user_cycle_signup, including concurrent clicks.
     signup, created = Signup.objects.get_or_create(
@@ -146,7 +162,7 @@ def select_signup_course(request):
     serializer = CourseSelectionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     course = get_object_or_404(
-        Course, pk=serializer.validated_data["course_id"], instructor=professor,
+        current_courses(professor, cycle), pk=serializer.validated_data["course_id"],
     )
     if signup.matches_released_at or Invitation.objects.filter(cycle=cycle, sender=professor).exists():
         raise ValidationError({"detail": "Course selection is locked after matches are released."})

@@ -112,7 +112,7 @@ course, _ = Course.objects.get_or_create(
     course_number="2337",
     course_level=2000,
     section="001",
-    defaults={"schedule": "MWF 10:00-10:50"},
+    defaults={"schedule": "MWF 10:00-10:50", "semester": "Fall", "year": 2026},
 )
 
 print("Professor:", professor.username)
@@ -189,7 +189,7 @@ After signup, `registration_status` should be `"signed_up"` and `selected_course
 
 ## 6. Test the professor's course list
 
-This endpoint returns courses assigned to the identified professor.
+This endpoint returns courses assigned to the identified professor in the active cycle's semester.
 
 **Request:** `GET /api/me/courses/`
 
@@ -219,8 +219,6 @@ The response should be a JSON array containing the professor's courses. A sample
 ```
 
 Use `course_id` when submitting a signup.
-
-**Known limitation:** The endpoint filters by instructor only. It does not filter on `Course.semester` or `Course.year`, so sections from past semesters also appear in the list.
 
 ## 7. Submit a signup
 
