@@ -136,6 +136,10 @@ def create_signup(request):
     if course_id is not None:
         course = get_object_or_404(current_courses(professor, cycle), pk=course_id)
 
+    already_registered = Signup.objects.filter(user=professor, cycle=cycle).exists()
+    if not already_registered and timezone.localdate() > cycle.signup_deadline:
+        raise ValidationError({"detail": "The signup deadline has passed. Contact the Assessment Committee to register late."})
+
     # get_or_create honors unique_user_cycle_signup, including concurrent clicks.
     signup, created = Signup.objects.get_or_create(
         user=professor, cycle=cycle,
@@ -362,7 +366,7 @@ def committee_candidate_pool(request, signup_id):
     signup = get_object_or_404(Signup.objects.select_related("user", "course"), pk=signup_id, cycle=get_current_cycle())
     if not signup.course_id:
         raise ValidationError({"detail": "Observee has not selected a course."})
-    people = User.objects.filter(is_active=True, department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
+    people = User.objects.filter(is_active=True, role="faculty", department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
     return Response({
         "signup_id": signup.pk,
         "screening_only": True,
@@ -391,7 +395,7 @@ def committee_release_candidates(request, signup_id):
         if Invitation.objects.filter(cycle=cycle, sender=signup.user).exists():
             raise ValidationError({"detail": "Cannot replace matches after invitations have been sent."})
         ids = data.validated_data["observer_ids"]
-        faculty = list(User.objects.filter(pk__in=ids, is_active=True, department_id=signup.course.department_id))
+        faculty = list(User.objects.filter(pk__in=ids, is_active=True, role="faculty", department_id=signup.course.department_id))
         if len(faculty) != len(ids) or signup.user_id in ids:
             raise ValidationError({"detail": "Every observer must be an active, different faculty member from the same department."})
         MatchCandidate.objects.filter(signup=signup).delete()

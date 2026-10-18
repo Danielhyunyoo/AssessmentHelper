@@ -56,7 +56,7 @@ Routes below were extracted from the latest available `form_management_update/ur
 | PATCH `/api/notifications/{id}/read/` | `{}` |
 | POST `/api/notifications/read-all/` | `{}` |
 | POST `/api/committee/signups/{id}/release-candidates/` | `{"observer_ids":[1]}` (1–5 unique IDs) |
-| POST `/api/invitations/send/` | `{"observer_id":1,"proposed_datetimes":["2026-10-28T11:00:00-05:00"]}` (1–8 distinct datetimes) |
+| POST `/api/invitations/send/` | `{"observer_id":1,"proposed_datetimes":["2026-10-28T11:00:00-05:00"]}` (4–8 distinct datetimes) |
 | POST `/api/invitations/{id}/respond/` | `{"action":"accept","proposed_date_id":123}` or `{"action":"decline"}` |
 | POST `/api/pairings/confirm/` | `{"invitation_id":123}` |
 | POST `/api/observations/` | `{"pairing_id":2,"template_id":1}` |

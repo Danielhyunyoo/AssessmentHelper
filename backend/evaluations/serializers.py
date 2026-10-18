@@ -99,7 +99,7 @@ class CandidateApprovalSerializer(serializers.Serializer):
 class InvitationCreateSerializer(serializers.Serializer):
     observer_id = serializers.IntegerField(min_value=1)
     proposed_datetimes = serializers.ListField(
-        child=serializers.DateTimeField(), min_length=1, max_length=8
+        child=serializers.DateTimeField(), min_length=4, max_length=8
     )
 
     def validate_proposed_datetimes(self, values):
