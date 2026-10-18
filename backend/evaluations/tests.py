@@ -69,7 +69,8 @@ class EvaluationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["professor"]["username"], "professor_a")
         self.assertEqual(response.data["evaluation_cycle"], "Fall 2026")
-        self.assertEqual(response.data["evaluation_status"], "not_signed_up")
+        self.assertEqual(response.data["registration_status"], "not_signed_up")
+        self.assertEqual(response.data["evaluation_status"], "undetermined")
         self.assertIsNone(response.data["selected_course"])
 
     def test_courses_endpoint_returns_only_own_courses(self):
@@ -92,7 +93,7 @@ class EvaluationAPITests(APITestCase):
         status_response = self.client.get("/api/me/")
 
         self.assertEqual(
-            status_response.data["evaluation_status"],
+            status_response.data["registration_status"],
             "signed_up",
         )
         self.assertEqual(
@@ -100,8 +101,8 @@ class EvaluationAPITests(APITestCase):
             self.course.course_id,
         )
 
-    def test_duplicate_signup_is_rejected(self):
-        Signup.objects.create(
+    def test_repeated_signup_returns_existing_signup(self):
+        signup = Signup.objects.create(
             user=self.professor,
             course=self.course,
             cycle=self.cycle,
@@ -113,8 +114,34 @@ class EvaluationAPITests(APITestCase):
             format="json",
         )
 
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["signup_id"], signup.signup_id)
+        self.assertEqual(Signup.objects.count(), 1)
+
+    def test_second_signup_with_another_course_is_rejected(self):
+        Signup.objects.create(
+            user=self.professor,
+            course=self.course,
+            cycle=self.cycle,
+        )
+        second_course = Course.objects.create(
+            department=self.department,
+            instructor=self.professor,
+            course_number="3345",
+            course_level=3000,
+            section="002",
+            schedule="TR 1:00-2:15",
+        )
+
+        response = self.client.post(
+            "/api/signups/",
+            {"course_id": second_course.course_id},
+            format="json",
+        )
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Signup.objects.count(), 1)
+        self.assertEqual(Signup.objects.get().course, self.course)
 
     def test_cannot_sign_up_for_another_professors_course(self):
         response = self.client.post(
