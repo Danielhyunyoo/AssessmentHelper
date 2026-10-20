@@ -9,16 +9,16 @@ Use `AssessmentHelper/backend/` for the existing Django app and `AssessmentHelpe
 From `AssessmentHelper/`:
 
 ```powershell
-# Start MySQL from the directory that actually contains compose.yaml
-# docker compose up -d db
 cd backend
+docker compose up -d mysql
 .\.venv\Scripts\Activate.ps1
 python manage.py check
-python manage.py showmigrations evaluations
+python manage.py migrate
+python manage.py seed_demo
 python manage.py runserver
 ```
 
-If `compose.yaml` lives at repository root instead, run `docker compose up -d db` **before** `cd backend`. Check that migrations already succeeded; do not drop the DB. Set Django `DEBUG=True` ONLY locally for demo usernames. Confirm `config/urls.py` mounts `evaluations.urls` under `api/`.
+Do not drop the DB. Set Django `DEBUG=True` ONLY locally for demo usernames. Confirm `config/urls.py` mounts `evaluations.urls` under `api/`.
 
 ## Frontend developer
 
@@ -30,7 +30,7 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:5173`. The React starter fetches the dashboard and notifications for `faculty_alice` by default. To switch the demo user, use the dropdown and Reload. The demo accounts known from test data are `faculty_alice`, `faculty_bob`, `faculty_carol`, `committee_demo`. They are example local database records, **not** production users or guaranteed records on everyone else's machine.
+Open `http://localhost:5173`. The React starter fetches the dashboard and notifications for `faculty_alice` by default. To switch the demo user, use the dropdown and Reload. `python manage.py seed_demo` creates the demo accounts `faculty_alice`, `faculty_bob`, `faculty_carol`, `faculty_dave` and `committee_demo`. They are example local database records, **not** production users. `python manage.py seed_demo --reset` returns them to their starting state.
 
 ## Network and CORS
 
