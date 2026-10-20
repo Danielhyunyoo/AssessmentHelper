@@ -3,8 +3,12 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Q
 
-from evaluations.models import Course, Cycle, Department
+from evaluations.models import (
+    Course, Cycle, Department, EvaluationCarryForward, Invitation, Notification,
+    Observation, Pairing, Signup, Survey,
+)
 
 User = get_user_model()
 
@@ -28,6 +32,7 @@ COMMITTEE = {"username": "committee_demo", "first_name": "Committee", "role": "a
 
 COURSES = [
     ("faculty_alice", "2337", "001", "Computer Science II", "MWF 10:00-10:50", "ECSS 2.410", "Fall", 2026),
+    ("faculty_alice", "3341", "001", "Probability and Statistics in Computer Science and Software Engineering", "TR 10:00-11:15", "ECSS 2.311", "Fall", 2026),
     ("faculty_alice", "1337", "002", "Computer Science I", "TR 1:00-2:15", "ECSS 2.306", "Spring", 2026),
     ("faculty_bob", "2305", "001", "Discrete Mathematics for Computing I", "TR 11:30-12:45", "ECSW 1.315", "Fall", 2026),
     ("faculty_carol", "3345", "001", "Data Structures and Introduction to Algorithmic Analysis", "MW 2:30-3:45", "ECSS 2.415", "Fall", 2026),
@@ -40,11 +45,24 @@ class Command(BaseCommand):
         "Create or reset the demo cast: faculty_alice (due), faculty_bob (overdue), "
         "faculty_carol (not due), faculty_dave (undetermined), committee_demo, "
         "their CS courses, and the active Fall 2026 cycle. Safe to run again. "
-        "Existing signups, pairings and observations are kept."
+        "Existing signups, pairings and observations are kept unless --reset is given."
     )
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--reset",
+            action="store_true",
+            help=(
+                "Delete every signup, invitation, pairing, observation, survey and "
+                "notification that involves the demo cast, so faculty_alice starts unregistered."
+            ),
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if options["reset"]:
+            self.clear_demo_activity()
+
         department, _ = Department.objects.update_or_create(
             department_code="CS",
             defaults={"name": "Computer Science"},
@@ -82,3 +100,16 @@ class Command(BaseCommand):
             f"Seeded {len(users)} users and {len(COURSES)} courses. "
             "Use one as X-Demo-Username, for example faculty_alice."
         ))
+
+    def clear_demo_activity(self):
+        cast = User.objects.filter(username__in=[p["username"] for p in [*FACULTY, COMMITTEE]])
+        pairings = Pairing.objects.filter(Q(observer__in=cast) | Q(observee__in=cast))
+        signups = Signup.objects.filter(user__in=cast)
+
+        Survey.objects.filter(Q(pairing__in=pairings) | Q(respondent__in=cast)).delete()
+        Observation.objects.filter(pairing__in=pairings).delete()
+        pairings.delete()
+        Invitation.objects.filter(Q(sender__in=cast) | Q(recipient__in=cast)).delete()
+        EvaluationCarryForward.objects.filter(Q(source_signup__in=signups) | Q(created_by__in=cast)).delete()
+        signups.delete()
+        Notification.objects.filter(user__in=cast).delete()

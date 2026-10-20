@@ -65,6 +65,16 @@ def current_courses(professor, cycle):
     )
 
 
+def notify_course_selected(signup):
+    Notification.objects.create(
+        user=signup.user,
+        title="Course selection saved",
+        message=f"{signup.course} is your course for the {signup.cycle.semester} evaluation cycle.",
+        type="registration",
+        destination="/dashboard",
+    )
+
+
 @api_view(["GET"])
 def my_professor(request):
     professor = get_current_professor(request)
@@ -149,6 +159,8 @@ def create_signup(request):
         raise ValidationError({
             "detail": "Already registered. Use the course selection endpoint to change courses."
         })
+    if created and course is not None:
+        notify_course_selected(signup)
     return Response(
         SignupSerializer(signup).data,
         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
@@ -172,8 +184,10 @@ def select_signup_course(request):
         raise ValidationError({"detail": "Course selection is locked after matches are released."})
     if timezone.localdate() > cycle.signup_deadline:
         raise ValidationError({"detail": "The course signup deadline has passed."})
-    signup.course = course
-    signup.save(update_fields=["course"])
+    if signup.course_id != course.pk:
+        signup.course = course
+        signup.save(update_fields=["course"])
+        notify_course_selected(signup)
     return Response(SignupSerializer(signup).data)
 
 
