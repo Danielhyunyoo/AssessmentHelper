@@ -43,6 +43,8 @@ class CourseSerializer(serializers.ModelSerializer):
             "course_level",
             "section",
             "schedule",
+            "title",
+            "classroom",
         ]
 
 
