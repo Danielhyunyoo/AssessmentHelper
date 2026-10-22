@@ -1,36 +1,69 @@
-import { useEffect, useState } from "react";
-import { facultyApi } from "./api/endpoints";
-import { ApiError, getDemoUsername, isMockMode, setDemoUsername } from "./api/http";
-import type { FacultyDashboard, NotificationsResponse } from "./api/types";
-import { mockDashboard, mockNotifications } from "./mock/data";
+// src/App.tsx
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+
+//PAGES FOR THIS WEEK'S DEMO
+import L01Home from "./pages/login/L01Home";
+import S01FacultyDashboard from "./pages/shared/S01FacultyDashboard";
+import S03FacultyNotifications from "./pages/shared/S03FacultyNotifications";
+import E01CourseSelection from "./pages/observee/E01CourseSelection";
+import E02ObserverSelection from "./pages/observee/E02ObserverSelection";
+import A01CommitteeDashboard from "./pages/committee/A01CommitteeDashboard";
+import A02FacultyMatching from "./pages/committee/A02FacultyMatching";
+import A03UnmatchedObservees from "./pages/committee/A03UnmatchedObservees";
+
+// Temporary fallback component for pages not yet coded
+function PlaceholderPage() {
+  return (
+    <div>
+      <h2>Page Under Construction</h2>
+      <p>This page wireframe is connected and ready to be coded!</p>
+    </div>
+  );
+}
 
 export default function App() {
- const [who,setWho] = useState(getDemoUsername());
- const [dashboard,setDashboard] = useState<FacultyDashboard|null>(null);
- const [notifications,setNotifications] = useState<NotificationsResponse|null>(null);
- const [error,setError] = useState("");
- const [loading,setLoading] = useState(false);
- async function load() {
-   setLoading(true);setError("");
-   try {
-    const [d,n] = isMockMode() ? [mockDashboard,mockNotifications] : await Promise.all([facultyApi.dashboard(),facultyApi.notifications()]);
-    setDashboard(d);setNotifications(n);
-   } catch(e) {setError(e instanceof ApiError ? `HTTP ${e.status}: ${e.message}` : String(e));}
-   finally{setLoading(false);}
- }
- useEffect(()=>{void load();},[]);
- return <main className="container">
- <h1>Assessment Helper — Integration Starter</h1>
- <p>This is a working integration example, <strong>not</strong> the final page designs. It verifies that React can display backend data.</p>
- <div className="toolbar"><label>Local demo user <select value={who} onChange={e=>{setWho(e.target.value);setDemoUsername(e.target.value);}} disabled={isMockMode()}>
- <option value="faculty_alice">faculty_alice</option><option value="faculty_bob">faculty_bob</option><option value="faculty_carol">faculty_carol</option><option value="committee_demo">committee_demo</option>
- </select></label><button onClick={()=>void load()} disabled={loading}>{loading?"Loading…":"Reload data"}</button><span>{isMockMode()?"MOCK mode":"DJANGO mode"}</span></div>
- {error && <p role="alert" className="error">{error}</p>}
- {dashboard && <section><h2>Faculty Dashboard (S01)</h2><p>Cycle: <strong>{dashboard.cycle.name}</strong> · Evaluation: <strong>{dashboard.evaluation_status}</strong></p>
- <p>Course: {dashboard.selected_course ? `${dashboard.selected_course.department_code} ${dashboard.selected_course.course_number}.${dashboard.selected_course.section}` : "Not selected"}</p>
- <p>Unread notifications: {dashboard.unread_notifications} · Incoming requests: {dashboard.incoming_requests}</p>
- <h3>Modules</h3><ul>{Object.entries(dashboard.modules).map(([key,value])=><li key={key}>{key}: {value.available?"Available":value.reason||"Unavailable"}</li>)}</ul></section>}
- {notifications && <section><h2>Notifications (S03)</h2><p>Unread: {notifications.unread_count}</p><ul>{notifications.notifications.map(n=><li key={n.notification_id}><strong>{n.title}</strong>: {n.message} {n.is_read?"(read)":"(unread)"}</li>)}</ul></section>}
- <p className="footer">Use src/api/endpoints.ts for the rest of the 23 pages. See docs/PAGE_MAPPING.md for each page's functions.</p>
- </main>;
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Parent Route with Layout (Header -> Main/Outlet -> Footer -> Navigation Helper) */}
+        <Route element={<Layout />}>
+          
+          {/* Login Section */}
+          <Route path="/" element={<L01Home />} />
+          <Route path="/login/signin" element={<PlaceholderPage />} />
+          <Route path="/login/faculty-registration" element={<PlaceholderPage />} />
+
+          {/* Shared Section */}
+          <Route path="/shared/faculty-dashboard" element={<S01FacultyDashboard />} />
+          <Route path="/shared/profile" element={<PlaceholderPage />} />
+          <Route path="/shared/notifications" element={<S03FacultyNotifications />} />
+
+          {/* Observee Section */}
+          <Route path="/observee/course-selection" element={<E01CourseSelection />} />
+          <Route path="/observee/observer-selection" element={<E02ObserverSelection />} />
+          <Route path="/observee/observation-record" element={<PlaceholderPage />} />
+          <Route path="/observee/post-evaluation-survey" element={<PlaceholderPage />} />
+          <Route path="/observee/current-past-observations" element={<PlaceholderPage />} />
+
+          {/* Observer Section */}
+          <Route path="/observer/active-observations" element={<PlaceholderPage />} />
+          <Route path="/observer/observation-request" element={<PlaceholderPage />} />
+          <Route path="/observer/observation-record-observer" element={<PlaceholderPage />} />
+          <Route path="/observer/post-evaluation-survey" element={<PlaceholderPage />} />
+
+          {/* Assessment Committee Section */}
+          <Route path="/committee/dashboard" element={<A01CommitteeDashboard />} />
+          <Route path="/committee/faculty-matching" element={<A02FacultyMatching />} />
+          <Route path="/committee/unmatched-observees" element={<A03UnmatchedObservees />} />
+          <Route path="/committee/faculty-roster" element={<PlaceholderPage />} />
+          <Route path="/committee/pending-records" element={<PlaceholderPage />} />
+          <Route path="/committee/survey-tracking" element={<PlaceholderPage />} />
+          <Route path="/committee/kpi-overview" element={<PlaceholderPage />} />
+          <Route path="/committee/form-editor" element={<PlaceholderPage />} />
+
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
 }

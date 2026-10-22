@@ -1,5 +1,11 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import "./style.css";
-createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
+// src/main.tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './style.css' // <-- Import your global stylesheet here once
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
