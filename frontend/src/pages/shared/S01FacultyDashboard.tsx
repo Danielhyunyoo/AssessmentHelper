@@ -57,17 +57,9 @@ export default function S01FacultyDashboard() {
               {dashboard.has_selected_course ? "Saved" : "Not selected"}
             </p>
             <p>
-              <strong>Unread notifications:</strong>{" "}
-              {dashboard.unread_notifications}
-            </p>
-
-            <p>
-              <Link to="/observee/course-selection">
-                Go to course selection
-              </Link>
-              {" | "}
               <Link to="/shared/notifications">
-                View notifications
+                <strong>Unread notifications:</strong>{" "}
+                {dashboard.unread_notifications}
               </Link>
             </p>
           </>
