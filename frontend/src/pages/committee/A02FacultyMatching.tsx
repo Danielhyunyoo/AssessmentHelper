@@ -1,0 +1,116 @@
+// src/pages/committee/A02FacultyMatching.tsx
+import { useState } from "react";
+import { Link } from "react-router-dom";
+
+export default function A02FacultyMatching() {
+  const observeeList = ["Professor A", "Professor B", "Professor C"];
+  const observerOptions = ["Professor D", "Professor E", "Professor F", "Professor G", "Professor H"];
+
+  return (
+    <div className="dashboard-container">
+      <h2>Observer Selection and Matching</h2>
+
+      {/* Top Banner Card: Manage Course Registrations */}
+      <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
+        <h3>Manage Course Registrations</h3>
+        <p style={{ marginTop: "0.5rem" }}>
+          <strong>Current Status:</strong> 🟢 COURSE REGISTRATION CURRENTLY OPEN <br />
+          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>(Open until Oct 9, 2026 at 11:59 PM)</span>
+        </p>
+        <p style={{ marginTop: "0.5rem" }}>
+          <strong>Next Scheduled Action:</strong> Auto-Lock Course Registrations and Generate Matches on Oct 10, 2026
+        </p>
+        <button type="button" className="secondary-btn" style={{ marginTop: "1rem" }}>
+          Edit Course Registration Dates
+        </button>
+      </section>
+
+      {/* Section 2: Manual Observer-Observee Matching */}
+      <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
+        <h3>Manual Observer-Observee Matching</h3>
+
+        <div className="yellow-banner">
+          <strong>IMPORTANT:</strong> The following Observees have either 0 or insufficient Observers currently matched to them. Please ensure each Observee has 5 Observers assigned. Manually select eligible Observers from the dropdowns below.
+        </div>
+
+        <div className="table-container theme-green" style={{ padding: "1.25rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem" }}>
+            {observeeList.map((obs, idx) => (
+              <div key={idx} style={{ backgroundColor: "#fff7ed", padding: "1rem", borderRadius: "6px", border: "1px solid #fed7aa" }}>
+                <h4>Observee Name</h4>
+                <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.75rem" }}>{obs}</p>
+
+                <strong>List of Available Observers</strong>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+                  {[1, 2, 3, 4, 5].map((slot) => (
+                    <select key={slot} style={{ padding: "0.3rem", borderRadius: "4px", border: "1px solid #cbd5e1" }}>
+                      <option value="">Select observer {slot}...</option>
+                      {observerOptions.map((o, i) => (
+                        <option key={i} value={o}>{o}</option>
+                      ))}
+                    </select>
+                  ))}
+                </div>
+
+                <button type="button" className="secondary-btn" style={{ marginTop: "1rem", width: "100%" }}>
+                  Confirm Matches
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 3: Review and Approve Existing Matched Lists */}
+      <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
+        <h3>Review and Approve Existing Observer-Observee Matched Lists</h3>
+
+        <div className="yellow-banner">
+          <strong>NOTE:</strong> Course registration closed on October 9. Below are the system-generated matched observer lists ready for review, manual override, and notification dispatch to Observees.
+        </div>
+
+        <div className="table-container theme-blue" style={{ padding: "1.25rem" }}>
+          <p style={{ marginBottom: "1rem", fontWeight: "600" }}>
+            Review the following completed matched lists. Select each Observee you'd like to notify about their successful matches:
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem" }}>
+            {["Professor D", "Professor E", "Professor F"].map((obsName, idx) => (
+              <div key={idx} style={{ backgroundColor: "#f0fdf4", padding: "1rem", borderRadius: "6px", border: "1px solid #bbf7d0" }}>
+                <h4>Observee Name</h4>
+                <p style={{ fontSize: "0.9rem", color: "#64748b" }}>{obsName}</p>
+                <span style={{ fontSize: "0.8rem", color: "#15803d", fontWeight: "700" }}>CS 4349.002</span>
+
+                <strong style={{ display: "block", marginTop: "0.75rem" }}>List of Matched Observers</strong>
+                <ul style={{ paddingLeft: "1.25rem", fontSize: "0.85rem", marginTop: "0.25rem" }}>
+                  {observerOptions.map((o, i) => (
+                    <li key={i}>{o}</li>
+                  ))}
+                </ul>
+
+                <button type="button" className="primary-btn" style={{ marginTop: "1rem", width: "100%" }}>
+                  Select
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button type="button" className="secondary-btn">Select All</button>
+            <button type="button" className="secondary-btn">Deselect All</button>
+          </div>
+
+          <button type="button" className="primary-btn">Send Notifications</button>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}>
+          <Link to="/committee/dashboard" className="secondary-btn">
+            Back to Assessment Committee Dashboard
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+}

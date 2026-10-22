@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UTD Assessment Helper - OPEN_ME</title>
+  <style>
+    /* Minimal structural layout CSS - page styling left unstyled for stylesheet implementation */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      color: #111;
+      background-color: #fff;
+    }
+
+    /* Strict Header -> Main -> Footer document flow */
+    header {
+      width: 100%;
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      padding: 1.5rem;
+    }
+
+    footer {
+      width: 100%;
+      margin-top: auto;
+    }
+
+    /* Fixed Navigation Helper Widget in Bottom-Right Corner */
+    .nav-helper-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      background-color: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      z-index: 9999;
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    .nav-helper-header {
+      background-color: #f5f5f5;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #e0e0e0;
+      user-select: none;
+    }
+
+    .nav-helper-body {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .nav-helper-title {
+      font-size: 12px;
+      color: #555;
+    }
+
+    .nav-helper-select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #0056b3;
+      border-radius: 6px;
+      font-size: 13px;
+      background-color: #fff;
+      outline: none;
+    }
+
+    .nav-helper-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-helper-buttons button {
+      padding: 6px 14px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background-color: #e8e8e8;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .nav-helper-buttons button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .nav-helper-footer-text {
+      font-size: 11px;
+      color: #666;
+      line-height: 1.3;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Simple structural styling for placeholder cards */
+    .placeholder-view {
+      padding: 2rem;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      text-align: center;
+      margin: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- GLOBAL HEADER -->
+  <header>
+    <div>
+      <a href="#" onclick="navigateTo('L01'); return false;">
+        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M12 8v8M8 12h8'/></svg>" alt="Logo"/>
+        <h1>UTD Assessment Helper</h1>
+      </a>
+      <nav>
+        <a href="#" onclick="navigateTo('L01'); return false;">Home</a>
+        <a href="#" onclick="navigateTo('L02'); return false;">Sign Out</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER (Renders active page) -->
+  <main id="main-content">
+    <!-- Active page HTML will be injected here dynamically -->
+  </main>
+
+  <!-- GLOBAL FOOTER -->
+  <footer>
+    <div>
+      <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M12 8v8M8 12h8'/></svg>" alt="Logo"/>
+      <h1>UTD Assessment Helper</h1>
+    </div>
+    <div>
+      <p>Version 1.0</p>
+    </div>
+    <div>
+      <p>&copy; 2026 My Website. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- FLOATING NAVIGATION HELPER WIDGET -->
+  <aside class="nav-helper-container">
+    <div class="nav-helper-header" onclick="toggleNavHelper()">
+      <span id="nav-toggle-icon">▼</span>
+      <span id="nav-helper-status">Page preview · A01 · 16 of 23</span>
+    </div>
+
+    <div id="nav-helper-body" class="nav-helper-body">
+      <p class="nav-helper-title">Inspect a page</p>
+      
+      <select id="page-select" class="nav-helper-select" onchange="navigateTo(this.value)">
+        <optgroup label="Login">
+          <option value="L01">L01 — Home</option>
+          <option value="L02">L02 — Sign In</option>
+          <option value="L03">L03 — Faculty Registration</option>
+        </optgroup>
+        <optgroup label="Shared">
+          <option value="S01">S01 — Faculty Dashboard</option>
+          <option value="S02">S02 — Profile</option>
+          <option value="S03">S03 — Notifications</option>
+        </optgroup>
+        <optgroup label="Observee">
+          <option value="E01">E01 — Course and Section Selection</option>
+          <option value="E02">E02 — Observer Selection</option>
+          <option value="E03">E03 — Observation Record</option>
+          <option value="E04">E04 — Post-Evaluation Survey</option>
+          <option value="E05">E05 — Current and Past Observations</option>
+        </optgroup>
+        <optgroup label="Observer">
+          <option value="O01">O01 — Active Observations</option>
+          <option value="O02">O02 — Observation Request</option>
+          <option value="O03">O03 — Observation Record</option>
+          <option value="O04">O04 — Post-Evaluation Survey</option>
+        </optgroup>
+        <optgroup label="Assessment Committee">
+          <option value="A01">A01 — Dashboard</option>
+          <option value="A02">A02 — Faculty Matching</option>
+          <option value="A03">A03 — Unmatched Observees</option>
+          <option value="A04">A04 — Faculty Roster</option>
+          <option value="A05">A05 — Pending Records</option>
+          <option value="A06">A06 — Survey Tracking</option>
+          <option value="A07">A07 — Kpi Overview</option>
+          <option value="A08">A08 — Form Editor</option>
+        </optgroup>
+      </select>
+
+      <div class="nav-helper-buttons">
+        <button id="btn-prev" onclick="navigateOffset(-1)">Previous</button>
+        <button id="btn-next" onclick="navigateOffset(1)">Next</button>
+      </div>
+
+      <p class="nav-helper-footer-text">
+        Page loaded with its own sample data. No changes carry between pages.
+      </p>
+    </div>
+  </aside>
+
+  <!-- APPLICATION LOGIC & TEMPLATES -->
+  <script>
+    // List of all 23 application routes
+    const pages = [
+      { id: "L01", name: "Home", group: "Login" },
+      { id: "L02", name: "Sign In", group: "Login" },
+      { id: "L03", name: "Faculty Registration", group: "Login" },
+      { id: "S01", name: "Faculty Dashboard", group: "Shared" },
+      { id: "S02", name: "Profile", group: "Shared" },
+      { id: "S03", name: "Notifications", group: "Shared" },
+      { id: "E01", name: "Course and Section Selection", group: "Observee" },
+      { id: "E02", name: "Observer Selection", group: "Observee" },
+      { id: "E03", name: "Observation Record", group: "Observee" },
+      { id: "E04", name: "Post-Evaluation Survey", group: "Observee" },
+      { id: "E05", name: "Current and Past Observations", group: "Observee" },
+      { id: "O01", name: "Active Observations", group: "Observer" },
+      { id: "O02", name: "Observation Request", group: "Observer" },
+      { id: "O03", name: "Observation Record", group: "Observer" },
+      { id: "O04", name: "Post-Evaluation Survey", group: "Observer" },
+      { id: "A01", name: "Dashboard", group: "Assessment Committee" },
+      { id: "A02", name: "Faculty Matching", group: "Assessment Committee" },
+      { id: "A03", name: "Unmatched Observees", group: "Assessment Committee" },
+      { id: "A04", name: "Faculty Roster", group: "Assessment Committee" },
+      { id: "A05", name: "Pending Records", group: "Assessment Committee" },
+      { id: "A06", name: "Survey Tracking", group: "Assessment Committee" },
+      { id: "A07", name: "Kpi Overview", group: "Assessment Committee" },
+      { id: "A08", name: "Form Editor", group: "Assessment Committee" }
+    ];
+
+    let currentPageIndex = pages.findIndex(p => p.id === "A01");
+
+    // Render A01 Committee Dashboard
+    function renderA01() {
+      return `
+        <div class="dashboard-container">
+          <h2>Assessment Committee Dashboard</h2>
+
+          <!-- Phase 1 -->
+          <section class="dashboard-phase">
+            <h3>Phase 1: Registration & Observer Matching</h3>
+            <div class="reminder-banner">
+              <p>
+                <strong>REMINDER: The last day for Observee course registration is Oct. 9. Observees will be notified about their generated matched lists after this day.</strong>
+              </p>
+            </div>
+
+            <div class="card-grid">
+              <article class="dashboard-card">
+                <a href="#" onclick="navigateTo('A02'); return false;">
+                  <img src="https://placehold.co/400x200/e2e8f0/1e293b?text=Observer+Matching" alt="Observer Selection/Matching" />
+                  <h4>Observer Selection/Matching</h4>
+                  <p>Review automatically and manually-curated matched observer lists</p>
+                  <span class="card-status">MODULE UNLOCKS AFTER SIGN-UP DEADLINE PASSES</span>
+                </a>
+              </article>
+
+              <article class="dashboard-card">
+                <a href="#" onclick="navigateTo('A03'); return false;">
+                  <img src="https://placehold.co/400x200/e2e8f0/1e293b?text=Unmatched+Observees" alt="Unmatched Observees" />
+                  <h4>Unmatched Observees</h4>
+                  <p>Move any Observees with insufficient matched observer candidates to next semester's Due list</p>
+                </a>
+              </article>
+
+              <article class="dashboard-card">
+                <a href="#" onclick="navigateTo('A04'); return false;">
+                  <img src="https://placehold.co/400x200/e2e8f0/1e293b?text=Record+Management" alt="Observation Record Management" />
+                  <h4>Observation Record Management</h4>
+                  <p>Monitor course registrations and dispatch reminders to due or overdue faculty before the Oct 9 cutoff</p>
+                </a>
+              </article>
+            </div>
+          </section>
+
+          <!-- Phase 2 -->
+          <section class="dashboard-phase">
+            <h3>Phase 2: In-Progress Observations</h3>
+            <div class="reminder-banner">
+              <p>
+                <strong>REMINDER: Classroom observations and dual-signed evaluation records must be submitted by Nov 15.</strong>
+              </p>
+            </div>
+
+            <div class="card-grid">
+              <article class="dashboard-card">
+                <a href="#" onclick="navigateTo('A05'); return false;">
+                  <img src="https://placehold.co/400x200/e2e8f0/1e293b?text=Pending+Records" alt="Pending Observation Records" />
+                  <h4>Pending Observation Records</h4>
+                  <p>Remind observees and observers to submit signed records before the deadline.</p>
+                </a>
+              </article>
+            </div>
+          </section>
+
+          <!-- Phase 3 -->
+          <section class="dashboard-phase">
+            <h3>Phase 3: Post-Observation Surveys and KPIs</h3>
+            <div class="reminder-banner">
+              <p>
+                <strong>REMINDER: All Observer/Observee surveys must be completed by Dec 1.</strong>
+              </p>
+            </div>
+
+            <div class="card-grid">
+              <article class="dashboard-card">
+                <a href="#" onclick="navigateTo('A06'); return false;">
+                  <img src="https://placehold.co/400x200/e2e8f0/1e293b?text=Observation+Surveys" alt="Observation Surveys" />
+                  <h4>Observation Surveys</h4>
+                  <p>Remind faculty members to complete their surveys before the deadline</p>
+                  <span class="card-status">MODULE UNLOCKS AFTER NOV 15 DEADLINE</span>
+                </a>
+              </article>
+
+              <article class="dashboard-card">
+                <a href="#" onclick="navigateTo('A07'); return false;">
+                  <img src="https://placehold.co/400x200/e2e8f0/1e293b?text=Generated+KPIs" alt="Generated KPIs" />
+                  <h4>Generated KPIs</h4>
+                  <p>View and download system-generated KPIs</p>
+                  <span class="card-status">FULL MODULE CONTENT AVAILABLE AFTER DEC 1 DEADLINE</span>
+                </a>
+              </article>
+            </div>
+          </section>
+
+          <!-- Form Management -->
+          <section class="dashboard-phase">
+            <h3>Form Management and Alerts</h3>
+
+            <div class="card-grid">
+              <article class="dashboard-card">
+                <a href="#" onclick="navigateTo('A08'); return false;">
+                  <img src="https://placehold.co/400x200/e2e8f0/1e293b?text=Edit+Forms" alt="Edit Evaluation/Survey Forms" />
+                  <h4>Edit Evaluation/Survey Forms</h4>
+                  <p>Create, update or edit post-observation feedback survey forms</p>
+                </a>
+              </article>
+
+              <article class="dashboard-card notification-card">
+                <h4>Alerts and Notifications</h4>
+                <ul>
+                  <li><strong>2 OBSERVEES</strong> have found <strong>0 eligible OBSERVER matches</strong></li>
+                </ul>
+              </article>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    // Render generic placeholder view for unbuilt pages
+    function renderPlaceholder(page) {
+      return `
+        <div class="placeholder-view">
+          <h2>${page.id} — ${page.name}</h2>
+          <p>Section: <strong>${page.group}</strong></p>
+          <br/>
+          <p><em>Page loaded with sample data. Wireframe component ready to be styled via CSS stylesheet.</em></p>
+        </div>
+      `;
+    }
+
+    // Update main container and Widget state
+    function updatePage() {
+      const page = pages[currentPageIndex];
+      const main = document.getElementById("main-content");
+      
+      if (page.id === "A01") {
+        main.innerHTML = renderA01();
+      } else {
+        main.innerHTML = renderPlaceholder(page);
+      }
+
+      // Update Navigation Helper controls
+      document.getElementById("page-select").value = page.id;
+      document.getElementById("nav-helper-status").innerText = `Page preview · ${page.id} · ${currentPageIndex + 1} of ${pages.length}`;
+      document.getElementById("btn-prev").disabled = currentPageIndex === 0;
+      document.getElementById("btn-next").disabled = currentPageIndex === pages.length - 1;
+    }
+
+    function navigateTo(pageId) {
+      const idx = pages.findIndex(p => p.id === pageId);
+      if (idx !== -1) {
+        currentPageIndex = idx;
+        updatePage();
+      }
+    }
+
+    function navigateOffset(offset) {
+      const newIdx = currentPageIndex + offset;
+      if (newIdx >= 0 && newIdx < pages.length) {
+        currentPageIndex = newIdx;
+        updatePage();
+      }
+    }
+
+    function toggleNavHelper() {
+      const body = document.getElementById("nav-helper-body");
+      const icon = document.getElementById("nav-toggle-icon");
+      body.classList.toggle("hidden");
+      icon.innerText = body.classList.contains("hidden") ? "▲" : "▼";
+    }
+
+    // Initialize application on page load
+    window.onload = function() {
+      updatePage();
+    };
+  </script>
+</body>
+</html>
