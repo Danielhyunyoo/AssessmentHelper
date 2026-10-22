@@ -56,18 +56,18 @@ export default function Header() {
               <div className="menu-section">
                 <h4>Switch Dashboards</h4>
                 <Link to="/committee/dashboard" onClick={closeMenu}>
-                  Assessment Committee Dashboard (A01)
+                  Assessment Committee Dashboard
                 </Link>
                 <Link to="/shared/faculty-dashboard" onClick={closeMenu}>
-                  Faculty Dashboard (S01)
+                  Faculty Dashboard
                 </Link>
               </div>
 
               {/* Committee Shortcuts */}
               <div className="menu-section">
                 <h4>Committee Workflows</h4>
-                <Link to="/committee/observer-matching" onClick={closeMenu}>
-                  Observer Matching (A02)
+                <Link to="/committee/faculty-matching" onClick={closeMenu}>
+                  Faculty Matching
                 </Link>
                 <Link to="/committee/unmatched-observees" onClick={closeMenu}>
                   Unmatched Observees
@@ -84,7 +84,7 @@ export default function Header() {
               <div className="menu-section">
                 <h4>Observee & Observer Modules</h4>
                 <Link to="/observee/course-selection" onClick={closeMenu}>
-                  Course Section Selection (E01)
+                  Course Section Selection
                 </Link>
                 <Link to="/observee/current-past-observations" onClick={closeMenu}>
                   Current / Past Observations

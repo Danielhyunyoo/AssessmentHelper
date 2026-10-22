@@ -2,6 +2,15 @@
 import { Link } from "react-router-dom";
 import homeIcon from "../../assets/home_icon.png"; // Make sure home_icon.png is inside src/assets/
 
+import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg"
+import unmatched_observees_card from "../../assets/unmatched_observees_card.jpg"
+import observation_record_management_card from "../../assets/observation_record_management_card.jpg"
+import pending_observation_records_card from "../../assets/pending_observation_records_card.jpg"
+import observation_surveys_card from "../../assets/observation_surveys_card.jpg"
+import kpis_card from "../../assets/kpis_card.jpg"
+import edit_form_card from "../../assets/edit_form_card.jpg"
+
+
 export default function A01CommitteeDashboard() {
   return (
     <div className="dashboard-container">
@@ -20,8 +29,8 @@ export default function A01CommitteeDashboard() {
         <div className="card-grid">
           {/* Card 1 */}
           <article className="dashboard-card">
-            <Link to="/committee/observer-matching">
-              <img src="/placeholder-observer-matching.png" alt="Observer Selection and Matching" />
+            <Link to="/committee/faculty-matching">
+              <img src={observer_selection_matching_card} alt="Observer Selection and Matching" />
               <h4>Observer Selection/Matching</h4>
               <p>Review automatically and manually-curated matched observer lists</p>
               <span className="card-status">MODULE UNLOCKS AFTER SIGN-UP DEADLINE PASSES</span>
@@ -31,7 +40,7 @@ export default function A01CommitteeDashboard() {
           {/* Card 2 */}
           <article className="dashboard-card">
             <Link to="/committee/unmatched-observees">
-              <img src="/placeholder-unmatched.png" alt="Unmatched Observees" />
+              <img src={unmatched_observees_card} alt="Unmatched Observees" />
               <h4>Unmatched Observees</h4>
               <p>Move any Observees with insufficient matched observer candidates to next semester's Due list</p>
             </Link>
@@ -40,7 +49,7 @@ export default function A01CommitteeDashboard() {
          {/* Card 3 */}
           <article className="dashboard-card">
             <Link to="/committee/faculty-roster">
-              <img src="/placeholder-record-management.png" alt="Observation Record Management" />
+              <img src={observation_record_management_card} alt="Observation Record Management" />
               <h4>Observation Record Management</h4>
               <p>Monitor course registrations and dispatch reminders to due or overdue faculty before the Oct 9 cutoff</p>
             </Link>
@@ -61,7 +70,7 @@ export default function A01CommitteeDashboard() {
           {/* Card 1 */}
           <article className="dashboard-card">
             <Link to="/committee/pending-records">
-              <img src="/placeholder-pending-records.png" alt="Pending Observation Records" />
+              <img src={pending_observation_records_card} alt="Pending Observation Records" />
               <h4>Pending Observation Records</h4>
               <p>Remind observees and observers to submit signed records before the deadline.</p>
             </Link>
@@ -82,7 +91,7 @@ export default function A01CommitteeDashboard() {
           {/* Card 1 */}
           <article className="dashboard-card">
             <Link to="/committee/survey-tracking">
-              <img src="/placeholder-surveys.png" alt="Observation Surveys" />
+              <img src={observation_surveys_card} alt="Observation Surveys" />
               <h4>Observation Surveys</h4>
               <p>Remind faculty members to complete their surveys before the deadline</p>
               <span className="card-status">MODULE UNLOCKS AFTER NOV 15 DEADLINE</span>
@@ -92,7 +101,7 @@ export default function A01CommitteeDashboard() {
           {/* Card 2 */}
           <article className="dashboard-card">
             <Link to="/committee/kpi-overview">
-              <img src="/placeholder-kpis.png" alt="Generated KPIs" />
+              <img src={kpis_card} alt="Generated KPIs" />
               <h4>Generated KPIs</h4>
               <p>View and download system-generated KPIs</p>
               <span className="card-status">FULL MODULE CONTENT AVAILABLE AFTER DEC 1 DEADLINE</span>
@@ -109,7 +118,7 @@ export default function A01CommitteeDashboard() {
           {/* Card 1 */}
           <article className="dashboard-card">
             <Link to="/committee/form-editor">
-              <img src="/placeholder-form-editor.png" alt="Edit Evaluation and Survey Forms" />
+              <img src={edit_form_card} alt="Edit Evaluation and Survey Forms" />
               <h4>Edit Evaluation/Survey Forms</h4>
               <p>Create, update or edit post-observation feedback survey forms</p>
             </Link>

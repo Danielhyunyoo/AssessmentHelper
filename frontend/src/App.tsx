@@ -9,6 +9,7 @@ import E01CourseSelection from "./pages/observee/E01CourseSelection";
 import E02ObserverSelection from "./pages/observee/E02ObserverSelection";
 import A01CommitteeDashboard from "./pages/committee/A01CommitteeDashboard";
 import A02FacultyMatching from "./pages/committee/A02FacultyMatching";
+import A03UnmatchedObservees from "./pages/committee/A03UnmatchedObservees";
 
 
 // Temporary fallback component for pages not yet coded
@@ -54,7 +55,7 @@ export default function App() {
           {/* Assessment Committee Section */}
           <Route path="/committee/dashboard" element={<A01CommitteeDashboard />} />
           <Route path="/committee/faculty-matching" element={<A02FacultyMatching />} />
-          <Route path="/committee/unmatched-observees" element={<PlaceholderPage />} />
+          <Route path="/committee/unmatched-observees" element={<A03UnmatchedObservees />} />
           <Route path="/committee/faculty-roster" element={<PlaceholderPage />} />
           <Route path="/committee/pending-records" element={<PlaceholderPage />} />
           <Route path="/committee/survey-tracking" element={<PlaceholderPage />} />

@@ -1,10 +1,53 @@
 // src/pages/committee/A02FacultyMatching.tsx
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function A02FacultyMatching() {
   const observeeList = ["Professor A", "Professor B", "Professor C"];
   const observerOptions = ["Professor D", "Professor E", "Professor F", "Professor G", "Professor H"];
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  // Date State only (YYYY-MM-DD)
+  const [startDate, setStartDate] = useState<string>("2026-09-13");
+  const [endDate, setEndDate] = useState<string>("2026-10-09");
+
+  // Display strings for status summary
+  const [displayStartDate, setDisplayStartDate] = useState<string>("Sep 13, 2026");
+  const [displayEndDate, setDisplayEndDate] = useState<string>("Oct 9, 2026 at 11:59 PM");
+
+  const handleOpenModal = () => setIsModalOpen(true);
+  const handleCloseModal = () => setIsModalOpen(false);
+
+  const handleSaveDates = () => {
+    // Automatically enforce fixed times: 12:00 AM for start, 11:59 PM for end
+    const fullStartDateTime = `${startDate}T00:00`;
+    const fullEndDateTime = `${endDate}T23:59`;
+
+    // Format dates for display
+    const startObj = new Date(fullStartDateTime);
+    const endObj = new Date(fullEndDateTime);
+
+    if (!isNaN(startObj.getTime()) && !isNaN(endObj.getTime())) {
+      setDisplayStartDate(
+        startObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      );
+      setDisplayEndDate(
+        endObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+          " at 11:59 PM"
+      );
+    }
+
+    // SQL Integration payload with locked times
+    const sqlPayload = {
+      registrationOpen: fullStartDateTime, // YYYY-MM-DDTHH:mm (00:00)
+      registrationClose: fullEndDateTime, // YYYY-MM-DDTHH:mm (23:59)
+    };
+    console.log("Saving new registration date window to SQL:", sqlPayload);
+
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="dashboard-container">
@@ -15,12 +58,19 @@ export default function A02FacultyMatching() {
         <h3>Manage Course Registrations</h3>
         <p style={{ marginTop: "0.5rem" }}>
           <strong>Current Status:</strong> 🟢 COURSE REGISTRATION CURRENTLY OPEN <br />
-          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>(Open until Oct 9, 2026 at 11:59 PM)</span>
+          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+            (Open from {displayStartDate} until {displayEndDate})
+          </span>
         </p>
         <p style={{ marginTop: "0.5rem" }}>
           <strong>Next Scheduled Action:</strong> Auto-Lock Course Registrations and Generate Matches on Oct 10, 2026
         </p>
-        <button type="button" className="secondary-btn" style={{ marginTop: "1rem" }}>
+        <button
+          type="button"
+          className="secondary-btn"
+          style={{ marginTop: "1rem" }}
+          onClick={handleOpenModal}
+        >
           Edit Course Registration Dates
         </button>
       </section>
@@ -111,6 +161,50 @@ export default function A02FacultyMatching() {
           </Link>
         </div>
       </section>
+
+      {/* Date Control Modal Popup */}
+      {isModalOpen && (
+        <div className="modal-backdrop" onClick={handleCloseModal}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Edit Course Registration Dates</h3>
+
+            <div className="modal-field">
+              <label htmlFor="reg-opens">
+                Registration opens <span style={{ fontSize: "0.8rem", color: "#64748b" }}>(12:00 AM fixed)</span>
+              </label>
+              <input
+                id="reg-opens"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="modal-input"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label htmlFor="reg-closes">
+                Registration closes <span style={{ fontSize: "0.8rem", color: "#64748b" }}>(11:59 PM fixed)</span>
+              </label>
+              <input
+                id="reg-closes"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="modal-input"
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="modal-btn-secondary" onClick={handleCloseModal}>
+                Close
+              </button>
+              <button type="button" className="modal-btn-primary" onClick={handleSaveDates}>
+                Save Dates
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

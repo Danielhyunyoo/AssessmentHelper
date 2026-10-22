@@ -85,35 +85,35 @@ export default function NavigationHelper(): React.ReactElement {
             <optgroup label="Login">
               {allPages.slice(0, 3).map((p) => (
                 <option key={p.id} value={p.path}>
-                  {p.id} — {p.name}
+                  {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Shared">
               {allPages.slice(3, 6).map((p) => (
                 <option key={p.id} value={p.path}>
-                  {p.id} — {p.name}
+                  {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Observee">
               {allPages.slice(6, 11).map((p) => (
                 <option key={p.id} value={p.path}>
-                  {p.id} — {p.name}
+                  {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Observer">
               {allPages.slice(11, 15).map((p) => (
                 <option key={p.id} value={p.path}>
-                  {p.id} — {p.name}
+                  {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Assessment Committee">
               {allPages.slice(15).map((p) => (
                 <option key={p.id} value={p.path}>
-                  {p.id} — {p.name}
+                  {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
