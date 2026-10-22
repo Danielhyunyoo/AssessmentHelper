@@ -5,12 +5,12 @@ import Layout from "./components/Layout";
 //PAGES FOR THIS WEEK'S DEMO
 import L01Home from "./pages/login/L01Home";
 import S01FacultyDashboard from "./pages/shared/S01FacultyDashboard";
+import S03FacultyNotifications from "./pages/shared/S03FacultyNotifications";
 import E01CourseSelection from "./pages/observee/E01CourseSelection";
 import E02ObserverSelection from "./pages/observee/E02ObserverSelection";
 import A01CommitteeDashboard from "./pages/committee/A01CommitteeDashboard";
 import A02FacultyMatching from "./pages/committee/A02FacultyMatching";
 import A03UnmatchedObservees from "./pages/committee/A03UnmatchedObservees";
-
 
 // Temporary fallback component for pages not yet coded
 function PlaceholderPage() {
@@ -37,7 +37,7 @@ export default function App() {
           {/* Shared Section */}
           <Route path="/shared/faculty-dashboard" element={<S01FacultyDashboard />} />
           <Route path="/shared/profile" element={<PlaceholderPage />} />
-          <Route path="/shared/notifications" element={<PlaceholderPage />} />
+          <Route path="/shared/notifications" element={<S03FacultyNotifications />} />
 
           {/* Observee Section */}
           <Route path="/observee/course-selection" element={<E01CourseSelection />} />

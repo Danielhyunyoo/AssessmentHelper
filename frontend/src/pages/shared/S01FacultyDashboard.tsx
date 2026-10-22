@@ -1,4 +1,7 @@
 // src/pages/shared/S01FacultyDashboard.tsx
+import { useEffect, useState } from "react";
+import { facultyApi } from "../../api/endpoints";
+import type { FacultyDashboard } from "../../api/types";
 import { Link } from "react-router-dom";
 
 import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg"
@@ -9,10 +12,67 @@ import course_and_section_selection_card from "../../assets/course_and_section_s
 import active_observations_card from "../../assets/active_observations_card.jpg";
 
 export default function S01FacultyDashboard() {
+  const [dashboard, setDashboard] = useState<FacultyDashboard | null>(null);
+  const [dashboardError, setDashboardError] = useState("");
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+
+  useEffect(() => {
+    facultyApi.dashboard()
+      .then(setDashboard)
+      .catch((err: unknown) => {
+        setDashboardError(
+          err instanceof Error
+            ? err.message
+            : "Could not load dashboard information."
+        );
+      })
+      .finally(() => setDashboardLoading(false));
+  }, []);
   return (
     <div className="dashboard-container">
 
       <h2>Faculty Dashboard</h2>
+      <section className="dashboard-phase">
+        <h3>Current Registration</h3>
+
+        {dashboardLoading && <p>Loading registration status...</p>}
+
+        {dashboardError && (
+          <p role="alert">
+            Could not load live dashboard data: {dashboardError}
+          </p>
+        )}
+
+        {dashboard && (
+          <>
+            <p>
+              <strong>Evaluation cycle:</strong> {dashboard.cycle.name}
+            </p>
+            <p>
+              <strong>Registration:</strong>{" "}
+              {dashboard.is_registered ? "Registered" : "Not registered"}
+            </p>
+            <p>
+              <strong>Course selection:</strong>{" "}
+              {dashboard.has_selected_course ? "Saved" : "Not selected"}
+            </p>
+            <p>
+              <strong>Unread notifications:</strong>{" "}
+              {dashboard.unread_notifications}
+            </p>
+
+            <p>
+              <Link to="/observee/course-selection">
+                Go to course selection
+              </Link>
+              {" | "}
+              <Link to="/shared/notifications">
+                View notifications
+              </Link>
+            </p>
+          </>
+        )}
+      </section>
 
       {/* General Modules Section */}
       <section className="dashboard-phase">

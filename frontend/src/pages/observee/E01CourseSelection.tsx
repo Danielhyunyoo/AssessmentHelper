@@ -1,178 +1,240 @@
 // src/pages/observee/E01CourseSectionSelection.tsx
-import { useState, useRef } from "react";
-import DataTable, { Column } from "../../components/DataTable";
-import Calendar, { DayOfWeek } from "../../components/Calendar";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { facultyApi } from "../../api/endpoints";
+import type { Course, RegistrationStatus } from "../../api/types";
 
-interface CourseSection {
-  id: string;
-  className: string;
-  section: string;
-  meetingTimes: string;
-  lastObservationDate: string;
-  allowedDays: DayOfWeek[];
+function formatDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString();
 }
 
-const sampleSections: CourseSection[] = [
-  { 
-    id: "1", 
-    className: "CS 4349", 
-    section: "Sec 002", 
-    meetingTimes: "MW 1:00 PM - 2:15 PM", 
-    lastObservationDate: "XX/XX/XXXX",
-    allowedDays: ["Mon", "Wed"] 
-  },
-  { 
-    id: "2", 
-    className: "CS 4349", 
-    section: "Sec 004", 
-    meetingTimes: "MW 2:30 PM - 3:45 PM", 
-    lastObservationDate: "XX/XX/XXXX",
-    allowedDays: ["Mon", "Wed"] 
-  },
-  { 
-    id: "3", 
-    className: "CS 4349", 
-    section: "Sec 005", 
-    meetingTimes: "TTh 1:00 PM - 2:15 PM", 
-    lastObservationDate: "XX/XX/XXXX",
-    allowedDays: ["Tue", "Thu"] 
-  },
-];
+function courseName(course: Course) {
+  return `${course.department_code} ${course.course_number}${
+    course.title ? ` — ${course.title}` : ""
+  }`;
+}
 
-export default function E01CourseSectionSelection() {
-  const [selectedSectionId, setSelectedSectionId] = useState<string>("1");
-  const [confirmedSectionId, setConfirmedSectionId] = useState<string>("1");
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [showCalendarSection, setShowCalendarSection] = useState<boolean>(false);
+export default function E01CourseSelection() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [registration, setRegistration] =
+    useState<RegistrationStatus | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // Refs for smooth scrolling
-  const topRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  async function loadPage() {
+    setLoading(true);
+    setError("");
 
-  const currentSection = sampleSections.find((s) => s.id === confirmedSectionId) || sampleSections[0];
+    try {
+      const [courseData, statusData] = await Promise.all([
+        facultyApi.courses(),
+        facultyApi.registrationStatus(),
+      ]);
 
-  const columns: Column<CourseSection>[] = [
-    {
-      header: "Select",
-      width: "60px",
-      render: (row: CourseSection) => (
-        <input
-          type="radio"
-          name="courseSection"
-          checked={selectedSectionId === row.id}
-          onChange={() => setSelectedSectionId(row.id)}
-        />
-      ),
-    },
-    { header: "Class Name", accessor: "className" },
-    { header: "Section", accessor: "section" },
-    { header: "Meeting Times", accessor: "meetingTimes" },
-    { header: "Last Observation Date", accessor: "lastObservationDate" },
-  ];
+      setCourses(courseData);
+      setRegistration(statusData);
 
-  const handleConfirmClass = () => {
-    // If the user selected a different course than before, reset the dates
-    if (selectedSectionId !== confirmedSectionId) {
-      setConfirmedSectionId(selectedSectionId);
-      setSelectedDates([]);
+      // Keep the backend's saved selection when reopening or refreshing.
+      setSelectedCourseId(statusData.selected_course_id ?? "");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load registration information."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadPage();
+  }, []);
+
+  async function handleSave() {
+    if (selectedCourseId === "") {
+      setError("Please select a course section first.");
+      return;
     }
 
-    setShowCalendarSection(true);
-    setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  };
+    setSaving(true);
+    setError("");
+    setSuccess("");
 
-  const handleScrollToTop = () => {
-    topRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+    try {
+      // The backend requires cycle registration before course selection.
+      if (!registration?.is_registered) {
+        await facultyApi.register();
+      }
 
-  const handleSaveToDatabase = async () => {
-    const payload = {
-      sectionId: currentSection.id,
-      courseName: currentSection.className,
-      sectionNumber: currentSection.section,
-      selectedObservationDates: selectedDates,
-    };
+      // Save the actual course ID returned by Django.
+      await facultyApi.selectCourse(selectedCourseId);
 
-    console.log("Submitting to SQL Database:", payload);
-    alert(`Successfully saved ${selectedDates.length} dates for ${currentSection.className} (${currentSection.section})!`);
-  };
+      // Reload authoritative state after saving.
+      const [updatedStatus, updatedCourses] = await Promise.all([
+        facultyApi.registrationStatus(),
+        facultyApi.courses(),
+      ]);
+
+      setRegistration(updatedStatus);
+      setCourses(updatedCourses);
+      setSelectedCourseId(updatedStatus.selected_course_id ?? "");
+
+      setSuccess(
+        "Your course selection was saved. The confirmation notification should now be available."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save your course selection."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const savedCourse = courses.find(
+    (course) => course.course_id === registration?.selected_course_id
+  );
+
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <h2>Course and Section Selection</h2>
+        <p>Loading your registration and course sections...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="dashboard-container" ref={topRef}>
+    <div className="dashboard-container">
       <h2>Course and Section Selection</h2>
 
-      {/* Top Card Section */}
-      <section className="dashboard-phase">
-        <h3>Course Registration for Observation Cycle</h3>
-
-        <div className="yellow-banner">
-          <strong>IMPORTANT:</strong> Course registration closes October 9 at 11:59 PM. You must select and register 1 active course section by this deadline to receive your matched Observer list from the Assessment Committee.
+      {error && (
+        <div role="alert" className="yellow-banner">
+          <strong>Error:</strong> {error}
         </div>
+      )}
 
-        <DataTable
-          themeColor="green"
-          instructionText="Select ONE class section you wish to have observed for the Fall 2026 cycle. This selection determines your course level and schedule for observer matching."
-          columns={columns}
-          data={sampleSections}
-        />
+      {success && (
+        <div role="status" className="yellow-banner">
+          <strong>Success:</strong> {success}
+          <p>
+            <Link to="/shared/notifications">
+              View confirmation notifications
+            </Link>
+          </p>
+        </div>
+      )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button type="button" className="primary-btn" onClick={handleConfirmClass}>
-            Confirm Class and Select Observation Date
+      {registration && (
+        <section className="dashboard-phase">
+          <h3>{registration.cycle_name} Registration</h3>
+
+          <p>
+            <strong>Registration status:</strong>{" "}
+            {registration.is_registered ? "Registered" : "Not registered"}
+          </p>
+
+          <p>
+            <strong>Course selection:</strong>{" "}
+            {registration.has_selected_course
+              ? "Course selected"
+              : "No course selected yet"}
+          </p>
+
+          <p>
+            <strong>Signup deadline:</strong>{" "}
+            {formatDate(registration.signup_deadline)}
+          </p>
+
+          {savedCourse && (
+            <div className="table-instruction">
+              <h3>Your Saved Course</h3>
+              <p>{courseName(savedCourse)}</p>
+              <p>Section: {savedCourse.section}</p>
+              <p>Meeting times: {savedCourse.schedule}</p>
+              <p>Classroom: {savedCourse.classroom || "Not provided"}</p>
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="dashboard-phase">
+        <h3>Select a Course Section</h3>
+        <p>
+          Select one of your current course sections for the active evaluation
+          cycle. Your selection will be saved to the backend.
+        </p>
+
+        {courses.length === 0 ? (
+          <p>
+            No current course sections were returned for your account. Ask the
+            team to check the demo account's course assignments.
+          </p>
+        ) : (
+          <div className="table-container theme-green">
+            <div className="table-scroll-wrapper">
+              <table className="custom-data-table">
+                <thead>
+                  <tr>
+                    <th>Select</th>
+                    <th>Course</th>
+                    <th>Section</th>
+                    <th>Meeting Times</th>
+                    <th>Classroom</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courses.map((course) => (
+                    <tr key={course.course_id}>
+                      <td>
+                        <input
+                          type="radio"
+                          name="course"
+                          value={course.course_id}
+                          checked={selectedCourseId === course.course_id}
+                          onChange={() =>
+                            setSelectedCourseId(course.course_id)
+                          }
+                          disabled={saving}
+                          aria-label={`Select ${courseName(course)}, section ${course.section}`}
+                        />
+                      </td>
+                      <td>{courseName(course)}</td>
+                      <td>{course.section}</td>
+                      <td>{course.schedule}</td>
+                      <td>{course.classroom || "Not provided"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "1rem",
+            marginTop: "1rem",
+          }}
+        >
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={handleSave}
+            disabled={saving || courses.length === 0 || selectedCourseId === ""}
+          >
+            {saving ? "Saving..." : "Save Course Selection"}
           </button>
         </div>
       </section>
-
-      {/* Bottom Registered Course Info Section */}
-      {showCalendarSection && (
-        <section 
-          ref={bottomRef} 
-          className="table-container theme-orange" 
-          style={{ padding: "1.5rem", marginTop: "2rem" }}
-        >
-          <div className="yellow-banner" style={{ marginBottom: "1.5rem" }}>
-            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall before Nov 15. You can select up to 8 dates.
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
-            <div>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>Your Registered Course Information</h3>
-              <p><strong>Course Number and Title:</strong> {currentSection.className} - Computer Science I</p>
-              <p style={{ marginTop: "0.5rem" }}><strong>Course Section:</strong> {currentSection.section}</p>
-              <p style={{ marginTop: "0.5rem" }}><strong>Meeting Days and Times:</strong> {currentSection.meetingTimes}</p>
-              <p style={{ marginTop: "0.5rem" }}><strong>Classroom Location(s):</strong> ECSS 2.412</p>
-              <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "#475569" }}>
-                <em>Selected Dates: {selectedDates.length} / 8 max</em>
-              </p>
-            </div>
-
-            {/* Integrated Calendar Component */}
-            <div>
-              <Calendar
-                selectedDates={selectedDates}
-                onDateSelectionChange={setSelectedDates}
-                allowedDaysOfWeek={currentSection.allowedDays}
-                maxSelections={8}
-                minDate="2026-10-01"
-                maxDate="2026-11-15"
-                initialMonth={9}
-                initialYear={2026}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2rem" }}>
-            <button type="button" className="secondary-btn" onClick={handleScrollToTop}>
-              Select a Different Course or Section
-            </button>
-            <button type="button" className="primary-btn" onClick={handleSaveToDatabase}>
-              Confirm Selected Dates and Continue
-            </button>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
