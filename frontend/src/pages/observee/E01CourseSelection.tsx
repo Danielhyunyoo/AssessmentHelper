@@ -10,7 +10,7 @@ function formatDate(value: string) {
 
 function courseName(course: Course) {
   return `${course.department_code} ${course.course_number}${
-    course.title ? ` — ${course.title}` : ""
+    course.title ? ` - ${course.title}` : ""
   }`;
 }
 
