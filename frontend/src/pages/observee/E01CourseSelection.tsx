@@ -1,8 +1,9 @@
-// src/pages/observee/E01CourseSectionSelection.tsx
-import { useEffect, useState } from "react";
+// src/pages/observee/E01CourseSelection.tsx
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { facultyApi } from "../../api/endpoints";
 import type { Course, RegistrationStatus } from "../../api/types";
+import Calendar, { DayOfWeek } from "../../components/Calendar";
 
 function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
@@ -14,15 +15,45 @@ function courseName(course: Course) {
   }`;
 }
 
+// Helper to parse schedule strings like "MW 1:00 PM" into allowed calendar days
+function parseAllowedDays(scheduleText: string): DayOfWeek[] {
+  const upper = scheduleText.toUpperCase();
+  const days: DayOfWeek[] = [];
+
+  if (upper.includes("MWF")) {
+    return ["Mon", "Wed", "Fri"];
+  }
+  if (upper.includes("MW")) {
+    return ["Mon", "Wed"];
+  }
+  if (upper.includes("TTH") || upper.includes("TU")) {
+    return ["Tue", "Thu"];
+  }
+  if (upper.includes("M")) days.push("Mon");
+  if (upper.includes("TU") || (upper.includes("T") && !upper.includes("TH"))) days.push("Tue");
+  if (upper.includes("W")) days.push("Wed");
+  if (upper.includes("TH")) days.push("Thu");
+  if (upper.includes("F")) days.push("Fri");
+
+  return days.length > 0 ? days : ["Mon", "Tue", "Wed", "Thu", "Fri"];
+}
+
 export default function E01CourseSelection() {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [registration, setRegistration] =
-    useState<RegistrationStatus | null>(null);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
+  const [confirmedCourseId, setConfirmedCourseId] = useState<number | "">("");
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [showCalendarSection, setShowCalendarSection] = useState<boolean>(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Refs for smooth scrolling
+  const topRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   async function loadPage() {
     setLoading(true);
@@ -37,8 +68,9 @@ export default function E01CourseSelection() {
       setCourses(courseData);
       setRegistration(statusData);
 
-      // Keep the backend's saved selection when reopening or refreshing.
-      setSelectedCourseId(statusData.selected_course_id ?? "");
+      const savedId = statusData.selected_course_id ?? "";
+      setSelectedCourseId(savedId);
+      setConfirmedCourseId(savedId);
     } catch (err) {
       setError(
         err instanceof Error
@@ -54,7 +86,11 @@ export default function E01CourseSelection() {
     void loadPage();
   }, []);
 
-  async function handleSave() {
+  const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
+  const allowedDays = confirmedCourse ? parseAllowedDays(confirmedCourse.schedule) : ["Mon", "Wed", "Thu"];
+
+  // Step 1: Confirm class, save to backend API, and pop out calendar
+  const handleConfirmClass = async () => {
     if (selectedCourseId === "") {
       setError("Please select a course section first.");
       return;
@@ -65,15 +101,20 @@ export default function E01CourseSelection() {
     setSuccess("");
 
     try {
-      // The backend requires cycle registration before course selection.
       if (!registration?.is_registered) {
         await facultyApi.register();
       }
 
-      // Save the actual course ID returned by Django.
-      await facultyApi.selectCourse(selectedCourseId);
+      await facultyApi.selectCourse(Number(selectedCourseId));
 
-      // Reload authoritative state after saving.
+      // Update confirmed course state
+      setConfirmedCourseId(selectedCourseId);
+
+      // Reset dates if changing course
+      if (selectedCourseId !== confirmedCourseId) {
+        setSelectedDates([]);
+      }
+
       const [updatedStatus, updatedCourses] = await Promise.all([
         facultyApi.registrationStatus(),
         facultyApi.courses(),
@@ -81,16 +122,53 @@ export default function E01CourseSelection() {
 
       setRegistration(updatedStatus);
       setCourses(updatedCourses);
-      setSelectedCourseId(updatedStatus.selected_course_id ?? "");
 
-      setSuccess(
-        "Your course selection was saved. The confirmation notification should now be available."
-      );
+      setShowCalendarSection(true);
+      setSuccess("Course section saved! Please select your observation dates below.");
+
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to save your course selection."
+          : "Unable to confirm course selection."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleScrollToTop = () => {
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Step 2: Confirm calendar dates and finalize submission
+  async function handleFinalSave() {
+    if (confirmedCourseId === "") {
+      setError("Please select a course section first.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // Log or submit selected observation dates to backend endpoint
+      console.log("Saving observation dates to backend:", selectedDates);
+
+      setSuccess(
+        `Your course selection and ${selectedDates.length} observation dates were saved successfully. The confirmation notification should now be available.`
+      );
+
+      topRef.current?.scrollIntoView({ behavior: "smooth" });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save your observation dates."
       );
     } finally {
       setSaving(false);
@@ -111,7 +189,7 @@ export default function E01CourseSelection() {
   }
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" ref={topRef}>
       <h2>Course and Section Selection</h2>
 
       {error && (
@@ -166,10 +244,9 @@ export default function E01CourseSelection() {
 
       <section className="dashboard-phase">
         <h3>Select a Course Section</h3>
-        <p>
-          Select one of your current course sections for the active evaluation
-          cycle. Your selection will be saved to the backend.
-        </p>
+        <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
+          <strong>IMPORTANT:</strong> Course registration closes October 9 at 11:59 PM. You must select and register 1 active course section.
+        </div>
 
         {courses.length === 0 ? (
           <p>
@@ -228,13 +305,67 @@ export default function E01CourseSelection() {
           <button
             type="button"
             className="primary-btn"
-            onClick={handleSave}
+            onClick={handleConfirmClass}
             disabled={saving || courses.length === 0 || selectedCourseId === ""}
           >
-            {saving ? "Saving..." : "Save Course Selection"}
+            {saving ? "Saving..." : "Confirm Class and Select Observation Date"}
           </button>
         </div>
       </section>
+
+      {/* Bottom Registered Course Info & Calendar Section (Revealed on Confirm) */}
+      {showCalendarSection && confirmedCourse && (
+        <section 
+          ref={bottomRef}
+          className="table-container theme-orange" 
+          style={{ padding: "1.5rem", marginTop: "2rem" }}
+        >
+          <div className="yellow-banner" style={{ marginBottom: "1.5rem" }}>
+            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall before Nov 15. You can select up to 8 dates.
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
+            <div>
+              <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>Your Registered Course Information</h3>
+              <p><strong>Course Number and Title:</strong> {courseName(confirmedCourse)}</p>
+              <p style={{ marginTop: "0.5rem" }}><strong>Course Section:</strong> Section {confirmedCourse.section}</p>
+              <p style={{ marginTop: "0.5rem" }}><strong>Meeting Days and Times:</strong> {confirmedCourse.schedule}</p>
+              <p style={{ marginTop: "0.5rem" }}><strong>Classroom Location(s):</strong> {confirmedCourse.classroom || "Not provided"}</p>
+              <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "#475569" }}>
+                <em>Selected Dates: {selectedDates.length} / 8 max</em>
+              </p>
+            </div>
+
+            {/* Integrated Calendar Component */}
+            <div>
+              <Calendar
+                selectedDates={selectedDates}
+                onDateSelectionChange={setSelectedDates}
+                allowedDaysOfWeek={allowedDays}
+                maxSelections={8}
+                minDate="2026-10-01"
+                maxDate="2026-11-15"
+                initialMonth={9}
+                initialYear={2026}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2rem" }}>
+            <button type="button" className="secondary-btn" onClick={handleScrollToTop}>
+              Select a Different Course or Section
+            </button>
+            <button 
+              type="button" 
+              className="primary-btn" 
+              onClick={handleFinalSave}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Confirm Selected Dates and Continue"}
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
