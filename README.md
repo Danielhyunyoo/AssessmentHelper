@@ -58,9 +58,9 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 | Name | Role |
 |------|------|
-| Daniel Yoo | Team lead, project manager |
-| Christian Garner | Database/integration |
-| Diego Rodrigues | QA/DevOps, Backend/API secondary |
-| Jacob Sanders | Backend/API, QA/DevOps secondary |
+| Daniel Yoo | Team Lead, Project Manager |
+| Christian Garner | Backend/GitHub Lead, Database/integration |
+| Diego Rodrigues | Backend/API, QA/DevOps |
+| Jacob Sanders | Backend/API, QA/DevOps |
 | Montserrat Milke Mosconi | Frontend/UX |
-| Jonathan Darmawan | Frontend/UX secondary, Database secondary |
+| Jonathan Darmawan | Frontend/UX |
