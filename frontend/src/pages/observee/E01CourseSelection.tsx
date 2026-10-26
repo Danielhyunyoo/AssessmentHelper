@@ -304,7 +304,7 @@ export default function E01CourseSelection() {
         >
           <button
             type="button"
-            className="primary-btn"
+            className="e01-btn e01-btn-primary"
             onClick={handleConfirmClass}
             disabled={saving || courses.length === 0 || selectedCourseId === ""}
           >
@@ -352,12 +352,12 @@ export default function E01CourseSelection() {
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2rem" }}>
-            <button type="button" className="secondary-btn" onClick={handleScrollToTop}>
+            <button type="button" className="e01-btn e01-btn-secondary" onClick={handleScrollToTop}>
               Select a Different Course or Section
             </button>
             <button 
               type="button" 
-              className="primary-btn" 
+              className="e01-btn e01-btn-primary" 
               onClick={handleFinalSave}
               disabled={saving}
             >

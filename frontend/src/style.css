@@ -691,3 +691,876 @@ header {
 .modal-btn-primary:hover {
   background-color: #1e293b;
 }
+
+/* ==========================================
+   L01 HOME PAGE STYLES
+   ========================================== */
+
+/* Main outer container */
+.home-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  box-sizing: border-box;
+}
+
+/* Two-column layout grid */
+.home-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4rem;
+}
+
+/* Left text block */
+.home-text {
+  flex: 1;
+  max-width: 480px;
+}
+
+/* Big bold italicized main title matching wireframe */
+.home-title {
+  font-size: 3.25rem;
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1.1;
+  color: #000000;
+  margin: 0 0 1.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+/* Gray italicized body text */
+.home-subtitle {
+  font-size: 1.2rem;
+  font-style: italic;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 2.5rem 0;
+}
+
+/* Black pill-shaped Sign in button */
+.home-signin-btn {
+  display: inline-block;
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-style: italic;
+  font-weight: 600;
+  padding: 0.75rem 2.5rem;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.home-signin-btn:hover {
+  opacity: 0.85;
+}
+
+/* Right image container */
+.home-image-container {
+  flex: 1.2;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Campus image sizing & rounding */
+.campus-img {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+/* Responsive adjustment for small screens */
+@media (max-width: 868px) {
+  .home-content {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  
+  .home-title {
+    font-size: 2.5rem;
+  }
+  
+  .home-text {
+    max-width: 100%;
+  }
+}
+
+/* ==========================================
+   L02 SIGN IN PAGE STYLES
+   ========================================== */
+
+/* Outer page layout centering */
+.signin-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 2rem 1rem;
+}
+
+/* Rounded Card Container */
+.signin-card {
+  width: 100%;
+  max-width: 380px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 2rem;
+  box-sizing: border-box;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Field Group */
+.signin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.signin-field label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.signin-field input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #0f172a;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.signin-field input::placeholder {
+  color: #94a3b8;
+}
+
+.signin-field input:focus {
+  border-color: #0f172a;
+}
+
+/* Checkbox Alignment */
+.signin-checkbox-container {
+  display: flex;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.signin-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+  user-select: none;
+}
+
+.signin-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #27272a;
+  cursor: pointer;
+}
+
+/* Dark Login Button */
+.signin-submit-btn {
+  width: 100%;
+  padding: 0.85rem;
+  background-color: #27272a; /* Dark charcoal matching wireframe */
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.signin-submit-btn:hover:not(:disabled) {
+  background-color: #09090b;
+}
+
+.signin-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error Banner */
+.signin-error-banner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ==========================================
+   L03 FACULTY REGISTRATION STYLES
+   ========================================== */
+
+.registration-card {
+  max-width: 520px;
+  width: 100%;
+  padding: 2rem;
+  text-align: center;
+  background-color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.registration-title {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.registration-list {
+  text-align: left;
+  font-size: 0.9rem;
+  color: #334155;
+  padding-left: 1.25rem;
+  line-height: 1.6;
+}
+
+.registration-list li:first-child {
+  margin-bottom: 0.75rem;
+}
+
+/* Primary Action Buttons (Register & Committee Portal) */
+/* Unified Primary Action Buttons (Register & Committee Portal) */
+.registration-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+  margin-top: 1.25rem;
+  background-color: #0f172a;
+  color: #ffffff;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.registration-btn:hover {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+/* Secondary Link Text */
+.registration-link-container {
+  margin-top: 1rem;
+}
+
+.registration-link {
+  font-size: 0.875rem;
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Committee Section Container */
+.committee-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.committee-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.committee-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0.5rem 0 0 0;
+}
+
+/* ==========================================
+   S02 PROFILE PAGE STYLES
+   ========================================== */
+
+.profile-back-link-wrapper {
+  margin-bottom: 1rem;
+}
+
+.profile-back-link {
+  color: #0f172a;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.profile-back-link:hover {
+  text-decoration: underline;
+}
+
+.profile-page-title {
+  font-size: 2rem;
+  font-weight: 800;
+  font-style: italic;
+  color: #0f172a;
+  margin-bottom: 1.5rem;
+}
+
+/* Main Card Grid */
+.profile-main-card {
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.profile-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+/* Left Info Column */
+.profile-user-name {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+.profile-details-list p {
+  font-size: 0.95rem;
+  color: #334155;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.profile-email-note {
+  background-color: #f8fafc;
+  border-left: 4px solid #94a3b8;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #475569;
+  margin: 1.25rem 0;
+  border-radius: 4px;
+}
+
+.profile-action-btn {
+  margin-top: 0.5rem;
+}
+
+/* Editable Form */
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 480px;
+}
+
+.profile-edit-form h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.profile-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.profile-field-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.profile-field-group input {
+  padding: 0.6rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.profile-field-group input:focus {
+  border-color: #0f172a;
+}
+
+.profile-field-group input.disabled-input {
+  background-color: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.profile-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Photo Column */
+.profile-photo-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-avatar-container {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  background-color: #f1f5f9;
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-photo-btn {
+  width: 100%;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Evaluation Status Card */
+.profile-status-card {
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.profile-status-card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+.profile-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.profile-status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.status-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.status-value.highlight-status {
+  color: #15803d;
+}
+
+/* Bottom Nav Button */
+.profile-bottom-nav {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .profile-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-photo-col {
+    order: -1;
+    margin-bottom: 1rem;
+  }
+}
+
+/* ==========================================
+   PROFILE PAGE BUTTON STYLES
+   ========================================== */
+
+/* Primary Action Button (Solid Black Pill) */
+.profile-action-btn,
+.profile-main-card .primary-btn {
+  display: inline-block;
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: italic;
+  padding: 0.75rem 1.75rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-action-btn:hover,
+.profile-main-card .primary-btn:hover {
+  background-color: #1e293b;
+  transform: translateY(-1px);
+}
+
+/* Secondary Button (Dark Charcoal Pill) */
+.profile-photo-btn,
+.profile-bottom-nav .secondary-btn,
+.profile-main-card .secondary-btn {
+  display: inline-block;
+  background-color: #1e293b; /* Dark charcoal/navy tint matching wireframe */
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-style: italic;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-photo-btn:hover,
+.profile-bottom-nav .secondary-btn:hover,
+.profile-main-card .secondary-btn:hover {
+  background-color: #0f172a;
+  transform: translateY(-1px);
+}
+
+/* ==========================================
+   E01 COURSE SELECTION BUTTON STYLES
+   ========================================== */
+
+/* Base Pill Button */
+.e01-btn {
+  display: inline-block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: italic;
+  padding: 0.75rem 1.75rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.2s ease, transform 0.1s ease, opacity 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.e01-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Primary Action Button (Solid Black) */
+.e01-btn-primary {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.e01-btn-primary:hover:not(:disabled) {
+  background-color: #1e293b;
+  transform: translateY(-1px);
+}
+
+/* Secondary Action Button (Dark Charcoal Pill) */
+.e01-btn-secondary {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+.e01-btn-secondary:hover:not(:disabled) {
+  background-color: #0f172a;
+  transform: translateY(-1px);
+}
+
+
+/* ==========================================
+   S04 CURRENT & PAST OBSERVATIONS STYLES
+   ========================================== */
+
+/* Reminders Section Box */
+.reminders-card {
+  padding: 1.5rem;
+}
+
+.reminders-title {
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.reminders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.reminder-date {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+/* Observation Cards Grid */
+.observation-card-wrapper {
+  padding: 1.25rem;
+}
+
+.observation-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.observation-card {
+  background-color: #f8fafc;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.observation-card-history {
+  background-color: #f8fafc;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  max-width: 420px;
+}
+
+.observation-card-title {
+  font-size: 1rem;
+  color: #0f172a;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.observation-card-text {
+  font-size: 0.875rem;
+  color: #334155;
+  margin: 0.25rem 0;
+}
+
+.observation-card-subtext {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0.25rem 0;
+}
+
+.observation-card-status {
+  font-size: 0.875rem;
+  color: #b45309;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.observation-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.observation-card-actions-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Accordion Styling */
+.accordion-wrapper {
+  padding: 1rem;
+}
+
+.accordion-item {
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1e293b;
+  padding: 0.5rem 0;
+}
+
+.accordion-content {
+  margin-top: 0.75rem;
+  padding-left: 0.5rem;
+}
+
+/* Dashboard Action Center Button Wrapper */
+.dashboard-center-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+/* ==========================================
+   GLOBAL REUSABLE PILL BUTTON STYLES
+   ========================================== */
+
+/* Base Pill Button */
+.btn-pill-primary,
+.btn-pill-secondary,
+.primary-btn,
+.secondary-btn {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: italic;
+  padding: 0.75rem 1.75rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease, transform 0.1s ease, opacity 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Primary Button (Solid Black Pill) */
+.btn-pill-primary,
+.primary-btn {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.btn-pill-primary:hover,
+.primary-btn:hover {
+  background-color: #1e293b;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Secondary Button (Dark Charcoal Pill) */
+.btn-pill-secondary,
+.secondary-btn {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+.btn-pill-secondary:hover,
+.secondary-btn:hover {
+  background-color: #0f172a;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* ==========================================
+   ENHANCED NOTIFICATION CARD (A01 DASHBOARD)
+   ========================================== */
+
+.notification-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  height: 220px; /* Taller fixed height */
+}
+
+.notification-card h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.notification-list-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 0.5rem;
+}
+
+.notification-list-scroll ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.notification-item {
+  background-color: #f8fafc;
+  border-left: 4px solid #f59e0b;
+  padding: 0.6rem 0.85rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.notification-item a {
+  color: #1e293b;
+  text-decoration: none;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.notification-item a:hover {
+  color: #2563eb;
+}
+
+.notification-action-text {
+  font-size: 0.75rem;
+  color: #2563eb;
+  font-weight: 700;
+  text-decoration: underline;
+  text-transform: uppercase;
+}

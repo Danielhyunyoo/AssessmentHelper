@@ -4,8 +4,12 @@ import Layout from "./components/Layout";
 
 //PAGES FOR THIS WEEK'S DEMO
 import L01Home from "./pages/login/L01Home";
+import L02SignIn from "./pages/login/L02SignIn";
+import L03SignIn2 from "./pages/login/L03SignIn2";
 import S01FacultyDashboard from "./pages/shared/S01FacultyDashboard";
+import S02Profile from "./pages/shared/S02Profile";
 import S03FacultyNotifications from "./pages/shared/S03FacultyNotifications";
+import S04CurrentAndPastObservations from "./pages/shared/S04CurrentAndPastObservations";
 import E01CourseSelection from "./pages/observee/E01CourseSelection";
 import E02ObserverSelection from "./pages/observee/E02ObserverSelection";
 import A01CommitteeDashboard from "./pages/committee/A01CommitteeDashboard";
@@ -31,13 +35,14 @@ export default function App() {
           
           {/* Login Section */}
           <Route path="/" element={<L01Home />} />
-          <Route path="/login/signin" element={<PlaceholderPage />} />
-          <Route path="/login/faculty-registration" element={<PlaceholderPage />} />
+          <Route path="/login/signin" element={<L02SignIn />} />
+          <Route path="/login/signin2" element={<L03SignIn2 />} />
 
           {/* Shared Section */}
           <Route path="/shared/faculty-dashboard" element={<S01FacultyDashboard />} />
-          <Route path="/shared/profile" element={<PlaceholderPage />} />
+          <Route path="/shared/profile" element={<S02Profile />} />
           <Route path="/shared/notifications" element={<S03FacultyNotifications />} />
+          <Route path="/shared/current-past-observations" element={<S04CurrentAndPastObservations />} />
 
           {/* Observee Section */}
           <Route path="/observee/course-selection" element={<E01CourseSelection />} />
