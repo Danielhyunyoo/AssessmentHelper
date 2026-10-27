@@ -55,7 +55,14 @@ export default function S03FacultyNotifications() {
   }
 
   return (
-    <div className="dashboard-container">
+  <div className="dashboard-container">
+    {/* 1. TOP-LEFT TEXT LINK */}
+    <div className="back-dashboard-wrapper">
+      <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
+        ← Back to Dashboard
+      </Link>
+    </div>
+    
       <h2>Notifications</h2>
 
       <p>
@@ -127,11 +134,12 @@ export default function S03FacultyNotifications() {
         </section>
       )}
 
-      <p>
-        <Link to="/shared/faculty-dashboard">
-          Return to Faculty Dashboard
+{/* Return to Dashboard Button */}
+      <div className="dashboard-center-action">
+        <Link to="/shared/faculty-dashboard" className="btn-pill-secondary">
+          Return to Dashboard
         </Link>
-      </p>
+      </div>
     </div>
   );
 }

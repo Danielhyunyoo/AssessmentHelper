@@ -1,9 +1,9 @@
-
-import { useEffect, useRef, useState } from "react";
+// src/pages/observee/E01CourseSelection.tsx
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import Calendar, { DayOfWeek } from "../../components/Calendar";
 import { facultyApi } from "../../api/endpoints";
 import type { Course, RegistrationStatus } from "../../api/types";
+import Calendar, { DayOfWeek } from "../../components/Calendar";
 
 function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
@@ -15,32 +15,30 @@ function courseName(course: Course) {
   }`;
 }
 
-// Derive the allowed calendar days from schedules such as "MW 1:00 PM"
-// and "TTh 1:00 PM".
-function getAllowedDays(schedule: string): DayOfWeek[] {
-  const prefix = schedule.split(/\d/)[0].toUpperCase().replace(/\s/g, "");
+function parseAllowedDays(scheduleText: string): DayOfWeek[] {
+  const upper = scheduleText.toUpperCase();
   const days: DayOfWeek[] = [];
 
-  if (prefix.includes("M")) days.push("Mon");
-  if (prefix.includes("TH")) days.push("Thu");
+  if (upper.includes("MWF")) return ["Mon", "Wed", "Fri"];
+  if (upper.includes("MW")) return ["Mon", "Wed"];
+  if (upper.includes("TTH") || upper.includes("TU")) return ["Tue", "Thu"];
+  if (upper.includes("M")) days.push("Mon");
+  if (upper.includes("TU") || (upper.includes("T") && !upper.includes("TH"))) days.push("Tue");
+  if (upper.includes("W")) days.push("Wed");
+  if (upper.includes("TH")) days.push("Thu");
+  if (upper.includes("F")) days.push("Fri");
 
-  const remaining = prefix.replace("TH", "");
-  if (remaining.includes("T")) days.push("Tue");
-  if (remaining.includes("W")) days.push("Wed");
-  if (remaining.includes("F")) days.push("Fri");
-
-  return days;
+  return days.length > 0 ? days : ["Mon", "Tue", "Wed", "Thu", "Fri"];
 }
 
 export default function E01CourseSelection() {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [registration, setRegistration] =
-    useState<RegistrationStatus | null>(null);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
-  const [confirmedCourseId, setConfirmedCourseId] =
-    useState<number | "">("");
+  const [confirmedCourseId, setConfirmedCourseId] = useState<number | "">("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [showCalendarSection, setShowCalendarSection] = useState(false);
+  const [showCalendarSection, setShowCalendarSection] = useState<boolean>(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -61,12 +59,13 @@ export default function E01CourseSelection() {
 
       setCourses(courseData);
       setRegistration(statusData);
-      setSelectedCourseId(statusData.selected_course_id ?? "");
+
+      const savedId = statusData.selected_course_id ?? "";
+      setSelectedCourseId(savedId);
+      setConfirmedCourseId(savedId);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load registration information."
+        err instanceof Error ? err.message : "Unable to load registration information."
       );
     } finally {
       setLoading(false);
@@ -77,11 +76,10 @@ export default function E01CourseSelection() {
     void loadPage();
   }, []);
 
-  const currentCourse = courses.find(
-    (course) => course.course_id === confirmedCourseId
-  );
+  const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
+  const allowedDays = confirmedCourse ? parseAllowedDays(confirmedCourse.schedule) : ["Mon", "Wed", "Thu"];
 
-  async function handleConfirmCourse() {
+  const handleConfirmClass = async () => {
     if (selectedCourseId === "") {
       setError("Please select a course section first.");
       return;
@@ -92,61 +90,70 @@ export default function E01CourseSelection() {
     setSuccess("");
 
     try {
-      // Register for the active cycle first if necessary.
       if (!registration?.is_registered) {
         await facultyApi.register();
       }
 
-      // Save the selected course to the backend.
-      await facultyApi.selectCourse(selectedCourseId);
+      await facultyApi.selectCourse(Number(selectedCourseId));
+      setConfirmedCourseId(selectedCourseId);
 
-      const updatedStatus = await facultyApi.registrationStatus();
-      setRegistration(updatedStatus);
-      setSelectedCourseId(updatedStatus.selected_course_id ?? "");
-
-      // Reset dates only when changing to a different course.
-      if (confirmedCourseId !== selectedCourseId) {
+      if (selectedCourseId !== confirmedCourseId) {
         setSelectedDates([]);
       }
 
-      setConfirmedCourseId(selectedCourseId);
+      const [updatedStatus, updatedCourses] = await Promise.all([
+        facultyApi.registrationStatus(),
+        facultyApi.courses(),
+      ]);
+
+      setRegistration(updatedStatus);
+      setCourses(updatedCourses);
       setShowCalendarSection(true);
-      setSuccess("Your course selection was saved successfully.");
+      setSuccess("Course section saved! Please select your observation dates below.");
 
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to save your course selection."
+        err instanceof Error ? err.message : "Unable to confirm course selection."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleScrollToTop = () => {
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  async function handleFinalSave() {
+    if (confirmedCourseId === "") {
+      setError("Please select a course section first.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      setSuccess(
+        `Your course selection and ${selectedDates.length} observation dates were saved successfully. The confirmation notification should now be available.`
+      );
+      topRef.current?.scrollIntoView({ behavior: "smooth" });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to save your observation dates."
       );
     } finally {
       setSaving(false);
     }
   }
 
-  function handleScrollToTop() {
-    topRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function handleConfirmDates() {
-    if (selectedDates.length === 0) {
-      setError("Please select at least one proposed observation date.");
-      return;
-    }
-
-    setError("");
-
-    // The current backend has no endpoint for saving observation dates.
-    // This confirms the calendar selection in the UI only.
-    alert(
-      `Selected ${selectedDates.length} proposed dates for ${courseName(
-        currentCourse!
-      )}, section ${currentCourse!.section}. These dates have not been saved to the database.`
-    );
-  }
+  const savedCourse = courses.find(
+    (course) => course.course_id === registration?.selected_course_id
+  );
 
   if (loading) {
     return (
@@ -159,6 +166,13 @@ export default function E01CourseSelection() {
 
   return (
     <div className="dashboard-container" ref={topRef}>
+      {/* Top-Left Back Link */}
+      <div className="back-dashboard-wrapper">
+        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
+          ← Back to Dashboard
+        </Link>
+      </div>
+
       <h2>Course and Section Selection</h2>
 
       {error && (
@@ -170,10 +184,8 @@ export default function E01CourseSelection() {
       {success && (
         <div role="status" className="yellow-banner">
           <strong>Success:</strong> {success}
-          <p>
-            <Link to="/shared/notifications">
-              View confirmation notifications
-            </Link>
+          <p style={{ marginTop: "0.25rem" }}>
+            <Link to="/shared/notifications">View confirmation notifications</Link>
           </p>
         </div>
       )}
@@ -181,36 +193,42 @@ export default function E01CourseSelection() {
       {registration && (
         <section className="dashboard-phase">
           <h3>{registration.cycle_name} Registration</h3>
+
           <p>
             <strong>Registration status:</strong>{" "}
             {registration.is_registered ? "Registered" : "Not registered"}
           </p>
+
           <p>
             <strong>Course selection:</strong>{" "}
-            {registration.has_selected_course
-              ? "Course selected"
-              : "No course selected yet"}
+            {registration.has_selected_course ? "Course selected" : "No course selected yet"}
           </p>
+
           <p>
-            <strong>Signup deadline:</strong>{" "}
-            {formatDate(registration.signup_deadline)}
+            <strong>Signup deadline:</strong> {formatDate(registration.signup_deadline)}
           </p>
+
+          {savedCourse && (
+            <div className="table-instruction" style={{ marginTop: "0.5rem" }}>
+              <h3 style={{ fontSize: "0.95rem" }}>Your Saved Course</h3>
+              <p>{courseName(savedCourse)}</p>
+              <p>Section: {savedCourse.section}</p>
+              <p>Meeting times: {savedCourse.schedule}</p>
+              <p>Classroom: {savedCourse.classroom || "Not provided"}</p>
+            </div>
+          )}
         </section>
       )}
 
       <section className="dashboard-phase">
-        <h3>Course Registration for Observation Cycle</h3>
-
-        <div className="yellow-banner">
-          <strong>IMPORTANT:</strong> Select one of your current course
-          sections for the active evaluation cycle. Your selection will be
-          saved to the backend.
+        <h3>Select a Course Section</h3>
+        <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
+          <strong>IMPORTANT:</strong> Course registration closes October 9 at 11:59 PM. You must select and register 1 active course section.
         </div>
 
         {courses.length === 0 ? (
           <p>
-            No current course sections were returned for your account. Ask the
-            team to check the demo account's course assignments.
+            No current course sections were returned for your account. Ask the team to check the demo account's course assignments.
           </p>
         ) : (
           <div className="table-container theme-green">
@@ -234,9 +252,7 @@ export default function E01CourseSelection() {
                           name="course"
                           value={course.course_id}
                           checked={selectedCourseId === course.course_id}
-                          onChange={() =>
-                            setSelectedCourseId(course.course_id)
-                          }
+                          onChange={() => setSelectedCourseId(course.course_id)}
                           disabled={saving}
                           aria-label={`Select ${courseName(course)}, section ${course.section}`}
                         />
@@ -253,64 +269,38 @@ export default function E01CourseSelection() {
           </div>
         )}
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginTop: "1rem",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
           <button
             type="button"
-            className="primary-btn"
-            onClick={handleConfirmCourse}
+            className="btn-primary"
+            onClick={handleConfirmClass}
             disabled={saving || courses.length === 0 || selectedCourseId === ""}
           >
-            {saving
-              ? "Saving..."
-              : "Confirm Class and Select Observation Date"}
+            {saving ? "Saving..." : "Confirm Class and Select Observation Date"}
           </button>
         </div>
       </section>
 
-      {showCalendarSection && currentCourse && (
+      {/* Calendar Section */}
+      {showCalendarSection && confirmedCourse && (
         <section
           ref={bottomRef}
           className="table-container theme-orange"
           style={{ padding: "1.5rem", marginTop: "2rem" }}
         >
           <div className="yellow-banner" style={{ marginBottom: "1.5rem" }}>
-            <strong>IMPORTANT:</strong> Proposed observation dates must fall
-            between October 1 and November 15, 2026. You can select up to 8
-            dates.
+            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall before Nov 15. You can select up to 8 dates.
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: "2rem",
-              alignItems: "start",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
             <div>
-              <h3>Your Registered Course Information</h3>
-              <p>
-                <strong>Course:</strong> {courseName(currentCourse)}
-              </p>
-              <p>
-                <strong>Course Section:</strong> {currentCourse.section}
-              </p>
-              <p>
-                <strong>Meeting Days and Times:</strong>{" "}
-                {currentCourse.schedule}
-              </p>
-              <p>
-                <strong>Classroom:</strong>{" "}
-                {currentCourse.classroom || "Not provided"}
-              </p>
-              <p style={{ marginTop: "1rem" }}>
-                <em>Selected dates: {selectedDates.length} / 8 maximum</em>
+              <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>Your Registered Course Information</h3>
+              <p><strong>Course Number and Title:</strong> {courseName(confirmedCourse)}</p>
+              <p style={{ marginTop: "0.5rem" }}><strong>Course Section:</strong> Section {confirmedCourse.section}</p>
+              <p style={{ marginTop: "0.5rem" }}><strong>Meeting Days and Times:</strong> {confirmedCourse.schedule}</p>
+              <p style={{ marginTop: "0.5rem" }}><strong>Classroom Location(s):</strong> {confirmedCourse.classroom || "Not provided"}</p>
+              <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "#475569" }}>
+                <em>Selected Dates: {selectedDates.length} / 8 max</em>
               </p>
             </div>
 
@@ -318,7 +308,7 @@ export default function E01CourseSelection() {
               <Calendar
                 selectedDates={selectedDates}
                 onDateSelectionChange={setSelectedDates}
-                allowedDaysOfWeek={getAllowedDays(currentCourse.schedule)}
+                allowedDaysOfWeek={allowedDays as DayOfWeek[]}
                 maxSelections={8}
                 minDate="2026-10-01"
                 maxDate="2026-11-15"
@@ -328,33 +318,28 @@ export default function E01CourseSelection() {
             </div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "1rem",
-              flexWrap: "wrap",
-              marginTop: "2rem",
-            }}
-          >
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={handleScrollToTop}
-            >
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2rem" }}>
+            <button type="button" className="btn-secondary" onClick={handleScrollToTop}>
               Select a Different Course or Section
             </button>
-
             <button
               type="button"
-              className="primary-btn"
-              onClick={handleConfirmDates}
+              className="btn-primary"
+              onClick={handleFinalSave}
+              disabled={saving}
             >
-              Confirm Selected Dates and Continue
+              {saving ? "Saving..." : "Confirm Selected Dates and Continue"}
             </button>
           </div>
         </section>
       )}
+
+      {/* Bottom Centered Return Button */}
+      <div className="dashboard-center-action">
+        <Link to="/shared/faculty-dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
+      </div>
     </div>
   );
 }

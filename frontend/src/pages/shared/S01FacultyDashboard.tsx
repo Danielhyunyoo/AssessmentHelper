@@ -4,11 +4,11 @@ import { facultyApi } from "../../api/endpoints";
 import type { FacultyDashboard } from "../../api/types";
 import { Link } from "react-router-dom";
 
-import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg"
-import alerts_and_notifications_card from "../../assets/alerts_and_notifications_card.jpg"
-import post_evaluation_survey_card from "../../assets/post_evaluation_survey_card.jpg"
-import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg"
-import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg"
+import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg";
+import alerts_and_notifications_card from "../../assets/alerts_and_notifications_card.jpg";
+import post_evaluation_survey_card from "../../assets/post_evaluation_survey_card.jpg";
+import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg";
+import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg";
 import active_observations_card from "../../assets/active_observations_card.jpg";
 
 export default function S01FacultyDashboard() {
@@ -28,10 +28,11 @@ export default function S01FacultyDashboard() {
       })
       .finally(() => setDashboardLoading(false));
   }, []);
+
   return (
     <div className="dashboard-container">
-
       <h2>Faculty Dashboard</h2>
+
       <section className="dashboard-phase">
         <h3>Current Registration</h3>
 
@@ -44,25 +45,24 @@ export default function S01FacultyDashboard() {
         )}
 
         {dashboard && (
-          <>
+          <div className="table-container theme-blue" style={{ padding: "1rem" }}>
             <p>
               <strong>Evaluation cycle:</strong> {dashboard.cycle.name}
             </p>
-            <p>
+            <p style={{ marginTop: "0.25rem" }}>
               <strong>Registration:</strong>{" "}
               {dashboard.is_registered ? "Registered" : "Not registered"}
             </p>
-            <p>
+            <p style={{ marginTop: "0.25rem" }}>
               <strong>Course selection:</strong>{" "}
               {dashboard.has_selected_course ? "Saved" : "Not selected"}
             </p>
-            <p>
+            <p style={{ marginTop: "0.25rem" }}>
               <Link to="/shared/notifications">
-                <strong>Unread notifications:</strong>{" "}
-                {dashboard.unread_notifications}
+                <strong>Unread notifications:</strong> {dashboard.unread_notifications}
               </Link>
             </p>
-          </>
+          </div>
         )}
       </section>
 
@@ -71,7 +71,6 @@ export default function S01FacultyDashboard() {
         <h3>General Modules</h3>
 
         <div className="card-grid">
-          {/* Profile and Evaluation Status */}
           <article className="dashboard-card">
             <Link to="/shared/profile">
               <img src={profile_and_evaluation_status_card} alt="Profile and Evaluation Status" />
@@ -80,7 +79,6 @@ export default function S01FacultyDashboard() {
             </Link>
           </article>
 
-          {/* Alerts and Notifications */}
           <article className="dashboard-card">
             <Link to="/shared/notifications">
               <img src={alerts_and_notifications_card} alt="Alerts and Notifications" />
@@ -89,7 +87,6 @@ export default function S01FacultyDashboard() {
             </Link>
           </article>
 
-          {/* Post-Evaluation Survey */}
           <article className="dashboard-card">
             <Link to="/shared/post-evaluation-survey">
               <img src={post_evaluation_survey_card} alt="Post-Evaluation Survey" />
@@ -106,7 +103,6 @@ export default function S01FacultyDashboard() {
         <h3>Observee Modules</h3>
 
         <div className="card-grid">
-          {/* Current and Past Observations */}
           <article className="dashboard-card">
             <Link to="/observee/current-past-observations">
               <img src={current_and_past_observations_card} alt="Current and Past Observations" />
@@ -115,7 +111,6 @@ export default function S01FacultyDashboard() {
             </Link>
           </article>
 
-          {/* Course and Section Selection */}
           <article className="dashboard-card">
             <Link to="/observee/course-selection">
               <img src={course_and_section_selection_card} alt="Course and Section Selection" />
@@ -131,7 +126,6 @@ export default function S01FacultyDashboard() {
         <h3>Observer Modules</h3>
 
         <div className="card-grid">
-          {/* Active Observations */}
           <article className="dashboard-card">
             <Link to="/observer/active-observations">
               <img src={active_observations_card} alt="Active Observations" />

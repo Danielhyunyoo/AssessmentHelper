@@ -12,22 +12,19 @@ const allPages: PageRoute[] = [
   // Login
   { id: "L01", name: "Home", path: "/" },
   { id: "L02", name: "Sign In", path: "/login/signin" },
-  { id: "L03", name: "Faculty Registration", path: "/login/faculty-registration" },
+  { id: "L03", name: "Sign In 2", path: "/login/signin2" },
   // Shared
   { id: "S01", name: "Faculty Dashboard", path: "/shared/faculty-dashboard" },
   { id: "S02", name: "Profile", path: "/shared/profile" },
   { id: "S03", name: "Notifications", path: "/shared/notifications" },
+  { id: "S04", name: "Current and Past Observations", path: "/shared/current-past-observations" },
+  { id: "S05", name: "Observation Record", path: "/shared/observation-record-observer" },
+  { id: "S06", name: "Post-Evaluation Survey", path: "/shared/post-evaluation-survey" },
   // Observee
   { id: "E01", name: "Course and Section Selection", path: "/observee/course-selection" },
   { id: "E02", name: "Observer Selection", path: "/observee/observer-selection" },
-  { id: "E03", name: "Observation Record", path: "/observee/observation-record" },
-  { id: "E04", name: "Post-Evaluation Survey", path: "/observee/post-evaluation-survey" },
-  { id: "E05", name: "Current and Past Observations", path: "/observee/current-past-observations" },
   // Observer
-  { id: "O01", name: "Active Observations", path: "/observer/active-observations" },
-  { id: "O02", name: "Observation Request", path: "/observer/observation-request" },
-  { id: "O03", name: "Observation Record", path: "/observer/observation-record-observer" },
-  { id: "O04", name: "Post-Evaluation Survey", path: "/observer/post-evaluation-survey" },
+  { id: "O01", name: "Observation Request", path: "/observer/observation-request" },
   // Assessment Committee
   { id: "A01", name: "Dashboard", path: "/committee/dashboard" },
   { id: "A02", name: "Faculty Matching", path: "/committee/faculty-matching" },
@@ -90,28 +87,28 @@ export default function NavigationHelper(): React.ReactElement {
               ))}
             </optgroup>
             <optgroup label="Shared">
-              {allPages.slice(3, 6).map((p) => (
+              {allPages.slice(3, 9).map((p) => (
                 <option key={p.id} value={p.path}>
                   {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Observee">
-              {allPages.slice(6, 11).map((p) => (
+              {allPages.slice(9, 11).map((p) => (
                 <option key={p.id} value={p.path}>
                   {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Observer">
-              {allPages.slice(11, 15).map((p) => (
+              {allPages.slice(11, 12).map((p) => (
                 <option key={p.id} value={p.path}>
                   {p.id} - {p.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Assessment Committee">
-              {allPages.slice(15).map((p) => (
+              {allPages.slice(12).map((p) => (
                 <option key={p.id} value={p.path}>
                   {p.id} - {p.name}
                 </option>
