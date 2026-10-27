@@ -1,6 +1,7 @@
 // src/pages/login/L02SignIn.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authApi } from "../../api/endpoints";
 
 export default function L02SignIn(): React.ReactElement {
   const navigate = useNavigate();
@@ -30,8 +31,9 @@ export default function L02SignIn(): React.ReactElement {
     setError("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      navigate("/shared/faculty-dashboard");
+      await authApi.csrf();
+      await authApi.login(email, password);
+      navigate("/login/signin2");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Invalid email or password. Please try again."
