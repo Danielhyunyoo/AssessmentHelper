@@ -6,6 +6,11 @@ from .models import Course, Signup, Notification
 User = get_user_model()
 
 
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+
 class ProfessorSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
