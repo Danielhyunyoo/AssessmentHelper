@@ -1,20 +1,17 @@
 // src/pages/committee/A01CommitteeDashboard.tsx
 import { Link } from "react-router-dom";
-import homeIcon from "../../assets/home_icon.png"; // Make sure home_icon.png is inside src/assets/
 
-import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg"
-import unmatched_observees_card from "../../assets/unmatched_observees_card.jpg"
-import observation_record_management_card from "../../assets/observation_record_management_card.jpg"
-import pending_observation_records_card from "../../assets/pending_observation_records_card.jpg"
-import observation_surveys_card from "../../assets/observation_surveys_card.jpg"
-import kpis_card from "../../assets/kpis_card.jpg"
-import edit_form_card from "../../assets/edit_form_card.jpg"
-
+import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg";
+import unmatched_observees_card from "../../assets/unmatched_observees_card.jpg";
+import observation_record_management_card from "../../assets/observation_record_management_card.jpg";
+import pending_observation_records_card from "../../assets/pending_observation_records_card.jpg";
+import observation_surveys_card from "../../assets/observation_surveys_card.jpg";
+import kpis_card from "../../assets/kpis_card.jpg";
+import edit_form_card from "../../assets/edit_form_card.jpg";
 
 export default function A01CommitteeDashboard() {
   return (
     <div className="dashboard-container">
-
       <h2>Assessment Committee Dashboard</h2>
 
       {/* Phase 1 Section */}
@@ -27,7 +24,6 @@ export default function A01CommitteeDashboard() {
         </div>
 
         <div className="card-grid">
-          {/* Card 1 */}
           <article className="dashboard-card">
             <Link to="/committee/faculty-matching">
               <img src={observer_selection_matching_card} alt="Observer Selection and Matching" />
@@ -37,7 +33,6 @@ export default function A01CommitteeDashboard() {
             </Link>
           </article>
 
-          {/* Card 2 */}
           <article className="dashboard-card">
             <Link to="/committee/unmatched-observees">
               <img src={unmatched_observees_card} alt="Unmatched Observees" />
@@ -46,7 +41,6 @@ export default function A01CommitteeDashboard() {
             </Link>
           </article>
 
-         {/* Card 3 */}
           <article className="dashboard-card">
             <Link to="/committee/faculty-roster">
               <img src={observation_record_management_card} alt="Observation Record Management" />
@@ -67,7 +61,6 @@ export default function A01CommitteeDashboard() {
         </div>
 
         <div className="card-grid">
-          {/* Card 1 */}
           <article className="dashboard-card">
             <Link to="/committee/pending-records">
               <img src={pending_observation_records_card} alt="Pending Observation Records" />
@@ -88,7 +81,6 @@ export default function A01CommitteeDashboard() {
         </div>
 
         <div className="card-grid">
-          {/* Card 1 */}
           <article className="dashboard-card">
             <Link to="/committee/survey-tracking">
               <img src={observation_surveys_card} alt="Observation Surveys" />
@@ -98,7 +90,6 @@ export default function A01CommitteeDashboard() {
             </Link>
           </article>
 
-          {/* Card 2 */}
           <article className="dashboard-card">
             <Link to="/committee/kpi-overview">
               <img src={kpis_card} alt="Generated KPIs" />
@@ -115,7 +106,6 @@ export default function A01CommitteeDashboard() {
         <h3>Form Management and Alerts</h3>
 
         <div className="card-grid">
-          {/* Card 1 */}
           <article className="dashboard-card">
             <Link to="/committee/form-editor">
               <img src={edit_form_card} alt="Edit Evaluation and Survey Forms" />
@@ -124,7 +114,6 @@ export default function A01CommitteeDashboard() {
             </Link>
           </article>
 
-          {/* Card 2: Notifications Widget */}
           <article className="dashboard-card notification-card">
             <h4>Alerts and Notifications</h4>
             <ul>

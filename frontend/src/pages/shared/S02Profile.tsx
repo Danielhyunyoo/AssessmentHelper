@@ -6,7 +6,6 @@ import defaultAvatar from "../../assets/avatar.png";
 export default function S02Profile(): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // User Profile State (Backend connection placeholders)
   const [firstName, setFirstName] = useState<string>("John");
   const [lastName, setLastName] = useState<string>("Doe");
   const [phone, setPhone] = useState<string>("(972) 883-2111");
@@ -14,39 +13,27 @@ export default function S02Profile(): React.ReactElement {
   const [department] = useState<string>("Computer Science");
   const [academicRank] = useState<string>("Assistant Professor");
 
-  // Default avatar image set to avatar.png
   const [profilePhoto, setProfilePhoto] = useState<string>(defaultAvatar);
 
-  // Edit Mode States
   const [isEditingInfo, setIsEditingInfo] = useState<boolean>(false);
   const [editFirstName, setEditFirstName] = useState<string>(firstName);
   const [editLastName, setEditLastName] = useState<string>(lastName);
   const [editPhone, setEditPhone] = useState<string>(phone);
 
-  // Handle Profile Picture File Upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const imageUrl = URL.createObjectURL(file);
       setProfilePhoto(imageUrl);
-      console.log("New profile picture uploaded:", file.name);
     }
   };
 
-  // Save Contact Information
   const handleSaveInfo = (e: React.FormEvent) => {
     e.preventDefault();
     setFirstName(editFirstName);
     setLastName(editLastName);
     setPhone(editPhone);
     setIsEditingInfo(false);
-
-    const payload = {
-      firstName: editFirstName,
-      lastName: editLastName,
-      phone: editPhone,
-    };
-    console.log("Saving updated profile to SQL backend:", payload);
   };
 
   const handleCancelEdit = () => {
@@ -58,19 +45,18 @@ export default function S02Profile(): React.ReactElement {
 
   return (
     <div className="dashboard-container">
-      {/* Back to Dashboard Link */}
-      <div className="profile-back-link-wrapper">
-        <Link to="/shared/faculty-dashboard" className="profile-back-link">
-          &larr; Back to Dashboard
+      {/* Top-Left Back Link */}
+      <div className="back-dashboard-wrapper">
+        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
+          ← Back to Dashboard
         </Link>
       </div>
 
       <h2 className="profile-page-title">Profile and Evaluation Status</h2>
 
-      {/* Main Profile Card Section */}
+      {/* Main Profile Section */}
       <section className="dashboard-phase profile-main-card">
         <div className="profile-card-grid">
-          {/* Left Column: User Info & Editable Form */}
           <div className="profile-info-col">
             {!isEditingInfo ? (
               <>
@@ -78,18 +64,10 @@ export default function S02Profile(): React.ReactElement {
                   {firstName} {lastName}
                 </h3>
                 <div className="profile-details-list">
-                  <p>
-                    <strong>Department:</strong> {department}
-                  </p>
-                  <p>
-                    <strong>Academic Rank:</strong> {academicRank}
-                  </p>
-                  <p>
-                    <strong>Email ID:</strong> {email}
-                  </p>
-                  <p>
-                    <strong>Phone Number:</strong> {phone}
-                  </p>
+                  <p><strong>Department:</strong> {department}</p>
+                  <p><strong>Academic Rank:</strong> {academicRank}</p>
+                  <p><strong>Email ID:</strong> {email}</p>
+                  <p><strong>Phone Number:</strong> {phone}</p>
                 </div>
 
                 <div className="profile-email-note">
@@ -98,7 +76,7 @@ export default function S02Profile(): React.ReactElement {
 
                 <button
                   type="button"
-                  className="primary-btn profile-action-btn"
+                  className="btn-primary"
                   onClick={() => setIsEditingInfo(true)}
                 >
                   Update Contact Information
@@ -146,12 +124,12 @@ export default function S02Profile(): React.ReactElement {
                 </div>
 
                 <div className="profile-form-actions">
-                  <button type="submit" className="primary-btn">
+                  <button type="submit" className="btn-primary">
                     Save Changes
                   </button>
                   <button
                     type="button"
-                    className="secondary-btn"
+                    className="btn-secondary"
                     onClick={handleCancelEdit}
                   >
                     Cancel
@@ -161,7 +139,6 @@ export default function S02Profile(): React.ReactElement {
             )}
           </div>
 
-          {/* Right Column: Profile Picture & Image Upload */}
           <div className="profile-photo-col">
             <div className="profile-avatar-container">
               <img
@@ -171,7 +148,6 @@ export default function S02Profile(): React.ReactElement {
               />
             </div>
 
-            {/* Hidden File Input */}
             <input
               type="file"
               ref={fileInputRef}
@@ -182,7 +158,8 @@ export default function S02Profile(): React.ReactElement {
 
             <button
               type="button"
-              className="secondary-btn profile-photo-btn"
+              className="btn-secondary"
+              style={{ fontSize: "0.85rem", padding: "0.5rem 0.75rem", width: "100%" }}
               onClick={() => fileInputRef.current?.click()}
             >
               Update Profile Photo
@@ -213,10 +190,10 @@ export default function S02Profile(): React.ReactElement {
         </div>
       </section>
 
-      {/* Return to Dashboard Footer Link */}
-      <div className="profile-bottom-nav">
-        <Link to="/shared/faculty-dashboard" className="secondary-btn">
-          Return to Faculty Dashboard
+      {/* Bottom Centered Return Button */}
+      <div className="dashboard-center-action">
+        <Link to="/shared/faculty-dashboard" className="btn-secondary">
+          Return to Dashboard
         </Link>
       </div>
     </div>

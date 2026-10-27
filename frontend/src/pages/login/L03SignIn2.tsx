@@ -5,15 +5,10 @@ import { useNavigate, Link } from "react-router-dom";
 export default function L03SignIn2() {
   const navigate = useNavigate();
 
-  // Role: 'faculty' sees top half only; 'committee' sees top half + bottom portal section
   const [userRole, setUserRole] = useState<"faculty" | "committee">("committee");
-
-  // Registration state
   const [isRegistered, setIsRegistered] = useState<boolean>(() => {
     return localStorage.getItem("isRegisteredForCycle") === "true";
   });
-
-  // Simulated deadline state for presentation testing
   const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
 
   const handleRegister = () => {
@@ -35,33 +30,27 @@ export default function L03SignIn2() {
       </p>
 
       <div className="table-container registration-card">
-        {/* =========================================================================
-            TOP SECTION: FACULTY REGISTRATION / STATUS
-            Visible to ALL users (Regular Faculty & Assessment Committee Members)
-            ========================================================================= */}
         {isRegistered ? (
-          /* STATE 1: Registered for current cycle */
           <>
             <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-            <strong>Cycle Status:</strong> You are registered for the Fall 2026 cycle.
+              <strong>Cycle Status:</strong> You are registered for the Fall 2026 cycle.
             </div>
 
             <button
               type="button"
-              className="registration-btn"
+              className="btn-primary btn-block"
               onClick={() => navigate("/shared/faculty-dashboard")}
             >
               Go to Faculty Dashboard
             </button>
 
             <div className="registration-link-container">
-              <Link to="/shared/current-past-observations" className="registration-link">
+              <Link to="/observee/current-past-observations" className="registration-link">
                 View Previous Observation Records
               </Link>
             </div>
           </>
         ) : isPastDeadline ? (
-          /* STATE 2: Unregistered and past registration deadline */
           <>
             <div
               className="yellow-banner"
@@ -79,12 +68,11 @@ export default function L03SignIn2() {
               You were not registered for an observation visit during this active cycle. You can still access your historical records.
             </p>
 
-            <Link to="/shared/current-past-observations" className="registration-btn">
+            <Link to="/observee/current-past-observations" className="btn-secondary btn-block">
               View Previous Observation Records
             </Link>
           </>
         ) : (
-          /* STATE 3: Open registration window */
           <>
             <h3 className="registration-title">What this registration includes:</h3>
 
@@ -97,7 +85,7 @@ export default function L03SignIn2() {
               </li>
             </ul>
 
-            <button type="button" className="registration-btn" onClick={handleRegister}>
+            <button type="button" className="btn-primary btn-block" onClick={handleRegister}>
               Register for Fall 2026 Cycle
             </button>
 
@@ -105,17 +93,13 @@ export default function L03SignIn2() {
               <p style={{ fontSize: "0.875rem", color: "#475569", marginBottom: "0.25rem" }}>
                 Not registering for this cycle?
               </p>
-              <Link to="/shared/current-past-observations" className="registration-link">
+              <Link to="/observee/current-past-observations" className="registration-link">
                 View previous records
               </Link>
             </div>
           </>
         )}
 
-        {/* =========================================================================
-            BOTTOM SECTION: ASSESSMENT COMMITTEE PORTAL
-            Visible ONLY if userRole === 'committee'
-            ========================================================================= */}
         {userRole === "committee" && (
           <div className="committee-section">
             <h4 className="committee-title">ASSESSMENT COMMITTEE ONLY:</h4>
@@ -123,15 +107,13 @@ export default function L03SignIn2() {
               Please note that access to the Assessment Committee functions is configured automatically based on your staff credentials.
             </p>
 
-            <Link to="/committee/dashboard" className="registration-btn">
+            <Link to="/committee/dashboard" className="btn-secondary btn-block" style={{ marginTop: "0.75rem" }}>
               Go to Assessment Committee Portal
             </Link>
           </div>
         )}
 
-        {/* =========================================================================
-            DEMO STATE SIMULATOR (For live presentation/testing)
-            ========================================================================= */}
+        {/* Demo State Simulator */}
         <div
           style={{
             marginTop: "2.5rem",
@@ -147,7 +129,6 @@ export default function L03SignIn2() {
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
-            {/* User Role Permissions */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span style={{ fontWeight: "600" }}>User Role Permissions:</span>
               <select
@@ -160,7 +141,6 @@ export default function L03SignIn2() {
               </select>
             </div>
 
-            {/* Cycle Registration Toggle */}
             <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
               <input
                 type="checkbox"
@@ -170,7 +150,6 @@ export default function L03SignIn2() {
               <strong>Cycle Registered:</strong> {isRegistered ? "True" : "False"}
             </label>
 
-            {/* Past Deadline Toggle */}
             <label
               style={{
                 display: "flex",

@@ -1,4 +1,4 @@
-// src/pages/observee/E02FacultyMatching.tsx
+// src/pages/observee/E02ObserverSelection.tsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
@@ -18,7 +18,7 @@ interface ResponseRecord {
   responseStatus: "CONFIRMED" | "PENDING" | "DECLINED" | "CANCELLED";
 }
 
-export default function E02FacultyMatching() {
+export default function E02ObserverSelection() {
   // Mock data for selected observation dates (passed from E01 state or context)
   const selectedDatesList = ["2026-10-12", "2026-10-14", "2026-10-16", "2026-10-19", "2026-10-21"];
 
@@ -136,7 +136,6 @@ export default function E02FacultyMatching() {
     {
       header: "Actions",
       render: (row) => {
-        // Dynamically render ONLY the outcome based on the professor's SQL response status
         if (row.responseStatus === "PENDING") {
           return <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#64748b" }}>AWAITING RESPONSE</span>;
         }
@@ -161,6 +160,13 @@ export default function E02FacultyMatching() {
 
   return (
     <div className="dashboard-container">
+      {/* Top-Left Back Link */}
+      <div className="back-dashboard-wrapper">
+        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
+          ← Back to Dashboard
+        </Link>
+      </div>
+
       <h2>Observer Selection</h2>
 
       {/* Top Section: Registered Course Info & Calendar Widget */}

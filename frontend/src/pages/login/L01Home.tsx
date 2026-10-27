@@ -1,27 +1,23 @@
 // src/pages/login/L01Home.tsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import campus from "../../assets/campus.png";
 
 export default function L01Home() {
   const navigate = useNavigate();
 
-  // Demo State: Toggles for live demonstration before backend auth is implemented
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<"faculty" | "committee">("committee");
 
-  // Registration state for current evaluation cycle
   const [isRegistered, setIsRegistered] = useState<boolean>(() => {
     return localStorage.getItem("isRegisteredForCycle") === "true";
   });
 
-  // Keep local state in sync with localStorage when toggling in demo panel
   const handleRegistrationToggle = (checked: boolean) => {
     setIsRegistered(checked);
     localStorage.setItem("isRegisteredForCycle", checked ? "true" : "false");
   };
 
-  // Smart action for Faculty button
   const handleFacultyButtonClick = () => {
     if (!isRegistered) {
       navigate("/login/faculty-registration");
@@ -33,7 +29,6 @@ export default function L01Home() {
   return (
     <div className="home-container">
       <div className="home-content">
-        {/* Left Column: Title, Subtitle, and Conditional Action Buttons */}
         <div className="home-text">
           <h1 className="home-title">
             Sign into UTD<br />
@@ -46,40 +41,33 @@ export default function L01Home() {
           </p>
 
           <div className="home-actions" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {/* 1. Show "Sign in" button when NOT logged in */}
             {!isLoggedIn && (
-              <Link to="/login/signin" className="home-signin-btn">
+              <Link to="/login/signin" className="btn-primary">
                 Sign in
               </Link>
             )}
 
-            {/* 2. Show "Register / Faculty Dashboard" when logged in */}
             {isLoggedIn && (
               <button
                 type="button"
                 onClick={handleFacultyButtonClick}
-                className="home-signin-btn"
-                style={{ textAlign: "center", border: "none", cursor: "pointer", width: "100%" }}
+                className="btn-primary btn-block"
               >
                 {!isRegistered ? "Register for Cycle / Faculty Dashboard" : "Faculty Dashboard"}
               </button>
             )}
 
-            {/* 3. Show "Assessment Committee Dashboard" ONLY when logged in AND user is Committee */}
             {isLoggedIn && userRole === "committee" && (
               <Link
                 to="/committee/dashboard"
-                className="home-signin-btn"
-                style={{ backgroundColor: "#1e293b", textAlign: "center" }}
+                className="btn-secondary btn-block"
               >
                 Assessment Committee Dashboard
               </Link>
             )}
           </div>
 
-          {/* ==========================================
-              DEMO TOGGLE PANEL (For presentation / testing)
-              ========================================== */}
+          {/* Demo State Simulator */}
           <div
             style={{
               marginTop: "2.5rem",
@@ -95,7 +83,6 @@ export default function L01Home() {
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
-              {/* Toggle Login State */}
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
                 <input
                   type="checkbox"
@@ -105,7 +92,6 @@ export default function L01Home() {
                 <strong>Logged In:</strong> {isLoggedIn ? "True" : "False"}
               </label>
 
-              {/* Role Selector (Disabled if logged out) */}
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", opacity: isLoggedIn ? 1 : 0.5 }}>
                 <span style={{ fontWeight: "600" }}>User Role:</span>
                 <select
@@ -119,7 +105,6 @@ export default function L01Home() {
                 </select>
               </div>
 
-              {/* Registration Status Toggle */}
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", opacity: isLoggedIn ? 1 : 0.5 }}>
                 <input
                   type="checkbox"
@@ -133,7 +118,6 @@ export default function L01Home() {
           </div>
         </div>
 
-        {/* Right Column: Campus Image */}
         <div className="home-image-container">
           <img src={campus} alt="UTD Campus" className="campus-img" />
         </div>

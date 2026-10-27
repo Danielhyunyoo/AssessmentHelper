@@ -1,19 +1,14 @@
 // src/pages/committee/A02FacultyMatching.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function A02FacultyMatching() {
   const observeeList = ["Professor A", "Professor B", "Professor C"];
   const observerOptions = ["Professor D", "Professor E", "Professor F", "Professor G", "Professor H"];
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-
-  // Date State only (YYYY-MM-DD)
   const [startDate, setStartDate] = useState<string>("2026-09-13");
   const [endDate, setEndDate] = useState<string>("2026-10-09");
-
-  // Display strings for status summary
   const [displayStartDate, setDisplayStartDate] = useState<string>("Sep 13, 2026");
   const [displayEndDate, setDisplayEndDate] = useState<string>("Oct 9, 2026 at 11:59 PM");
 
@@ -21,11 +16,9 @@ export default function A02FacultyMatching() {
   const handleCloseModal = () => setIsModalOpen(false);
 
   const handleSaveDates = () => {
-    // Automatically enforce fixed times: 12:00 AM for start, 11:59 PM for end
     const fullStartDateTime = `${startDate}T00:00`;
     const fullEndDateTime = `${endDate}T23:59`;
 
-    // Format dates for display
     const startObj = new Date(fullStartDateTime);
     const endObj = new Date(fullEndDateTime);
 
@@ -39,21 +32,21 @@ export default function A02FacultyMatching() {
       );
     }
 
-    // SQL Integration payload with locked times
-    const sqlPayload = {
-      registrationOpen: fullStartDateTime, // YYYY-MM-DDTHH:mm (00:00)
-      registrationClose: fullEndDateTime, // YYYY-MM-DDTHH:mm (23:59)
-    };
-    console.log("Saving new registration date window to SQL:", sqlPayload);
-
     setIsModalOpen(false);
   };
 
   return (
     <div className="dashboard-container">
+      {/* Top-Left Back Link */}
+      <div className="back-dashboard-wrapper">
+        <Link to="/committee/dashboard" className="back-dashboard-link">
+          ← Back to Dashboard
+        </Link>
+      </div>
+
       <h2>Observer Selection and Matching</h2>
 
-      {/* Top Banner Card: Manage Course Registrations */}
+      {/* Top Banner Card */}
       <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
         <h3>Manage Course Registrations</h3>
         <p style={{ marginTop: "0.5rem" }}>
@@ -67,7 +60,7 @@ export default function A02FacultyMatching() {
         </p>
         <button
           type="button"
-          className="secondary-btn"
+          className="btn-secondary"
           style={{ marginTop: "1rem" }}
           onClick={handleOpenModal}
         >
@@ -75,8 +68,8 @@ export default function A02FacultyMatching() {
         </button>
       </section>
 
-      {/* Section 2: Manual Observer-Observee Matching */}
-      <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
+      {/* Manual Matching */}
+      <section className="dashboard-phase" style={{ marginTop: "1rem" }}>
         <h3>Manual Observer-Observee Matching</h3>
 
         <div className="yellow-banner">
@@ -102,7 +95,7 @@ export default function A02FacultyMatching() {
                   ))}
                 </div>
 
-                <button type="button" className="secondary-btn" style={{ marginTop: "1rem", width: "100%" }}>
+                <button type="button" className="btn-secondary btn-block" style={{ marginTop: "1rem" }}>
                   Confirm Matches
                 </button>
               </div>
@@ -111,8 +104,8 @@ export default function A02FacultyMatching() {
         </div>
       </section>
 
-      {/* Section 3: Review and Approve Existing Matched Lists */}
-      <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
+      {/* Review & Approve */}
+      <section className="dashboard-phase">
         <h3>Review and Approve Existing Observer-Observee Matched Lists</h3>
 
         <div className="yellow-banner">
@@ -138,7 +131,7 @@ export default function A02FacultyMatching() {
                   ))}
                 </ul>
 
-                <button type="button" className="primary-btn" style={{ marginTop: "1rem", width: "100%" }}>
+                <button type="button" className="btn-primary btn-block" style={{ marginTop: "1rem" }}>
                   Select
                 </button>
               </div>
@@ -148,16 +141,17 @@ export default function A02FacultyMatching() {
 
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="secondary-btn">Select All</button>
-            <button type="button" className="secondary-btn">Deselect All</button>
+            <button type="button" className="btn-secondary">Select All</button>
+            <button type="button" className="btn-secondary">Deselect All</button>
           </div>
 
-          <button type="button" className="primary-btn">Send Notifications</button>
+          <button type="button" className="btn-primary">Send Notifications</button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}>
-          <Link to="/committee/dashboard" className="secondary-btn">
-            Back to Assessment Committee Dashboard
+        {/* Bottom Centered Return Button */}
+        <div className="dashboard-center-action">
+          <Link to="/committee/dashboard" className="btn-secondary">
+            Return to Dashboard
           </Link>
         </div>
       </section>
