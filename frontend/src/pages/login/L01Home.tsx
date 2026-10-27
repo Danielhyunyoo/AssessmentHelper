@@ -1,26 +1,32 @@
 // src/pages/login/L01Home.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import campus from "../../assets/campus.png";
+import { authApi, facultyApi } from "../../api/endpoints";
+import type { Professor } from "../../api/types";
 
 export default function L01Home() {
   const navigate = useNavigate();
 
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
-  const [userRole, setUserRole] = useState<"faculty" | "committee">("committee");
+  const [user, setUser] = useState<Professor | null>(null);
+  const [isRegistered, setIsRegistered] = useState<boolean>(false);
 
-  const [isRegistered, setIsRegistered] = useState<boolean>(() => {
-    return localStorage.getItem("isRegisteredForCycle") === "true";
-  });
+  useEffect(() => {
+    authApi
+      .session()
+      .then(async ({ professor: sessionUser }) => {
+        setUser(sessionUser);
+        if (sessionUser) setIsRegistered((await facultyApi.registrationStatus()).is_registered);
+      })
+      .catch(() => setUser(null));
+  }, []);
 
-  const handleRegistrationToggle = (checked: boolean) => {
-    setIsRegistered(checked);
-    localStorage.setItem("isRegisteredForCycle", checked ? "true" : "false");
-  };
+  const isLoggedIn = user !== null;
+  const isCommittee = user?.role === "admin";
 
   const handleFacultyButtonClick = () => {
     if (!isRegistered) {
-      navigate("/login/faculty-registration");
+      navigate("/login/signin2");
     } else {
       navigate("/shared/faculty-dashboard");
     }
@@ -57,7 +63,7 @@ export default function L01Home() {
               </button>
             )}
 
-            {isLoggedIn && userRole === "committee" && (
+            {isCommittee && (
               <Link
                 to="/committee/dashboard"
                 className="btn-secondary btn-block"
@@ -65,56 +71,6 @@ export default function L01Home() {
                 Assessment Committee Dashboard
               </Link>
             )}
-          </div>
-
-          {/* Demo State Simulator */}
-          <div
-            style={{
-              marginTop: "2.5rem",
-              padding: "1rem",
-              backgroundColor: "#f8fafc",
-              border: "1px dashed #cbd5e1",
-              borderRadius: "12px",
-              maxWidth: "360px",
-            }}
-          >
-            <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
-              Demo State Simulator
-            </p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={isLoggedIn}
-                  onChange={(e) => setIsLoggedIn(e.target.checked)}
-                />
-                <strong>Logged In:</strong> {isLoggedIn ? "True" : "False"}
-              </label>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", opacity: isLoggedIn ? 1 : 0.5 }}>
-                <span style={{ fontWeight: "600" }}>User Role:</span>
-                <select
-                  value={userRole}
-                  onChange={(e) => setUserRole(e.target.value as "faculty" | "committee")}
-                  disabled={!isLoggedIn}
-                  style={{ padding: "0.2rem 0.5rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                >
-                  <option value="faculty">Faculty Only</option>
-                  <option value="committee">Assessment Committee Member</option>
-                </select>
-              </div>
-
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", opacity: isLoggedIn ? 1 : 0.5 }}>
-                <input
-                  type="checkbox"
-                  checked={isRegistered}
-                  disabled={!isLoggedIn}
-                  onChange={(e) => handleRegistrationToggle(e.target.checked)}
-                />
-                <strong>Cycle Registered:</strong> {isRegistered ? "True" : "False"}
-              </label>
-            </div>
           </div>
         </div>
 
