@@ -1,11 +1,14 @@
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.shortcuts import get_object_or_404
 
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.exceptions import NotAuthenticated, NotFound, ValidationError
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from rest_framework.authentication import SessionAuthentication
 
 from .models import Course, Cycle, Signup, Notification, Invitation
 from .evaluation_status import evaluation_status_for
@@ -17,9 +20,51 @@ from .serializers import (
     SignupCreateSerializer,
     SignupSerializer,
     NotificationSerializer,
+    LoginSerializer,
 )
 
 User = get_user_model()
+
+
+
+
+@ensure_csrf_cookie
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def csrf_cookie(request):
+    """Establish a CSRF cookie before browser login."""
+    return Response({"detail": "CSRF cookie set."})
+
+
+@csrf_protect
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def session_login(request):
+    """Authenticate credentials and create a Django session."""
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = authenticate(
+        request._request,
+        username=serializer.validated_data["username"],
+        password=serializer.validated_data["password"],
+    )
+    if user is None or not user.is_active:
+        return Response({"detail": "Invalid username or password."}, status=status.HTTP_400_BAD_REQUEST)
+    django_login(request._request, user)
+    return Response({"professor": ProfessorSerializer(user).data})
+
+
+@csrf_protect
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+def session_logout(request):
+    """Sign out the session user; no demo-header fallback."""
+    if not request.user.is_authenticated:
+        raise NotAuthenticated("Sign in first.")
+    django_logout(request._request)
+    return Response({"detail": "Signed out."})
 
 
 def get_current_professor(request):
@@ -27,14 +72,14 @@ def get_current_professor(request):
     if request.user.is_authenticated:
         return request.user
 
-    if settings.DEBUG:
+    if settings.DEBUG and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False):
         username = request.headers.get("X-Demo-Username")
         if username:
             return get_object_or_404(User, username=username)
 
     raise NotAuthenticated(
         "Sign in first, or use X-Demo-Username with an existing demo user "
-        "while DEBUG is enabled."
+        "when demo authentication is explicitly enabled."
     )
 
 
