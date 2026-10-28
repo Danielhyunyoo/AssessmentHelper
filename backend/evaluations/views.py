@@ -28,6 +28,13 @@ User = get_user_model()
 
 
 
+def username_for(login_name):
+    if "@" not in login_name:
+        return login_name
+    usernames = list(User.objects.filter(email__iexact=login_name).values_list("username", flat=True)[:2])
+    return usernames[0] if len(usernames) == 1 else None
+
+
 @ensure_csrf_cookie
 @api_view(["GET"])
 @authentication_classes([])
@@ -43,14 +50,16 @@ def csrf_cookie(request):
 @permission_classes([AllowAny])
 def session_login(request):
     """Authenticate credentials and create a Django session."""
+    SessionAuthentication().enforce_csrf(request)
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    user = authenticate(
+    username = username_for(serializer.validated_data["username"].strip())
+    user = username and authenticate(
         request._request,
-        username=serializer.validated_data["username"],
+        username=username,
         password=serializer.validated_data["password"],
     )
-    if user is None or not user.is_active:
+    if not user or not user.is_active:
         return Response({"detail": "Invalid username or password."}, status=status.HTTP_400_BAD_REQUEST)
     django_login(request._request, user)
     return Response({"professor": ProfessorSerializer(user).data})
@@ -65,6 +74,16 @@ def session_logout(request):
         raise NotAuthenticated("Sign in first.")
     django_logout(request._request)
     return Response({"detail": "Signed out."})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([AllowAny])
+def session_user(request):
+    """Return the signed-in user."""
+    if not request.user.is_authenticated:
+        return Response({"professor": None})
+    return Response({"professor": ProfessorSerializer(request.user).data})
 
 
 def get_current_professor(request):

@@ -1,6 +1,13 @@
 import { get, patch, post, qs } from "./http";
-import type { Course, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, ProfileResponse, RegistrationStatus, Signup, Survey, Template } from "./types";
+import type { Course, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, Survey, Template } from "./types";
 
+// L02-L03
+export const authApi = {
+  csrf: () => get<{detail:string}>("/auth/csrf/"),
+  login: (username: string, password: string) => post<{professor:Professor}>("/auth/login/", {username, password}),
+  logout: () => post<{detail:string}>("/auth/logout/"),
+  session: () => get<{professor:Professor|null}>("/auth/session/"),
+};
 // L01-L03, S01-S03, E01
 export const facultyApi = {
   profile: () => get<ProfileResponse>("/me/"),

@@ -30,6 +30,8 @@ FACULTY = [
 
 COMMITTEE = {"username": "committee_demo", "first_name": "Committee", "role": "admin"}
 
+DEMO_PASSWORD = "demo-password"
+
 COURSES = [
     ("faculty_alice", "2337", "001", "Computer Science II", "MWF 10:00-10:50", "ECSS 2.410", "Fall", 2026),
     ("faculty_alice", "3341", "001", "Probability and Statistics in Computer Science and Software Engineering", "TR 10:00-11:15", "ECSS 2.311", "Fall", 2026),
@@ -45,7 +47,8 @@ class Command(BaseCommand):
         "Create or reset the demo cast: faculty_alice (due), faculty_bob (overdue), "
         "faculty_carol (not due), faculty_dave (undetermined), committee_demo, "
         "their CS courses, and the active Fall 2026 cycle. Safe to run again. "
-        "Existing signups, pairings and observations are kept unless --reset is given."
+        "Existing signups, pairings and observations are kept unless --reset is given. "
+        "Every account signs in as <first name>@utdallas.edu with demo-password."
     )
 
     def add_arguments(self, parser):
@@ -70,12 +73,17 @@ class Command(BaseCommand):
 
         users = {}
         for person in [*FACULTY, COMMITTEE]:
-            fields = {"last_name": "Demo", "department": department, "role": "faculty", **person}
+            fields = {
+                "last_name": "Demo",
+                "department": department,
+                "role": "faculty",
+                "email": f"{person['first_name'].lower()}@utdallas.edu",
+                **person,
+            }
             username = fields.pop("username")
-            user, created = User.objects.update_or_create(username=username, defaults=fields)
-            if created:
-                user.set_unusable_password()
-                user.save(update_fields=["password"])
+            user, _ = User.objects.update_or_create(username=username, defaults=fields)
+            user.set_password(DEMO_PASSWORD)
+            user.save(update_fields=["password"])
             users[username] = user
 
         Cycle.objects.update_or_create(semester="Fall 2026", defaults=FALL_2026)
@@ -98,7 +106,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f"Seeded {len(users)} users and {len(COURSES)} courses. "
-            "Use one as X-Demo-Username, for example faculty_alice."
+            f"Sign in as alice@utdallas.edu with {DEMO_PASSWORD}."
         ))
 
     def clear_demo_activity(self):

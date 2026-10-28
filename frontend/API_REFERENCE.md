@@ -4,6 +4,10 @@ Routes below were extracted from the latest available `form_management_update/ur
 
 | Method | URL | Django handler |
 |---|---|---|
+| GET | `/api/auth/csrf/` | `csrf_cookie` |
+| POST | `/api/auth/login/` | `session_login` |
+| POST | `/api/auth/logout/` | `session_logout` |
+| GET | `/api/auth/session/` | `session_user` |
 | GET | `/api/me/` | `my_professor` |
 | GET | `/api/me/courses/` | `my_courses` |
 | POST | `/api/signups/` | `create_signup` |
@@ -89,6 +93,10 @@ Routes below were extracted from the latest available `form_management_update/ur
 - `GET /api/committee/pending-surveys/`: `{cycle_id,missing_count,completed_count,missing:[...],completed:[...]}`.
 - `GET /api/committee/templates/`: `{templates:[...]}`.
 - KPI and committee dashboard responses are aggregated objects; treat optional/provisional metrics conservatively and inspect real responses before writing strict chart types.
+
+## Signing in
+
+Call `GET /api/auth/csrf/` first. Then `POST /api/auth/login/` with `{username, password}`. The username can also be the email. Use `GET /api/auth/session/` to check who is signed in.
 
 ## Requests, errors, and safety
 
