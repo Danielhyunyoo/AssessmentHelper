@@ -30,6 +30,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+ASSESSMENT_HELPER_DEMO_AUTH = os.getenv("ASSESSMENT_HELPER_DEMO_AUTH", "true").lower() == "true"
+
 
 # Application definition
 
