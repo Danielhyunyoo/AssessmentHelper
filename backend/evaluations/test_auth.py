@@ -99,6 +99,21 @@ class SessionAuthTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def login_from(self, origin):
+        return self.client.post(
+            "/api/auth/login/",
+            {"username": "alice", "password": "alice-pass"},
+            format="json",
+            HTTP_X_CSRFTOKEN=self.csrf(),
+            HTTP_ORIGIN=origin,
+        )
+
+    def test_login_from_the_vite_dev_server_passes_the_origin_check(self):
+        self.assertEqual(self.login_from("http://localhost:5173").status_code, status.HTTP_200_OK)
+
+    def test_login_from_an_unknown_origin_is_rejected(self):
+        self.assertEqual(self.login_from("http://evil.example").status_code, status.HTTP_403_FORBIDDEN)
+
     def test_logout_ends_the_session(self):
         self.login("alice", "alice-pass")
 

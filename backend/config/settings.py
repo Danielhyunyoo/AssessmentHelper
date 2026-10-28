@@ -32,6 +32,10 @@ ALLOWED_HOSTS = []
 
 ASSESSMENT_HELPER_DEMO_AUTH = os.getenv("ASSESSMENT_HELPER_DEMO_AUTH", "true").lower() == "true"
 
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    "CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+).split(",")
+
 
 # Application definition
 
