@@ -43,6 +43,7 @@ def csrf_cookie(request):
 @permission_classes([AllowAny])
 def session_login(request):
     """Authenticate credentials and create a Django session."""
+    SessionAuthentication().enforce_csrf(request)
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = authenticate(
@@ -65,6 +66,16 @@ def session_logout(request):
         raise NotAuthenticated("Sign in first.")
     django_logout(request._request)
     return Response({"detail": "Signed out."})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([AllowAny])
+def session_user(request):
+    """Return the signed-in user."""
+    if not request.user.is_authenticated:
+        return Response({"professor": None})
+    return Response({"professor": ProfessorSerializer(request.user).data})
 
 
 def get_current_professor(request):

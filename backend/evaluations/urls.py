@@ -6,6 +6,7 @@ urlpatterns = [
     path("auth/csrf/", views.csrf_cookie, name="auth-csrf"),
     path("auth/login/", views.session_login, name="auth-login"),
     path("auth/logout/", views.session_logout, name="auth-logout"),
+    path("auth/session/", views.session_user, name="auth-session"),
     path("me/", views.my_professor, name="my-professor"),
     path("me/courses/", views.my_courses, name="my-courses"),
     path("signups/", views.create_signup, name="create-signup"),
