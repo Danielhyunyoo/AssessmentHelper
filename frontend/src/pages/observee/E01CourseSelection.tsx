@@ -138,6 +138,14 @@ export default function E01CourseSelection() {
     setSuccess("");
 
     try {
+      localStorage.setItem(
+        "assessmentHelper.proposedDates",
+        JSON.stringify(selectedDates)
+      );
+      localStorage.setItem(
+        "assessmentHelper.selectedCourseId",
+        String(confirmedCourseId)
+      );
       setSuccess(
         `Your course selection and ${selectedDates.length} observation dates were saved successfully. The confirmation notification should now be available.`
       );

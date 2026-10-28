@@ -1,201 +1,265 @@
 // src/pages/shared/S02Profile.tsx
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { facultyApi } from "../../api/endpoints";
+import type { ProfileResponse } from "../../api/types";
 import { Link } from "react-router-dom";
 import defaultAvatar from "../../assets/avatar.png";
 
 export default function S02Profile(): React.ReactElement {
-const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-const [firstName, setFirstName] = useState<string>("John");
-const [lastName, setLastName] = useState<string>("Doe");
-const [phone, setPhone] = useState<string>("(972) 883-2111");
-const [email] = useState<string>("abc123456@utdallas.edu");
-const [department] = useState<string>("Computer Science");
-const [academicRank] = useState<string>("Assistant Professor");
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
 
-const [profilePhoto, setProfilePhoto] = useState<string>(defaultAvatar);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [department, setDepartment] = useState("");
+  const [academicRank, setAcademicRank] = useState("");
 
-const [isEditingInfo, setIsEditingInfo] = useState<boolean>(false);
-const [editFirstName, setEditFirstName] = useState<string>(firstName);
-const [editLastName, setEditLastName] = useState<string>(lastName);
-const [editPhone, setEditPhone] = useState<string>(phone);
+  const [profilePhoto, setProfilePhoto] = useState<string>(defaultAvatar);
 
-const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (file) {
-    const imageUrl = URL.createObjectURL(file);
-    setProfilePhoto(imageUrl);
-  }
-};
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
 
-const handleSaveInfo = (e: React.FormEvent) => {
-  e.preventDefault();
-  setFirstName(editFirstName);
-  setLastName(editLastName);
-  setPhone(editPhone);
-  setIsEditingInfo(false);
-};
+  useEffect(() => {
+    let cancelled = false;
 
-const handleCancelEdit = () => {
-  setEditFirstName(firstName);
-  setEditLastName(lastName);
-  setEditPhone(phone);
-  setIsEditingInfo(false);
-};
+    async function loadProfile() {
+      setProfileLoading(true);
+      setProfileError("");
 
-return (
-  <div className="dashboard-container">
-    {/* Top-Left Back Link */}
-    <div className="back-dashboard-wrapper">
-      <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-        ← Back to Dashboard
-      </Link>
-    </div>
+      try {
+        const result = await facultyApi.profile();
+        if (cancelled) return;
 
-    <h2 className="profile-page-title">Profile and Evaluation Status</h2>
+        const professor = result.professor;
+        const first = professor.first_name || "";
+        const last = professor.last_name || "";
 
-    {/* Main Profile Section */}
-    <section className="dashboard-phase profile-main-card">
-      <div className="profile-card-grid">
-        <div className="profile-info-col">
-          {!isEditingInfo ? (
-            <>
-              <h3 className="profile-user-name">
-                {firstName} {lastName}
-              </h3>
-              <div className="profile-details-list">
-                <p><strong>Department:</strong> {department}</p>
-                <p><strong>Academic Rank:</strong> {academicRank}</p>
-                <p><strong>Email ID:</strong> {email}</p>
-                <p><strong>Phone Number:</strong> {phone}</p>
-              </div>
+        setFirstName(first);
+        setLastName(last);
+        setEmail((professor as typeof professor & { email?: string }).email || "");
+        setDepartment(
+          (professor as typeof professor & { department_name?: string }).department_name || "Not provided"
+        );
+        setAcademicRank(professor.academic_level || "Not provided");
 
-              <div className="profile-email-note">
-                ℹ️ <em>To update your university Email ID, please contact Assessment Committee support staff.</em>
-              </div>
+        setEditFirstName(first);
+        setEditLastName(last);
+      } catch (err) {
+        if (!cancelled) {
+          setProfileError(
+            err instanceof Error ? err.message : "Unable to load your profile."
+          );
+        }
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    }
 
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setIsEditingInfo(true)}
-              >
-                Update Contact Information
-              </button>
-            </>
-          ) : (
-            <form onSubmit={handleSaveInfo} className="profile-edit-form">
-              <h3>Edit Contact Information</h3>
+    void loadProfile();
 
-              <div className="profile-field-group">
-                <label htmlFor="firstName">First Name</label>
-                <input
-                  id="firstName"
-                  type="text"
-                  value={editFirstName}
-                  onChange={(e) => setEditFirstName(e.target.value)}
-                  required
-                />
-              </div>
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-              <div className="profile-field-group">
-                <label htmlFor="lastName">Last Name</label>
-                <input
-                  id="lastName"
-                  type="text"
-                  value={editLastName}
-                  onChange={(e) => setEditLastName(e.target.value)}
-                  required
-                />
-              </div>
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const imageUrl = URL.createObjectURL(file);
+      setProfilePhoto(imageUrl);
+    }
+  };
 
-              <div className="profile-field-group">
-                <label htmlFor="phone">Phone Number</label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                />
-              </div>
+  const handleSaveInfo = (e: React.FormEvent) => {
+    e.preventDefault();
 
-              <div className="profile-field-group">
-                <label>Email ID (Locked)</label>
-                <input type="text" value={email} disabled className="disabled-input" />
-              </div>
+    setSaveMessage(
+      "Profile editing is not connected to a save endpoint yet. Your changes have not been saved."
+    );
+  };
 
-              <div className="profile-form-actions">
-                <button type="submit" className="btn-primary">
-                  Save Changes
-                </button>
+  const handleCancelEdit = () => {
+    setEditFirstName(firstName);
+    setEditLastName(lastName);
+    setEditPhone(phone);
+    setSaveMessage("");
+    setIsEditingInfo(false);
+  };
+
+  return (
+    <div className="dashboard-container">
+      {/* Top-Left Back Link */}
+      <div className="back-dashboard-wrapper">
+        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
+          ← Back to Dashboard
+        </Link>
+      </div>
+
+      <h2 className="profile-page-title">Profile and Evaluation Status</h2>
+
+      {profileLoading && <p>Loading your profile...</p>}
+
+      {profileError && (
+        <div role="alert" className="yellow-banner">
+          {profileError}
+        </div>
+      )}
+
+      {saveMessage && (
+        <div role="status" className="yellow-banner">
+          {saveMessage}
+        </div>
+      )}
+
+      {/* Main Profile Section */}
+      <section className="dashboard-phase profile-main-card">
+        <div className="profile-card-grid">
+          <div className="profile-info-col">
+            {!isEditingInfo ? (
+              <>
+                <h3 className="profile-user-name">
+                  {firstName} {lastName}
+                </h3>
+                <div className="profile-details-list">
+                  <p><strong>Department:</strong> {department}</p>
+                  <p><strong>Academic Rank:</strong> {academicRank}</p>
+                  <p><strong>Email ID:</strong> {email}</p>
+                  <p><strong>Phone Number:</strong> {phone}</p>
+                </div>
+
+                <div className="profile-email-note">
+                  ℹ️ <em>To update your university Email ID, please contact Assessment Committee support staff.</em>
+                </div>
+
                 <button
                   type="button"
-                  className="btn-secondary"
-                  onClick={handleCancelEdit}
+                  className="btn-primary"
+                  onClick={() => setIsEditingInfo(true)}
                 >
-                  Cancel
+                  Update Contact Information
                 </button>
-              </div>
-            </form>
-          )}
-        </div>
+              </>
+            ) : (
+              <form onSubmit={handleSaveInfo} className="profile-edit-form">
+                <h3>Edit Contact Information</h3>
 
-        <div className="profile-photo-col">
-          <div className="profile-avatar-container">
-            <img
-              src={profilePhoto}
-              alt={`${firstName} ${lastName}`}
-              className="profile-avatar-img"
-            />
+                <div className="profile-field-group">
+                  <label htmlFor="firstName">First Name</label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="profile-field-group">
+                  <label htmlFor="lastName">Last Name</label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="profile-field-group">
+                  <label htmlFor="phone">Phone Number</label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="profile-field-group">
+                  <label>Email ID (Locked)</label>
+                  <input type="text" value={email} disabled className="disabled-input" />
+                </div>
+
+                <div className="profile-form-actions">
+                  <button type="submit" className="btn-primary">
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handlePhotoUpload}
-            accept="image/*"
-            style={{ display: "none" }}
-          />
+          <div className="profile-photo-col">
+            <div className="profile-avatar-container">
+              <img
+                src={profilePhoto}
+                alt={`${firstName} ${lastName}`}
+                className="profile-avatar-img"
+              />
+            </div>
 
-          <button
-            type="button"
-            className="btn-secondary"
-            style={{ fontSize: "0.85rem", padding: "0.5rem 0.75rem", width: "100%" }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Update Profile Photo
-          </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handlePhotoUpload}
+              accept="image/*"
+              style={{ display: "none" }}
+            />
+
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: "0.85rem", padding: "0.5rem 0.75rem", width: "100%" }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Update Profile Photo
+            </button>
+          </div>
         </div>
+      </section>
+
+      {/* Evaluation Status Card */}
+      <section className="table-container theme-green profile-status-card">
+        <h3>Evaluation Status</h3>
+
+        <div className="profile-status-grid">
+          <div className="profile-status-item">
+            <span className="status-label">Last Completed Observation</span>
+            <span className="status-value">Spring 2025</span>
+          </div>
+
+          <div className="profile-status-item">
+            <span className="status-label">Current Cycle Status</span>
+            <span className="status-value highlight-status">Fall 2026 - Due for observation</span>
+          </div>
+
+          <div className="profile-status-item">
+            <span className="status-label">Next Semester Due</span>
+            <span className="status-value">Spring/Fall 2026</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom Centered Return Button */}
+      <div className="dashboard-center-action">
+        <Link to="/shared/faculty-dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
       </div>
-    </section>
-
-    {/* Evaluation Status Card */}
-    <section className="table-container theme-green profile-status-card">
-      <h3>Evaluation Status</h3>
-
-      <div className="profile-status-grid">
-        <div className="profile-status-item">
-          <span className="status-label">Last Completed Observation</span>
-          <span className="status-value">Spring 2025</span>
-        </div>
-
-        <div className="profile-status-item">
-          <span className="status-label">Current Cycle Status</span>
-          <span className="status-value highlight-status">Fall 2026 - Due for observation</span>
-        </div>
-
-        <div className="profile-status-item">
-          <span className="status-label">Next Semester Due</span>
-          <span className="status-value">Spring/Fall 2026</span>
-        </div>
-      </div>
-    </section>
-
-    {/* Bottom Centered Return Button */}
-    <div className="dashboard-center-action">
-      <Link to="/shared/faculty-dashboard" className="btn-secondary">
-        Return to Dashboard
-      </Link>
     </div>
-  </div>
-);
+  );
 }

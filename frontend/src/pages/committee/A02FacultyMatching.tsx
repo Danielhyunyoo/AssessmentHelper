@@ -1,16 +1,29 @@
 // src/pages/committee/A02FacultyMatching.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { committeeApi } from "../../api/endpoints";
+import type { FacultyRow } from "../../api/types";
 import { Link } from "react-router-dom";
 
 export default function A02FacultyMatching() {
-  const observeeList = ["Professor A", "Professor B", "Professor C"];
-  const observerOptions = ["Professor D", "Professor E", "Professor F", "Professor G", "Professor H"];
+  const [observeeList, setObserveeList] = useState<FacultyRow[]>([]);
+  const [candidateOptions, setCandidateOptions] = useState<
+    Record<number, { id: number; name: string; academic_level: string }[]>
+  >({});
+  const [selectedObservers, setSelectedObservers] = useState<
+    Record<number, number[]>
+  >({});
+  const [loadingMatches, setLoadingMatches] = useState(true);
+  const [savingSignupId, setSavingSignupId] = useState<number | null>(null);
+  const [matchError, setMatchError] = useState("");
+  const [matchSuccess, setMatchSuccess] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [startDate, setStartDate] = useState<string>("2026-09-13");
   const [endDate, setEndDate] = useState<string>("2026-10-09");
   const [displayStartDate, setDisplayStartDate] = useState<string>("Sep 13, 2026");
   const [displayEndDate, setDisplayEndDate] = useState<string>("Oct 9, 2026 at 11:59 PM");
+  const [sendingNotifications, setSendingNotifications] = useState(false);
+
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
@@ -35,6 +48,177 @@ export default function A02FacultyMatching() {
     setIsModalOpen(false);
   };
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMatchingData() {
+      setLoadingMatches(true);
+      setMatchError("");
+
+      try {
+        const roster = await committeeApi.faculty();
+
+        const eligibleObservees = roster.faculty.filter(
+          (faculty) => faculty.signup_id !== null && faculty.course !== null
+        );
+
+        if (cancelled) return;
+
+        setObserveeList(eligibleObservees);
+
+        const poolResults = await Promise.all(
+          eligibleObservees.map(async (faculty) => {
+            try {
+              const result = await committeeApi.candidatePool(faculty.signup_id!);
+              const candidates = Array.isArray(result.candidates)
+                ? result.candidates as { id: number; name: string; academic_level: string }[]
+                : [];
+
+              return [faculty.signup_id!, candidates] as const;
+            } catch {
+              return [faculty.signup_id!, []] as const;
+            }
+          })
+        );
+
+        if (cancelled) return;
+
+        setCandidateOptions(Object.fromEntries(poolResults));
+      } catch (err) {
+        if (!cancelled) {
+          setMatchError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load committee matching data."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingMatches(false);
+      }
+    }
+
+    void loadMatchingData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleObserverChange = (
+    signupId: number,
+    slotIndex: number,
+    observerId: number
+  ) => {
+    setSelectedObservers((previous) => {
+      const current = [...(previous[signupId] ?? [])];
+      current[slotIndex] = observerId;
+
+      // Prevent selecting the same observer in multiple slots.
+      const unique = current.filter(
+        (id, index) => id !== 0 && current.indexOf(id) === index
+      );
+
+      return { ...previous, [signupId]: unique };
+    });
+  };
+
+  const handleConfirmMatches = async (signupId: number) => {
+    const observerIds = (selectedObservers[signupId] ?? []).filter(Boolean);
+
+    if (observerIds.length === 0) {
+      setMatchError("Select at least one eligible observer before confirming.");
+      return;
+    }
+
+    if (observerIds.length > 5) {
+      setMatchError("You can select at most five observers.");
+      return;
+    }
+
+    setSavingSignupId(signupId);
+    setMatchError("");
+    setMatchSuccess("");
+
+    try {
+      await committeeApi.releaseCandidates(signupId, observerIds);
+      setMatchSuccess(`Candidate list released for signup #${signupId}.`);
+    } catch (err) {
+      setMatchError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save the selected observer candidates."
+      );
+    } finally {
+      setSavingSignupId(null);
+    }
+  };
+
+  const handleSendNotifications = async () => {
+    const selectedEntries = observeeList
+      .filter((person) => person.signup_id != null)
+      .map((person) => ({
+        person,
+        signupId: person.signup_id!,
+        observerIds: (selectedObservers[person.signup_id!] ?? []).filter(Boolean),
+      }))
+      .filter((entry) => entry.observerIds.length > 0);
+
+    if (selectedEntries.length === 0) {
+      setMatchError("Select at least one observer before sending notifications.");
+      setMatchSuccess("");
+      return;
+    }
+
+    const invalidEntry = selectedEntries.find(
+      (entry) => entry.observerIds.length > 5
+    );
+
+    if (invalidEntry) {
+      setMatchError("You can select at most five observers per observee.");
+      setMatchSuccess("");
+      return;
+    }
+
+    setSendingNotifications(true);
+    setMatchError("");
+    setMatchSuccess("");
+
+    let succeeded = 0;
+    const failures: string[] = [];
+
+    try {
+      for (const entry of selectedEntries) {
+        try {
+          await committeeApi.releaseCandidates(
+            entry.signupId,
+            entry.observerIds
+          );
+          succeeded++;
+        } catch (err) {
+          failures.push(
+            `${entry.person.name}: ${
+              err instanceof Error ? err.message : "Request failed"
+            }`
+          );
+        }
+      }
+
+      if (failures.length > 0) {
+        setMatchError(
+          `${succeeded} observee(s) notified successfully. ${failures.length} failed: ${failures.join("; ")}`
+        );
+      }
+
+      if (succeeded > 0) {
+        setMatchSuccess(
+          `Successfully released candidate lists and triggered notifications for ${succeeded} observee(s).`
+        );
+      }
+    } finally {
+      setSendingNotifications(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       {/* Top-Left Back Link */}
@@ -45,6 +229,10 @@ export default function A02FacultyMatching() {
       </div>
 
       <h2>Observer Selection and Matching</h2>
+
+      {loadingMatches && <p>Loading faculty and eligible observer candidates...</p>}
+      {matchError && <div role="alert" className="yellow-banner">{matchError}</div>}
+      {matchSuccess && <div role="status" className="yellow-banner">{matchSuccess}</div>}
 
       {/* Top Banner Card */}
       <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
@@ -78,28 +266,72 @@ export default function A02FacultyMatching() {
 
         <div className="table-container theme-green" style={{ padding: "1.25rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem" }}>
-            {observeeList.map((obs, idx) => (
-              <div key={idx} style={{ backgroundColor: "#fff7ed", padding: "1rem", borderRadius: "6px", border: "1px solid #fed7aa" }}>
-                <h4>Observee Name</h4>
-                <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.75rem" }}>{obs}</p>
+            {observeeList.map((observee) => {
+              const signupId = observee.signup_id!;
 
-                <strong>List of Available Observers</strong>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
-                  {[1, 2, 3, 4, 5].map((slot) => (
-                    <select key={slot} style={{ padding: "0.3rem", borderRadius: "4px", border: "1px solid #cbd5e1" }}>
-                      <option value="">Select observer {slot}...</option>
-                      {observerOptions.map((o, i) => (
-                        <option key={i} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  ))}
+              return (
+                <div
+                  key={signupId}
+                  style={{
+                    backgroundColor: "#fff7ed",
+                    padding: "1rem",
+                    borderRadius: "6px",
+                    border: "1px solid #fed7aa",
+                  }}
+                >
+                  <h4>Observee Name</h4>
+                  <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.75rem" }}>
+                    {observee.name}
+                  </p>
+
+                  <p>
+                    <strong>
+                      {observee.course
+                        ? `${observee.course.department_code} ${observee.course.course_number}.${observee.course.section}`
+                        : "Course not selected"}
+                    </strong>
+                  </p>
+
+                  <strong>List of Available Observers</strong>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+                    {[0, 1, 2, 3, 4].map((slotIndex) => (
+                      <select
+                        key={slotIndex}
+                        value={selectedObservers[signupId]?.[slotIndex] ?? ""}
+                        onChange={(event) =>
+                          handleObserverChange(signupId, slotIndex, Number(event.target.value))
+                        }
+                        style={{ padding: "0.3rem", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+                      >
+                        <option value="">Select observer {slotIndex + 1}...</option>
+                        {(candidateOptions[signupId] ?? []).map((candidate) => (
+                          <option
+                            key={candidate.id}
+                            value={candidate.id}
+                            disabled={(selectedObservers[signupId] ?? []).some(
+                              (id, index) => id === candidate.id && index !== slotIndex
+                            )}
+                          >
+                            {candidate.name} — {candidate.academic_level}
+                          </option>
+                        ))}
+                      </select>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn-secondary btn-block"
+                    style={{ marginTop: "1rem" }}
+                    onClick={() => void handleConfirmMatches(signupId)}
+                    disabled={savingSignupId === signupId}
+                  >
+                    {savingSignupId === signupId ? "Saving..." : "Confirm Matches"}
+                  </button>
                 </div>
-
-                <button type="button" className="btn-secondary btn-block" style={{ marginTop: "1rem" }}>
-                  Confirm Matches
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -117,35 +349,157 @@ export default function A02FacultyMatching() {
             Review the following completed matched lists. Select each Observee you'd like to notify about their successful matches:
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem" }}>
-            {["Professor D", "Professor E", "Professor F"].map((obsName, idx) => (
-              <div key={idx} style={{ backgroundColor: "#f0fdf4", padding: "1rem", borderRadius: "6px", border: "1px solid #bbf7d0" }}>
-                <h4>Observee Name</h4>
-                <p style={{ fontSize: "0.9rem", color: "#64748b" }}>{obsName}</p>
-                <span style={{ fontSize: "0.8rem", color: "#15803d", fontWeight: "700" }}>CS 4349.002</span>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "1.25rem",
+            }}
+          >
+            {observeeList.map((person) => {
+              const signupId = person.signup_id;
 
-                <strong style={{ display: "block", marginTop: "0.75rem" }}>List of Matched Observers</strong>
-                <ul style={{ paddingLeft: "1.25rem", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                  {observerOptions.map((o, i) => (
-                    <li key={i}>{o}</li>
-                  ))}
-                </ul>
+              if (signupId == null) return null;
 
-                <button type="button" className="btn-primary btn-block" style={{ marginTop: "1rem" }}>
-                  Select
-                </button>
-              </div>
-            ))}
+              const candidates = candidateOptions[signupId] ?? [];
+              const selectedIds = selectedObservers[signupId] ?? [];
+
+              return (
+                <div
+                  key={signupId}
+                  style={{
+                    backgroundColor: "#f0fdf4",
+                    padding: "1rem",
+                    borderRadius: "6px",
+                    border: "1px solid #bbf7d0",
+                  }}
+                >
+                  <h4>Observee Name</h4>
+                  <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                    {person.name}
+                  </p>
+
+                  <strong style={{ display: "block", marginTop: "0.75rem" }}>
+                    List of Eligible Observers
+                  </strong>
+
+                  {candidates.length === 0 ? (
+                    <p style={{ fontSize: "0.85rem" }}>
+                      No eligible candidates were returned.
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.5rem",
+                        marginTop: "0.5rem",
+                      }}
+                    >
+                      {candidates.map((candidate) => (
+                        <label
+                          key={candidate.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            fontSize: "0.85rem",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(candidate.id)}
+                            onChange={(event) => {
+                              const updated = event.target.checked
+                                ? [...selectedIds, candidate.id]
+                                : selectedIds.filter((id) => id !== candidate.id);
+
+                              setSelectedObservers((previous) => ({
+                                ...previous,
+                                [signupId]: updated,
+                              }));
+                            }}
+                            disabled={
+                              savingSignupId === signupId ||
+                              (!selectedIds.includes(candidate.id) &&
+                                selectedIds.length >= 5)
+                            }
+                          />
+                          <span>
+                            {candidate.name} ({candidate.academic_level})
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn-primary btn-block"
+                    style={{ marginTop: "1rem" }}
+                    onClick={() => void handleConfirmMatches(signupId)}
+                    disabled={
+                      savingSignupId === signupId || selectedIds.length === 0
+                    }
+                  >
+                    {savingSignupId === signupId
+                      ? "Saving..."
+                      : `Approve ${selectedIds.length} Candidate(s)`}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "1.5rem",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="btn-secondary">Select All</button>
-            <button type="button" className="btn-secondary">Deselect All</button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                const allSelected: Record<number, number[]> = {};
+
+                observeeList.forEach((person) => {
+                  if (person.signup_id == null) return;
+
+                  const candidates = candidateOptions[person.signup_id] ?? [];
+                  allSelected[person.signup_id] = candidates
+                    .slice(0, 5)
+                    .map((candidate) => candidate.id);
+                });
+
+                setSelectedObservers(allSelected);
+              }}
+            >
+              Select All
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setSelectedObservers({})}
+            >
+              Deselect All
+            </button>
           </div>
 
-          <button type="button" className="btn-primary">Send Notifications</button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => void handleSendNotifications()}
+            disabled={sendingNotifications}
+          >
+            {sendingNotifications ? "Sending..." : "Send Notifications"}
+          </button>
         </div>
 
         {/* Bottom Centered Return Button */}

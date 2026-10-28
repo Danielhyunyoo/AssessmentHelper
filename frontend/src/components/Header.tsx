@@ -30,6 +30,7 @@ export default function Header() {
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [headerError, setHeaderError] = useState("");
+  const [backendUnreadCount, setBackendUnreadCount] = useState(0);
 
   const closeAllMenus = () => {
     setIsMenuOpen(false);
@@ -62,6 +63,7 @@ export default function Header() {
 
       if (notification?.unread) {
         await facultyApi.markRead(Number(id));
+        setBackendUnreadCount((count) => Math.max(0, count - 1));
 
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
@@ -146,6 +148,7 @@ export default function Header() {
         );
 
         setHasUnreadNotifications(notificationResponse.unread_count > 0);
+        setBackendUnreadCount(notificationResponse.unread_count);
         setCurrentUser(profileResponse.professor);
       } catch {
         // Keep the header usable if an endpoint is temporarily unavailable.
@@ -162,7 +165,7 @@ export default function Header() {
     };
   }, []);
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const unreadCount = backendUnreadCount;
 
   return (
     <>

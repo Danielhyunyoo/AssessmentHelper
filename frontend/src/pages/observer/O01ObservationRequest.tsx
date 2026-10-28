@@ -1,5 +1,7 @@
 // src/pages/observer/O01ObservationRequest.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { matchingApi } from "../../api/endpoints";
+import type { Invitation } from "../../api/types";
 import { Link, useNavigate } from "react-router-dom";
 import avatarPlaceholder from "../../assets/avatar.png";
 
@@ -9,46 +11,140 @@ interface ProposedDateSlot {
   time: string;
 }
 
-const PROPOSED_DATES: ProposedDateSlot[] = [
-  { id: "slot-1", date: "Oct 12, 2026", time: "1:00 PM - 2:15 PM" },
-  { id: "slot-2", date: "Oct 14, 2026", time: "1:00 PM - 2:15 PM" },
-  { id: "slot-3", date: "Oct 16, 2026", time: "1:00 PM - 2:15 PM" },
-  { id: "slot-4", date: "Oct 19, 2026", time: "1:00 PM - 2:15 PM" },
-  { id: "slot-5", date: "Oct 21, 2026", time: "1:00 PM - 2:15 PM" },
-  { id: "slot-6", date: "Oct 23, 2026", time: "1:00 PM - 2:15 PM" },
-  { id: "slot-7", date: "Oct 26, 2026", time: "1:00 PM - 2:15 PM" },
-  { id: "slot-8", date: "Oct 28, 2026", time: "1:00 PM - 2:15 PM" },
-];
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  return {
+    date: date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    time: date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+  };
+}
 
 export default function O01ObservationRequest() {
   const navigate = useNavigate();
 
   const [selectedSlotId, setSelectedSlotId] = useState<string>("");
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
-  const handleAcceptSelectedDate = () => {
-    if (!selectedSlotId) {
-      setStatusMessage({ type: "error", text: "Please select one date and time slot before accepting." });
+  const proposedDates: ProposedDateSlot[] = (invitation?.proposed_dates ?? []).map(
+    (date) => {
+      const formatted = formatDateTime(date.datetime);
+      return {
+        id: String(date.proposed_date_id),
+        date: formatted.date,
+        time: formatted.time,
+      };
+    }
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadInvitations() {
+      setLoading(true);
+      setLoadError("");
+
+      try {
+        const invitations = await matchingApi.incomingInvitations();
+
+        if (cancelled) return;
+
+        const pending = invitations.find(
+          (item) => item.status === "pending"
+        );
+
+        setInvitation(pending ?? invitations[0] ?? null);
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load observation invitations."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadInvitations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAcceptSelectedDate = async () => {
+    if (!invitation) {
+      setStatusMessage({ type: "error", text: "There is no invitation to respond to." });
       return;
     }
 
-    const chosenSlot = PROPOSED_DATES.find((slot) => slot.id === selectedSlotId);
-    setStatusMessage({
-      type: "success",
-      text: `Invitation accepted for ${chosenSlot?.date} @ ${chosenSlot?.time}! This date has been locked in.`,
-    });
+    if (!selectedSlotId) {
+      setStatusMessage({
+        type: "error",
+        text: "Please select one date and time slot before accepting.",
+      });
+      return;
+    }
 
-    setTimeout(() => {
-      navigate("/shared/faculty-dashboard");
-    }, 2000);
+    setSaving(true);
+
+    try {
+      await matchingApi.respond(
+        invitation.invitation_id,
+        "accept",
+        Number(selectedSlotId)
+      );
+
+      setStatusMessage({
+        type: "success",
+        text: "Your response was saved. The observee must confirm the final pairing.",
+      });
+    } catch (err) {
+      setStatusMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Unable to accept the invitation.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDeclineInvitation = () => {
-    setStatusMessage({ type: "error", text: "Invitation declined." });
+  const handleDeclineInvitation = async () => {
+    if (!invitation) {
+      setStatusMessage({ type: "error", text: "There is no invitation to decline." });
+      return;
+    }
 
-    setTimeout(() => {
-      navigate("/shared/faculty-dashboard");
-    }, 2000);
+    setSaving(true);
+
+    try {
+      await matchingApi.respond(invitation.invitation_id, "decline");
+      setStatusMessage({ type: "success", text: "Invitation declined." });
+      setInvitation(null);
+    } catch (err) {
+      setStatusMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Unable to decline the invitation.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -61,6 +157,16 @@ export default function O01ObservationRequest() {
       </div>
 
       <h2>Observation Request</h2>
+
+      {loading && <p>Loading incoming invitations...</p>}
+
+      {loadError && (
+        <div role="alert" className="yellow-banner">{loadError}</div>
+      )}
+
+      {!loading && !invitation && (
+        <div className="yellow-banner">You have no pending observation invitations.</div>
+      )}
 
       {statusMessage && (
         <div
@@ -152,7 +258,7 @@ export default function O01ObservationRequest() {
                 </tr>
               </thead>
               <tbody>
-                {PROPOSED_DATES.map((slot) => (
+                {proposedDates.map((slot) => (
                   <tr key={slot.id}>
                     <td>
                       <input
@@ -178,6 +284,7 @@ export default function O01ObservationRequest() {
             type="button"
             className="btn-secondary"
             onClick={handleDeclineInvitation}
+            disabled={saving || !invitation}
           >
             Decline Invitation
           </button>
@@ -186,9 +293,9 @@ export default function O01ObservationRequest() {
             type="button"
             className="btn-primary"
             onClick={handleAcceptSelectedDate}
-            disabled={!selectedSlotId}
+            disabled={!selectedSlotId || saving || !invitation}
           >
-            Accept Selected Date
+            {saving ? "Saving..." : "Accept Selected Date"}
           </button>
         </div>
       </section>

@@ -1,8 +1,52 @@
 // src/pages/shared/S04CurrentAndPastObservations.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { authApi, observationApi } from "../../api/endpoints";
+import type { ObservationRecord, Professor } from "../../api/types";
 import { Link } from "react-router-dom";
 
 export default function S04CurrentAndPastObservations() {
+  const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [liveRecords, setLiveRecords] = useState<ObservationRecord[]>([]);
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveError, setLiveError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecords() {
+      setLiveLoading(true);
+      setLiveError("");
+
+      try {
+        const [session, records] = await Promise.all([
+          authApi.session(),
+          observationApi.list(),
+        ]);
+
+        if (cancelled) return;
+
+        setCurrentUser(session.professor);
+        setLiveRecords(records);
+      } catch (err) {
+        if (!cancelled) {
+          setLiveError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load your observation records."
+          );
+        }
+      } finally {
+        if (!cancelled) setLiveLoading(false);
+      }
+    }
+
+    void loadRecords();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Demo toggle state to switch between active observations vs none
   const [hasActiveObservation, setHasActiveObservation] = useState<boolean>(true);
 
@@ -45,6 +89,85 @@ export default function S04CurrentAndPastObservations() {
             <p className="reminder-date">Dec 1, 2026</p>
           </div>
         </div>
+      </section>
+
+      <section className="dashboard-phase">
+        <h3>Your Records from the Backend</h3>
+
+        {liveLoading && <p>Loading your observation records...</p>}
+
+        {liveError && (
+          <div role="alert" className="yellow-banner">
+            {liveError}
+          </div>
+        )}
+
+        {!liveLoading && !liveError && liveRecords.length === 0 && (
+          <div className="table-container theme-green">
+            No observation records have been returned for your account yet.
+          </div>
+        )}
+
+        {!liveLoading && liveRecords.length > 0 && (
+          <div className="table-container theme-green">
+            <div className="observation-cards-container">
+              {liveRecords.map((record) => {
+                const userId = currentUser?.id;
+                const isObserver = record.observer.id === userId;
+                const isObservee = record.observee.id === userId;
+
+                // Only display records that belong to the signed-in user.
+                if (!isObserver && !isObservee) return null;
+
+                const counterpart = isObserver
+                  ? record.observee.name
+                  : record.observer.name;
+
+                return (
+                  <article
+                    className="observation-card-history"
+                    key={record.observation_id}
+                  >
+                    <div className="observation-card-header">
+                      <strong className="observation-card-title">
+                        {record.confirmed_datetime
+                          ? new Date(record.confirmed_datetime).toLocaleString()
+                          : "Date not yet confirmed"}
+                      </strong>
+
+                      <span className={`pill-badge ${isObserver ? "pill-observer" : "pill-observee"}`}>
+                        {isObserver ? "Observer" : "Observee"}
+                      </span>
+                    </div>
+
+                    <p className="observation-card-text">
+                      <strong>{isObserver ? "Observee:" : "Observer:"}</strong>{" "}
+                      {counterpart}
+                    </p>
+
+                    <p className="observation-card-text">
+                      <strong>Course:</strong>{" "}
+                      {record.course.department_code} {record.course.course_number}
+                    </p>
+
+                    <p className="observation-card-text">
+                      <strong>Section:</strong> {record.course.section}
+                    </p>
+
+                    <p className="observation-card-subtext">
+                      <strong>Status:</strong> {record.status}
+                    </p>
+
+                    <p className="observation-card-subtext">
+                      <strong>Record:</strong>{" "}
+                      {record.locked ? "Finalized / locked" : "In progress"}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Current Observations Section */}

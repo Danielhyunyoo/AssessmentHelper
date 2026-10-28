@@ -50,9 +50,6 @@ export default function S01FacultyDashboard() {
     };
   }, []);
 
-  const isCommittee =
-    currentUser?.role === "admin";
-
   const canUseFacultyModules =
     !!currentUser && currentUser.role !== "admin";
 
