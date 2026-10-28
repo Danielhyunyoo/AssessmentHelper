@@ -96,10 +96,10 @@ export default function S04CurrentAndPastObservations() {
 
                 <div className="observation-card-actions">
                   <button type="button" className="btn-primary">
-                    Sign Observation Record
+                    View Observation Record
                   </button>
                   <button type="button" className="btn-secondary">
-                    Complete Post-Observation Survey
+                    View Post-Observation Survey
                   </button>
                 </div>
               </div>
@@ -133,10 +133,10 @@ export default function S04CurrentAndPastObservations() {
 
                 <div className="observation-card-actions">
                   <button type="button" className="btn-primary">
-                    Fill Observation Form
+                    View Observation Record
                   </button>
                   <button type="button" className="btn-secondary">
-                    Contact Observee
+                    View Post-Observation Survey
                   </button>
                 </div>
               </div>
@@ -192,7 +192,7 @@ export default function S04CurrentAndPastObservations() {
                         View Observation Record
                       </button>
                       <button type="button" className="btn-secondary">
-                        View Post-Observation Survey Feedback
+                        View Post-Observation Survey
                       </button>
                     </div>
                   </div>
@@ -226,7 +226,10 @@ export default function S04CurrentAndPastObservations() {
 
                     <div className="observation-card-actions">
                       <button type="button" className="btn-primary">
-                        View Submitted Form
+                        View Observation Record
+                      </button>
+                      <button type="button" className="btn-secondary">
+                        View Post-Observation Survey
                       </button>
                     </div>
                   </div>
@@ -276,7 +279,7 @@ export default function S04CurrentAndPastObservations() {
                         View Observation Record
                       </button>
                       <button type="button" className="btn-secondary">
-                        View Post-Observation Survey Feedback
+                        View Post-Observation Survey
                       </button>
                     </div>
                   </div>
@@ -326,7 +329,7 @@ export default function S04CurrentAndPastObservations() {
                         View Observation Record
                       </button>
                       <button type="button" className="btn-secondary">
-                        View Post-Observation Survey Feedback
+                        View Post-Observation Survey
                       </button>
                     </div>
                   </div>

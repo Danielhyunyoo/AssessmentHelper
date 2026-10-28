@@ -1,4 +1,3 @@
-// src/pages/observee/E02ObserverSelection.tsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
@@ -107,8 +106,8 @@ export default function E02ObserverSelection() {
                     fontSize: "0.8rem",
                     fontWeight: "600",
                     cursor: "pointer",
-                    border: isSelected ? "1px solid #000000" : "1px solid #cbd5e1",
-                    backgroundColor: isSelected ? "#000000" : "#ffffff",
+                    border: isSelected ? "1px solid #1e293b" : "1px solid #cbd5e1",
+                    backgroundColor: isSelected ? "#1e293b" : "#ffffff",
                     color: isSelected ? "#ffffff" : "#334155",
                     transition: "all 0.15s ease",
                   }}
@@ -210,17 +209,29 @@ export default function E02ObserverSelection() {
           data={candidateData}
         />
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1rem" }}>
+        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="secondary-btn" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
+            <button
+              type="button"
+              className="btn-select-toggle"
+              onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}
+            >
               Select All
             </button>
-            <button type="button" className="secondary-btn" onClick={() => setSelectedCandidates([])}>
+            <button
+              type="button"
+              className="btn-select-toggle"
+              onClick={() => setSelectedCandidates([])}
+            >
               Deselect All
             </button>
           </div>
 
-          <button type="button" className="primary-btn" onClick={() => alert("Invitation requests sent!")}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => alert("Invitation requests sent!")}
+          >
             Send Invitation Requests
           </button>
         </div>
@@ -241,17 +252,21 @@ export default function E02ObserverSelection() {
           data={responseData}
         />
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem" }}>
-          <button type="button" className="secondary-btn">
+        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button type="button" className="btn-secondary">
             Reject All
           </button>
-          <button type="button" className="primary-btn" onClick={() => alert("Changes confirmed and locked!")}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => alert("Changes confirmed and locked!")}
+          >
             Confirm and Lock Changes
           </button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center", marginTop: "2.5rem" }}>
-          <Link to="/shared/faculty-dashboard" className="secondary-btn">
+        <div className="dashboard-center-action">
+          <Link to="/shared/faculty-dashboard" className="btn-secondary">
             Return to Dashboard
           </Link>
         </div>

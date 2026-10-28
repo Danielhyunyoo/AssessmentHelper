@@ -1,4 +1,3 @@
-// src/pages/committee/A02FacultyMatching.tsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -139,10 +138,11 @@ export default function A02FacultyMatching() {
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem" }}>
+        {/* Action Controls Bar - Using standardized grey toggle buttons */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="btn-secondary">Select All</button>
-            <button type="button" className="btn-secondary">Deselect All</button>
+            <button type="button" className="btn-select-toggle">Select All</button>
+            <button type="button" className="btn-select-toggle">Deselect All</button>
           </div>
 
           <button type="button" className="btn-primary">Send Notifications</button>
