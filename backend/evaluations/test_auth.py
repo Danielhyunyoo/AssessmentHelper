@@ -17,7 +17,9 @@ class SessionAuthTests(APITestCase):
         self.client = APIClient(enforce_csrf_checks=True)
 
         department = Department.objects.create(name="Computer Science", department_code="CS")
-        self.alice = User.objects.create_user(username="alice", password="alice-pass")
+        self.alice = User.objects.create_user(
+            username="alice", password="alice-pass", email="alice@utdallas.edu"
+        )
         self.bob = User.objects.create_user(username="bob", password="bob-pass")
         self.committee = User.objects.create_user(
             username="committee", password="committee-pass", role="admin"
@@ -67,6 +69,20 @@ class SessionAuthTests(APITestCase):
         response = self.login("committee", "committee-pass")
 
         self.assertEqual(response.data["professor"]["role"], "admin")
+
+    def test_login_accepts_email(self):
+        response = self.login("Alice@UTDallas.edu", "alice-pass")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["professor"]["username"], "alice")
+
+    def test_shared_email_is_rejected(self):
+        self.bob.email = "alice@utdallas.edu"
+        self.bob.save()
+
+        response = self.login("alice@utdallas.edu", "alice-pass")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_wrong_password_is_rejected(self):
         response = self.login("alice", "wrong")

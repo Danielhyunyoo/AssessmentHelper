@@ -96,7 +96,7 @@ Routes below were extracted from the latest available `form_management_update/ur
 
 ## Signing in
 
-Call `GET /api/auth/csrf/` first. Then `POST /api/auth/login/` with `{username, password}`. Use `GET /api/auth/session/` to check who is signed in.
+Call `GET /api/auth/csrf/` first. Then `POST /api/auth/login/` with `{username, password}`. The username can also be the email. Use `GET /api/auth/session/` to check who is signed in.
 
 ## Requests, errors, and safety
 
