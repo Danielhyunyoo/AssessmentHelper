@@ -196,23 +196,45 @@ export default function O01ObservationRequest() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", fontSize: "0.95rem" }}>
               <div>
-                <strong>Professor A</strong>
-                <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0 }}>Associate Professor</p>
+                <strong>
+                  {invitation?.sender
+                    ? `${invitation.sender.first_name} ${invitation.sender.last_name}`.trim() ||
+                      invitation.sender.username
+                    : "Faculty details unavailable"}
+                </strong>
+
+                <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0 }}>
+                  {invitation?.sender?.academic_level || "Academic level not provided"}
+                </p>
               </div>
 
               <div>
                 <strong>Course and Section</strong>
-                <p style={{ margin: 0, color: "#334155" }}>CS 4349.002</p>
+                <p style={{ margin: 0, color: "#334155" }}>
+                  {invitation?.course
+                    ? `${invitation.course.department_code} ${invitation.course.course_number}.${invitation.course.section}`
+                    : "Course details unavailable"}
+                </p>
+
+                {invitation?.course?.title && (
+                  <p style={{ margin: 0, color: "#334155" }}>
+                    {invitation.course.title}
+                  </p>
+                )}
               </div>
 
               <div>
                 <strong>Meeting Days and Times</strong>
-                <p style={{ margin: 0, color: "#334155" }}>MW 1:00 PM - 2:15 PM</p>
+                <p style={{ margin: 0, color: "#334155" }}>
+                  {invitation?.course?.schedule || "Schedule not provided"}
+                </p>
               </div>
 
               <div>
                 <strong>Classroom Location</strong>
-                <p style={{ margin: 0, color: "#334155" }}>ECSS 2.412</p>
+                <p style={{ margin: 0, color: "#334155" }}>
+                  {invitation?.course?.classroom || "Not provided"}
+                </p>
               </div>
             </div>
           </div>

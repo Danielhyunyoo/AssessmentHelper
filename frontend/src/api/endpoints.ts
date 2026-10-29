@@ -1,5 +1,5 @@
 import { get, patch, post, qs } from "./http";
-import type { Course, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, Survey, Template } from "./types";
+import type { Course, CycleDates, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template } from "./types";
 
 // L02-L03
 export const authApi = {
@@ -16,6 +16,8 @@ export const facultyApi = {
   registrationStatus: () => get<RegistrationStatus>("/registration/status/"),
   register: (course_id?: number) => post<Signup>("/signups/", course_id === undefined ? {} : { course_id }),
   selectCourse: (course_id: number) => patch<Signup>("/signups/course/", { course_id }),
+  availability: () => get<SignupAvailability>("/signups/availability/"),
+  saveAvailability: (available_datetimes: string[]) => patch<SignupAvailability>("/signups/availability/", { available_datetimes }),
   notifications: () => get<NotificationsResponse>("/notifications/"),
   markRead: (notificationId: number) => patch<Notification>(`/notifications/${notificationId}/read/`, {}),
   markAllRead: () => post<{updated_count:number;unread_count:number}>("/notifications/read-all/"),
@@ -50,6 +52,8 @@ export const committeeApi = {
   unregistered: (opts: {search?:string;sort?:"name"|"department"|"rank"|"status"}={}) => get<{cycle_id:number;count:number;faculty:FacultyRoster["faculty"]}>(`/committee/faculty/unregistered/${qs(opts)}`),
   updateRank: (id:number,academic_rank:string) => patch<JsonObject>(`/committee/faculty/${id}/rank/`,{academic_rank}),
   remindRegistration: (user_ids:number[]) => post<JsonObject>("/committee/faculty/remind/",{user_ids}),
+  cycleDates: () => get<CycleDates>("/committee/cycle-dates/"),
+  updateCycleDates: (dates: Partial<CycleDates>) => patch<CycleDates>("/committee/cycle-dates/", dates),
   candidatePool: (signupId:number) => get<JsonObject>(`/committee/signups/${signupId}/candidate-pool/`),
   releaseCandidates: (signupId:number,observer_ids:number[]) => post<JsonObject>(`/committee/signups/${signupId}/release-candidates/`,{observer_ids}),
   unmatched: () => get<JsonObject>("/committee/unmatched/"),

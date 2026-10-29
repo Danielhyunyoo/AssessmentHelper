@@ -82,9 +82,26 @@ export default function L03SignIn2() {
   return (
     <div className="dashboard-container" style={{ alignItems: "center", paddingTop: "3rem" }}>
       <h2>{cycleName} Evaluation Cycle</h2>
-      <p style={{ color: "#475569", marginTop: "-0.5rem", marginBottom: "1.5rem" }}>
-        You are registering for the upcoming peer observation cycle.
+      <p style={{ color: "#475569", marginTop: "-0.5rem", marginBottom: "0.75rem" }}>
+        You are viewing the registration status for the current evaluation cycle.
       </p>
+
+      {registration && (
+        <div
+          className="table-instruction"
+          style={{ marginBottom: "1.5rem", width: "100%", maxWidth: "600px" }}
+        >
+          <p>
+            <strong>Cycle dates:</strong>{" "}
+            {new Date(`${registration.start_date}T00:00:00`).toLocaleDateString()} –{" "}
+            {new Date(`${registration.end_date}T00:00:00`).toLocaleDateString()}
+          </p>
+          <p>
+            <strong>Registration deadline:</strong>{" "}
+            {new Date(`${registration.signup_deadline}T00:00:00`).toLocaleDateString()}
+          </p>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="yellow-banner">
@@ -149,7 +166,7 @@ export default function L03SignIn2() {
             </ul>
 
             <button type="button" className="btn-primary btn-block" onClick={handleRegister} disabled={saving}>
-              {saving ? "Registering..." : "Register for ${cycleName} Cycle"}
+              {saving ? "Registering..." : `Register for ${cycleName} Cycle`}
             </button>
 
             <div className="registration-link-container">

@@ -461,15 +461,22 @@ export default function Header() {
 
               {/* Observee & Observer Shortcuts */}
               <div className="menu-section">
-                <h4>Observee & Observer Modules</h4>
+                <h4>Observee &amp; Observer Modules</h4>
+
                 <Link to="/observee/course-selection" onClick={closeAllMenus}>
                   Course Section Selection
                 </Link>
-                <Link to="/observee/current-past-observations" onClick={closeAllMenus}>
+
+                <Link to="/observee/observer-selection" onClick={closeAllMenus}>
+                  Observer Selection
+                </Link>
+
+                <Link to="/shared/current-past-observations" onClick={closeAllMenus}>
                   Current / Past Observations
                 </Link>
-                <Link to="/observer/active-observations" onClick={closeAllMenus}>
-                  Active Observations
+
+                <Link to="/observer/observation-request" onClick={closeAllMenus}>
+                  Observation Requests
                 </Link>
               </div>
 

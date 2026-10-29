@@ -1,12 +1,23 @@
 // src/pages/shared/S04CurrentAndPastObservations.tsx
 import { useEffect, useState } from "react";
-import { authApi, observationApi } from "../../api/endpoints";
-import type { ObservationRecord, Professor } from "../../api/types";
+import { authApi, facultyApi, observationApi } from "../../api/endpoints";
+import type { ObservationRecord, Professor, RegistrationStatus } from "../../api/types";
 import { Link } from "react-router-dom";
+
+function formatReminderDate(value?: string) {
+  if (!value) return "Not available";
+
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export default function S04CurrentAndPastObservations() {
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [liveRecords, setLiveRecords] = useState<ObservationRecord[]>([]);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveError, setLiveError] = useState("");
 
@@ -18,15 +29,17 @@ export default function S04CurrentAndPastObservations() {
       setLiveError("");
 
       try {
-        const [session, records] = await Promise.all([
+        const [session, records, registrationData] = await Promise.all([
           authApi.session(),
           observationApi.list(),
+          facultyApi.registrationStatus(),
         ]);
 
         if (cancelled) return;
 
         setCurrentUser(session.professor);
         setLiveRecords(records);
+        setRegistration(registrationData);
       } catch (err) {
         if (!cancelled) {
           setLiveError(
@@ -78,15 +91,15 @@ export default function S04CurrentAndPastObservations() {
         <div className="reminders-grid">
           <div>
             <strong>Course Registration Cutoff</strong>
-            <p className="reminder-date">Oct 9, 2026</p>
+            <p className="reminder-date">{formatReminderDate(registration?.signup_deadline)}</p>
           </div>
           <div>
             <strong>Last Day for Classroom Visits and Signing Records</strong>
-            <p className="reminder-date">Nov 15, 2026</p>
+            <p className="reminder-date">{formatReminderDate(registration?.observation_deadline)}</p>
           </div>
           <div>
             <strong>End-Of-Process Survey Completion Deadline</strong>
-            <p className="reminder-date">Dec 1, 2026</p>
+            <p className="reminder-date">{formatReminderDate(registration?.survey_deadline)}</p>
           </div>
         </div>
       </section>
@@ -267,10 +280,15 @@ export default function S04CurrentAndPastObservations() {
           )}
         </div>
       </section>
-
+      
       {/* Past Evaluations Accordion Section */}
       <section className="dashboard-phase">
         <h3>Past Evaluations</h3>
+
+        <div className="yellow-banner">
+          <strong>Demo history:</strong> The sample past observations below are
+          demonstration data, not records retrieved from the database.
+        </div>
 
         <div className="table-container accordion-wrapper">
           {/* Spring 2026: Two cards (Left: Observee, Right: Observer) */}

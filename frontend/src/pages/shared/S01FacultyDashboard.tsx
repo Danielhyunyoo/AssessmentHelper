@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { FacultyDashboard, Professor } from "../../api/types";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg";
 import alerts_and_notifications_card from "../../assets/alerts_and_notifications_card.jpg";
@@ -12,11 +12,13 @@ import course_and_section_selection_card from "../../assets/course_and_section_s
 import active_observations_card from "../../assets/active_observations_card.jpg";
 
 export default function S01FacultyDashboard() {
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<FacultyDashboard | null>(null);
   const [dashboardError, setDashboardError] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
+  const canUseFacultyModules = !!currentUser && currentUser.role !== "admin";
 
   useEffect(() => {
     facultyApi.dashboard()
@@ -50,8 +52,29 @@ export default function S01FacultyDashboard() {
     };
   }, []);
 
-  const canUseFacultyModules =
-    !!currentUser && currentUser.role !== "admin";
+  useEffect(() => {
+    if (!roleLoading && !currentUser) {
+      navigate("/login/signin", { replace: true });
+    }
+  }, [roleLoading, currentUser, navigate]);
+
+  if (roleLoading) {
+    return (
+      <div className="dashboard-container">
+        <h2>Faculty Dashboard</h2>
+        <p>Checking account permissions...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="dashboard-container">
+        <h2>Faculty Dashboard</h2>
+        <p>Redirecting to sign in...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">

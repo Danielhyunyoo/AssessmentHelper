@@ -1,6 +1,7 @@
 // src/pages/committee/A02FacultyMatching.tsx
 import { useEffect, useState } from "react";
 import { committeeApi } from "../../api/endpoints";
+import type { CycleDates } from "../../api/types";
 import type { FacultyRow } from "../../api/types";
 import { Link } from "react-router-dom";
 
@@ -20,6 +21,7 @@ export default function A02FacultyMatching() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [startDate, setStartDate] = useState<string>("2026-09-13");
   const [endDate, setEndDate] = useState<string>("2026-10-09");
+  const [savingDates, setSavingDates] = useState(false);
   const [displayStartDate, setDisplayStartDate] = useState<string>("Sep 13, 2026");
   const [displayEndDate, setDisplayEndDate] = useState<string>("Oct 9, 2026 at 11:59 PM");
   const [sendingNotifications, setSendingNotifications] = useState(false);
@@ -28,24 +30,55 @@ export default function A02FacultyMatching() {
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
 
-  const handleSaveDates = () => {
-    const fullStartDateTime = `${startDate}T00:00`;
-    const fullEndDateTime = `${endDate}T23:59`;
-
-    const startObj = new Date(fullStartDateTime);
-    const endObj = new Date(fullEndDateTime);
-
-    if (!isNaN(startObj.getTime()) && !isNaN(endObj.getTime())) {
-      setDisplayStartDate(
-        startObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-      );
-      setDisplayEndDate(
-        endObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
-          " at 11:59 PM"
-      );
+  const handleSaveDates = async () => {
+    if (!startDate || !endDate) {
+      setMatchError("Enter both the registration opening and closing dates.");
+      return;
     }
 
-    setIsModalOpen(false);
+    if (startDate > endDate) {
+      setMatchError("The registration opening date must be before the closing date.");
+      return;
+    }
+
+    setSavingDates(true);
+    setMatchError("");
+    setMatchSuccess("");
+
+    try {
+      const updated = await committeeApi.updateCycleDates({
+        start_date: startDate,
+        signup_deadline: endDate,
+      });
+
+      setStartDate(updated.start_date);
+      setEndDate(updated.signup_deadline);
+
+      setDisplayStartDate(
+        new Date(`${updated.start_date}T00:00:00`).toLocaleDateString(
+          "en-US",
+          { month: "short", day: "numeric", year: "numeric" }
+        )
+      );
+
+      setDisplayEndDate(
+        `${new Date(`${updated.signup_deadline}T00:00:00`).toLocaleDateString(
+          "en-US",
+          { month: "short", day: "numeric", year: "numeric" }
+        )} at 11:59 PM`
+      );
+
+      setMatchSuccess("Registration dates saved to the evaluation cycle.");
+      setIsModalOpen(false);
+    } catch (err) {
+      setMatchError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save registration dates."
+      );
+    } finally {
+      setSavingDates(false);
+    }
   };
 
   useEffect(() => {
@@ -56,6 +89,27 @@ export default function A02FacultyMatching() {
       setMatchError("");
 
       try {
+        const cycleDates = await committeeApi.cycleDates();
+
+        if (cancelled) return;
+
+        setStartDate(cycleDates.start_date);
+        setEndDate(cycleDates.signup_deadline);
+
+        setDisplayStartDate(
+          new Date(`${cycleDates.start_date}T00:00:00`).toLocaleDateString(
+            "en-US",
+            { month: "short", day: "numeric", year: "numeric" }
+          )
+        );
+
+        setDisplayEndDate(
+          `${new Date(`${cycleDates.signup_deadline}T00:00:00`).toLocaleDateString(
+            "en-US",
+            { month: "short", day: "numeric", year: "numeric" }
+          )} at 11:59 PM`
+        );
+
         const roster = await committeeApi.faculty();
 
         const eligibleObservees = roster.faculty.filter(
@@ -66,24 +120,78 @@ export default function A02FacultyMatching() {
 
         setObserveeList(eligibleObservees);
 
-        const poolResults = await Promise.all(
+        const poolResults: [
+          number,
+          {
+            candidates: {
+              id: number;
+              name: string;
+              academic_level: string;
+            }[];
+            releasedObserverIds: number[];
+          }
+        ][] = await Promise.all(
           eligibleObservees.map(async (faculty) => {
+            const signupId = faculty.signup_id!;
+
             try {
-              const result = await committeeApi.candidatePool(faculty.signup_id!);
-              const candidates = Array.isArray(result.candidates)
-                ? result.candidates as { id: number; name: string; academic_level: string }[]
+              const result = await committeeApi.candidatePool(signupId);
+
+              const candidates: {
+                id: number;
+                name: string;
+                academic_level: string;
+              }[] = Array.isArray(result.candidates)
+                ? (result.candidates as {
+                    id: number;
+                    name: string;
+                    academic_level: string;
+                  }[])
                 : [];
 
-              return [faculty.signup_id!, candidates] as const;
+              const releasedObserverIds: number[] = Array.isArray(
+                result.released_observer_ids
+              )
+                ? result.released_observer_ids.filter(
+                    (id): id is number => typeof id === "number"
+                  )
+                : [];
+
+              return [
+                signupId,
+                { candidates, releasedObserverIds },
+              ];
             } catch {
-              return [faculty.signup_id!, []] as const;
+              return [
+                signupId,
+                { candidates: [], releasedObserverIds: [] },
+              ];
             }
           })
         );
 
         if (cancelled) return;
 
-        setCandidateOptions(Object.fromEntries(poolResults));
+        setCandidateOptions(
+          Object.fromEntries(
+            poolResults.map(([signupId, result]) => [
+              signupId,
+              result.candidates,
+            ])
+          )
+        );
+
+        setSelectedObservers(
+          Object.fromEntries(
+            poolResults
+              .filter(([, result]) => result.releasedObserverIds.length > 0)
+              .map(([signupId, result]) => [
+                signupId,
+                result.releasedObserverIds,
+              ])
+          )
+        );
+
       } catch (err) {
         if (!cancelled) {
           setMatchError(
@@ -498,7 +606,7 @@ export default function A02FacultyMatching() {
             onClick={() => void handleSendNotifications()}
             disabled={sendingNotifications}
           >
-            {sendingNotifications ? "Sending..." : "Send Notifications"}
+            {sendingNotifications ? "Sending..." : "Release Selected Lists & Notify"}
           </button>
         </div>
 
@@ -546,8 +654,13 @@ export default function A02FacultyMatching() {
               <button type="button" className="modal-btn-secondary" onClick={handleCloseModal}>
                 Close
               </button>
-              <button type="button" className="modal-btn-primary" onClick={handleSaveDates}>
-                Save Dates
+              <button
+                type="button"
+                className="modal-btn-primary"
+                onClick={() => void handleSaveDates()}
+                disabled={savingDates}
+              >
+                {savingDates ? "Saving..." : "Save Dates"}
               </button>
             </div>
           </div>

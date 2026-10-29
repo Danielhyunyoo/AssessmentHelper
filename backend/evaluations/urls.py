@@ -12,6 +12,8 @@ urlpatterns = [
     path("signups/", views.create_signup, name="create-signup"),
     path("registration/status/", views.registration_status, name="registration-status"),
     path("signups/course/", views.select_signup_course, name="select-signup-course"),
+    path("committee/cycle-dates/", views.committee_cycle_dates, name="committee-cycle-dates"),
+    path("signups/availability/", views.signup_availability, name="signup-availability"),
 ]
 urlpatterns += [
     path("dashboard/", views.faculty_dashboard, name="faculty-dashboard"),

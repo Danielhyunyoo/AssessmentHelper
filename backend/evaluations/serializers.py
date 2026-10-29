@@ -12,6 +12,13 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfessorSerializer(serializers.ModelSerializer):
+    department_name = serializers.SerializerMethodField()
+
+    def get_department_name(self, obj):
+        if obj.department_id:
+            return obj.department.name
+        return None
+
     class Meta:
         model = User
         fields = [
@@ -19,8 +26,12 @@ class ProfessorSerializer(serializers.ModelSerializer):
             "username",
             "first_name",
             "last_name",
+            "email",
             "role",
             "academic_level",
+            "department_name",
+            "last_evaluated_semester",
+            "last_evaluated_year",
         ]
 
 
@@ -215,3 +226,26 @@ class TemplateDraftSerializer(serializers.Serializer):
 class TemplateCreateSerializer(TemplateDraftSerializer):
     name = serializers.CharField(max_length=100, allow_blank=False)
     type = serializers.ChoiceField(choices=("observation", "survey"))
+
+
+class CycleDatesUpdateSerializer(serializers.Serializer):
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    signup_deadline = serializers.DateField(required=False)
+    observation_deadline = serializers.DateField(required=False)
+    survey_deadline = serializers.DateField(required=False)
+
+
+class SignupAvailabilitySerializer(serializers.Serializer):
+    available_datetimes = serializers.ListField(
+        child=serializers.DateTimeField(),
+        allow_empty=True,
+        max_length=8,
+    )
+
+    def validate_available_datetimes(self, values):
+        if len(values) != len(set(values)):
+            raise serializers.ValidationError(
+                "Proposed date and time choices must be unique."
+            )
+        return values

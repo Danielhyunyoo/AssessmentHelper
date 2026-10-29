@@ -9,6 +9,36 @@ function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
 }
 
+function extractCourseStartTime(schedule: string): string {
+  // Handles common formats such as "MW 1:00 PM - 2:15 PM".
+  const match = schedule.match(
+    /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*[-–]/i
+  );
+
+  if (!match) return "";
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] ?? "0");
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === "AM" && hours === 12) hours = 0;
+  if (meridiem === "PM" && hours !== 12) hours += 12;
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function localDateString(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function courseName(course: Course) {
   return `${course.department_code} ${course.course_number}${
     course.title ? ` - ${course.title}` : ""
@@ -37,6 +67,7 @@ export default function E01CourseSelection() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
   const [confirmedCourseId, setConfirmedCourseId] = useState<number | "">("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState("");
   const [showCalendarSection, setShowCalendarSection] = useState<boolean>(false);
 
   const [loading, setLoading] = useState(true);
@@ -60,6 +91,45 @@ export default function E01CourseSelection() {
       setCourses(courseData);
       setRegistration(statusData);
 
+      if (statusData.is_registered && statusData.has_selected_course) {
+        try {
+          const savedAvailability = await facultyApi.availability();
+
+          const savedDateTimes = savedAvailability.available_datetimes ?? [];
+
+          setSelectedDates(
+            savedDateTimes
+              .map(localDateString)
+              .filter(Boolean)
+          );
+
+          if (savedDateTimes.length > 0) {
+            const firstSavedDate = new Date(savedDateTimes[0]);
+
+            if (!Number.isNaN(firstSavedDate.getTime())) {
+              setSelectedTime(
+                `${String(firstSavedDate.getHours()).padStart(2, "0")}:${String(
+                  firstSavedDate.getMinutes()
+                ).padStart(2, "0")}`
+              );
+            }
+          } else {
+            const selectedCourse = courseData.find(
+              (course) => course.course_id === statusData.selected_course_id
+            );
+
+            setSelectedTime(
+              selectedCourse
+                ? extractCourseStartTime(selectedCourse.schedule)
+                : ""
+            );
+          }
+        } catch {
+          // Keep the page usable if availability has not been saved yet.
+          setSelectedDates([]);
+        }
+      }
+
       const savedId = statusData.selected_course_id ?? "";
       setSelectedCourseId(savedId);
       setConfirmedCourseId(savedId);
@@ -75,6 +145,18 @@ export default function E01CourseSelection() {
   useEffect(() => {
     void loadPage();
   }, []);
+
+  const today = new Date();
+  const todayIsoDate = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  const earliestAllowedDate =
+    registration?.start_date && registration.start_date > todayIsoDate
+      ? registration.start_date
+      : todayIsoDate;
 
   const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
   const allowedDays = confirmedCourse ? parseAllowedDays(confirmedCourse.schedule) : ["Mon", "Wed", "Thu"];
@@ -99,7 +181,24 @@ export default function E01CourseSelection() {
 
       if (selectedCourseId !== confirmedCourseId) {
         setSelectedDates([]);
+
+        try {
+          await facultyApi.saveAvailability([]);
+        } catch {
+          // The selected course is still saved. The next availability save
+          // will overwrite the old dates.
+        }
       }
+
+      const newlySelectedCourse = courses.find(
+        (course) => course.course_id === Number(selectedCourseId)
+      );
+
+      setSelectedTime(
+        newlySelectedCourse
+          ? extractCourseStartTime(newlySelectedCourse.schedule)
+          : ""
+      );
 
       const [updatedStatus, updatedCourses] = await Promise.all([
         facultyApi.registrationStatus(),
@@ -133,26 +232,50 @@ export default function E01CourseSelection() {
       return;
     }
 
+    if (selectedDates.length === 0) {
+      setError("Select at least one observation date.");
+      return;
+    }
+
+    if (!selectedTime) {
+      setError(
+        "Enter the class start time before saving your proposed observation dates."
+      );
+      return;
+    }
+
+    if (selectedDates.length > 8) {
+      setError("You can select at most eight observation dates.");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setSuccess("");
 
     try {
-      localStorage.setItem(
-        "assessmentHelper.proposedDates",
-        JSON.stringify(selectedDates)
-      );
-      localStorage.setItem(
-        "assessmentHelper.selectedCourseId",
-        String(confirmedCourseId)
-      );
+      const proposedDateTimes = selectedDates.map((date) => {
+        const localDateTime = new Date(`${date}T${selectedTime}:00`);
+
+        if (Number.isNaN(localDateTime.getTime())) {
+          throw new Error(`Invalid date or time: ${date} ${selectedTime}`);
+        }
+
+        return localDateTime.toISOString();
+      });
+
+      await facultyApi.saveAvailability(proposedDateTimes);
+
       setSuccess(
-        `Your course selection and ${selectedDates.length} observation dates were saved successfully. The confirmation notification should now be available.`
+        `Your course and ${proposedDateTimes.length} proposed observation date/time choices were saved to the database.`
       );
+
       topRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Unable to save your observation dates."
+        err instanceof Error
+          ? err.message
+          : "Unable to save your observation dates."
       );
     } finally {
       setSaving(false);
@@ -312,16 +435,51 @@ export default function E01CourseSelection() {
               </p>
             </div>
 
+            <div style={{ marginBottom: "1rem" }}>
+              <label
+                htmlFor="observation-start-time"
+                style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem" }}
+              >
+                Class Start Time
+              </label>
+
+              <input
+                id="observation-start-time"
+                type="time"
+                value={selectedTime}
+                onChange={(event) => setSelectedTime(event.target.value)}
+                required
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                }}
+              />
+
+              <p style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.4rem" }}>
+                Use the start time for the selected course. Verify it matches the course
+                schedule shown above.
+              </p>
+            </div>
+
             <div>
               <Calendar
                 selectedDates={selectedDates}
                 onDateSelectionChange={setSelectedDates}
                 allowedDaysOfWeek={allowedDays as DayOfWeek[]}
                 maxSelections={8}
-                minDate="2026-10-01"
-                maxDate="2026-11-15"
-                initialMonth={9}
-                initialYear={2026}
+                minDate={earliestAllowedDate}
+                maxDate={registration?.observation_deadline}
+                initialMonth={
+                  registration
+                    ? new Date(`${registration.start_date}T00:00:00`).getMonth()
+                    : new Date().getMonth()
+                }
+                initialYear={
+                  registration
+                    ? new Date(`${registration.start_date}T00:00:00`).getFullYear()
+                    : new Date().getFullYear()
+                }
               />
             </div>
           </div>

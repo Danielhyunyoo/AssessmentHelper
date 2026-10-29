@@ -20,12 +20,26 @@ interface ResponseRecord {
   responseStatus: "CONFIRMED" | "PENDING" | "DECLINED" | "CANCELLED";
 }
 
+function localDateString(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function E02ObserverSelection() {
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [candidateDates, setCandidateDates] = useState<Record<string, string[]>>({});
   const [candidateData, setCandidateData] = useState<CandidateRow[]>([]);
   const [responseData, setResponseData] = useState<ResponseRecord[]>([]);
   const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
+  const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
+  const [cycleStartDate, setCycleStartDate] = useState<string | null>(null);
   const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
   const [observationDeadline, setObservationDeadline] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,20 +55,29 @@ export default function E02ObserverSelection() {
       setError("");
 
       try {
-        const [matches, invitations, profile, savedDatesRaw] = await Promise.all([
+        const [
+          matches,
+          invitations,
+          profile,
+          availability,
+          registration,
+        ] = await Promise.all([
           matchingApi.matches(),
           matchingApi.sentInvitations(),
           facultyApi.profile(),
-          Promise.resolve(localStorage.getItem("assessmentHelper.proposedDates")),
+          facultyApi.availability(),
+          facultyApi.registrationStatus(),
         ]);
 
         if (cancelled) return;
 
-        const savedDates: string[] = savedDatesRaw
-          ? JSON.parse(savedDatesRaw)
-          : [];
+        const savedDateTimes = availability.available_datetimes ?? [];
 
-        setSelectedDatesList(savedDates);
+        setAvailableDateTimes(savedDateTimes);
+
+        setSelectedDatesList(
+          [...new Set(savedDateTimes.map(localDateString).filter(Boolean))]
+        );
 
         setCandidateData(
           (matches.candidates ?? []).map((candidate) => ({
@@ -66,32 +89,32 @@ export default function E02ObserverSelection() {
         );
 
         setRegisteredCourse(profile.selected_course);
+        setObservationDeadline(registration.observation_deadline);
+        setCycleStartDate(registration.start_date);
 
         setResponseData(
-          (invitations as Invitation[]).flatMap((invitation) => {
+          invitations.flatMap((invitation) => {
             const candidate = matches.candidates.find(
               (item) => item.id === invitation.recipient_id
             );
 
             return invitation.proposed_dates.map((date) => ({
               id: String(invitation.invitation_id),
-              observerName: candidate?.name || `Observer #${invitation.recipient_id}`,
+              observerName:
+                candidate?.name || `Observer #${invitation.recipient_id}`,
               proposedDateTime: new Date(date.datetime).toLocaleString(),
               responseStatus:
                 invitation.status === "confirmed" || date.status === "accepted"
                   ? "CONFIRMED"
                   : invitation.status === "declined"
                     ? "DECLINED"
-                    : invitation.status === "closed" || invitation.status === "expired"
+                    : invitation.status === "closed" ||
+                        invitation.status === "expired"
                       ? "CANCELLED"
                       : "PENDING",
             }));
           })
         );
-
-        const registration = await facultyApi.registrationStatus();
-        setObservationDeadline(registration.observation_deadline);
-
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -121,22 +144,40 @@ export default function E02ObserverSelection() {
       return;
     }
 
-    if (selectedDatesList.length === 0) {
-      setError("No saved observation dates were found. Return to Course Selection and save your proposed dates.");
+    if (availableDateTimes.length === 0) {
+      setError(
+        "No saved observation date/times were found. Return to Course Selection and save your availability."
+      );
+      return;
+    }
+
+    const candidatesWithoutDates = selectedCandidates.filter(
+      (observerId) => (candidateDates[observerId] ?? []).length === 0
+    );
+
+    if (candidatesWithoutDates.length > 0) {
+      setError(
+        "Select at least one proposed date for every observer you want to invite."
+      );
       return;
     }
 
     setSaving(true);
 
     try {
-      const proposedDateTimes = selectedDatesList.map((date) => {
-        // E01 currently stores dates without a time, so use the course's
-        // schedule only when the backend data provides a suitable time.
-        // This default is a placeholder until E01 saves date + time.
-        return `${date}T13:00:00`;
-      });
-
       for (const observerId of selectedCandidates) {
+        const datesForObserver = candidateDates[observerId] ?? [];
+
+        const proposedDateTimes = availableDateTimes.filter(
+          (dateTime) => datesForObserver.includes(localDateString(dateTime))
+        );
+
+        if (proposedDateTimes.length === 0) {
+          throw new Error(
+            `No saved date/time choices were found for observer #${observerId}.`
+          );
+        }
+
         await matchingApi.sendInvitation(
           Number(observerId),
           proposedDateTimes
@@ -150,10 +191,21 @@ export default function E02ObserverSelection() {
           invitation.proposed_dates.map((date) => ({
             id: String(invitation.invitation_id),
             observerName:
-              candidateData.find((candidate) => candidate.id === String(invitation.recipient_id))
-                ?.observerName || `Observer #${invitation.recipient_id}`,
+              candidateData.find(
+                (candidate) =>
+                  candidate.id === String(invitation.recipient_id)
+              )?.observerName || `Observer #${invitation.recipient_id}`,
             proposedDateTime: new Date(date.datetime).toLocaleString(),
-            responseStatus: "PENDING" as const,
+            responseStatus:
+              invitation.status === "declined"
+                ? "DECLINED"
+                : invitation.status === "expired" ||
+                    invitation.status === "closed"
+                  ? "CANCELLED"
+                  : invitation.status === "accepted" ||
+                      invitation.status === "confirmed"
+                    ? "CONFIRMED"
+                    : "PENDING",
           }))
         )
       );
@@ -161,7 +213,9 @@ export default function E02ObserverSelection() {
       setSuccess("Invitation requests were sent successfully.");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Unable to send invitation requests."
+        err instanceof Error
+          ? err.message
+          : "Unable to send invitation requests."
       );
     } finally {
       setSaving(false);
@@ -330,12 +384,11 @@ export default function E02ObserverSelection() {
             <Calendar
               selectedDates={selectedDatesList}
               onDateSelectionChange={() => {}}
-              allowedDaysOfWeek={["Mon", "Wed"]}
+              allowedDaysOfWeek={["Mon", "Tue", "Wed", "Thu", "Fri"]}
               maxSelections={8}
-              minDate="2026-10-01"
-              maxDate="2026-11-15"
-              initialMonth={9}
-              initialYear={2026}
+              minDate={cycleStartDate ?? undefined}
+              maxDate={observationDeadline ?? undefined}
+              readOnly
             />
           </div>
         </div>

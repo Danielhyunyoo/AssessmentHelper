@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.shortcuts import get_object_or_404
+import json
 
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -21,6 +22,8 @@ from .serializers import (
     SignupSerializer,
     NotificationSerializer,
     LoginSerializer,
+    CycleDatesUpdateSerializer,
+    SignupAvailabilitySerializer,
 )
 
 User = get_user_model()
@@ -187,6 +190,8 @@ def registration_status(request):
     return Response({
         "cycle_id": cycle.pk,
         "cycle_name": cycle.semester,
+        "start_date": cycle.start_date,
+        "end_date": cycle.end_date,
         "signup_deadline": cycle.signup_deadline,
         "observation_deadline": cycle.observation_deadline,
         "survey_deadline": cycle.survey_deadline,
@@ -406,6 +411,134 @@ def require_committee(user):
     if not (user.is_superuser or user.is_staff or user.role == "admin"):
         raise PermissionDenied("Assessment Committee permissions required.")
 
+@api_view(["GET", "PATCH"])
+def committee_cycle_dates(request):
+    """
+    Read or update the active evaluation cycle's dates.
+    Only Assessment Committee members may access this endpoint.
+    """
+    person = get_current_professor(request)
+    require_committee(person)
+
+    cycle = get_current_cycle()
+
+    date_fields = [
+        "start_date",
+        "end_date",
+        "signup_deadline",
+        "observation_deadline",
+        "survey_deadline",
+    ]
+
+    if request.method == "PATCH":
+        serializer = CycleDatesUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updates = serializer.validated_data
+
+        if not updates:
+            raise ValidationError({
+                "detail": "Provide at least one date to update."
+            })
+
+        # Validate the complete date range, including unchanged values.
+        proposed_start = updates.get("start_date", cycle.start_date)
+        proposed_end = updates.get("end_date", cycle.end_date)
+
+        if proposed_start > proposed_end:
+            raise ValidationError({
+                "end_date": "The cycle end date cannot be before its start date."
+            })
+
+        proposed_signup_deadline = updates.get(
+            "signup_deadline",
+            cycle.signup_deadline,
+        )
+
+        if proposed_signup_deadline < proposed_start:
+            raise ValidationError({
+                "signup_deadline": (
+                    "The registration deadline cannot be before the cycle start date."
+                )
+            })
+
+        for field, value in updates.items():
+            setattr(cycle, field, value)
+
+        cycle.save(update_fields=list(updates.keys()))
+
+    return Response({
+        "cycle_id": cycle.pk,
+        "cycle_name": cycle.semester,
+        "status": cycle.status,
+        "start_date": cycle.start_date,
+        "end_date": cycle.end_date,
+        "signup_deadline": cycle.signup_deadline,
+        "observation_deadline": cycle.observation_deadline,
+        "survey_deadline": cycle.survey_deadline,
+    })
+
+@api_view(["GET", "PATCH"])
+def signup_availability(request):
+    """
+    Read or save the signed-in observee's proposed observation dates.
+    Availability is stored in the existing Signup.availability text field.
+    """
+    professor = get_current_professor(request)
+    cycle = get_current_cycle()
+
+    signup = get_object_or_404(
+        Signup.objects.select_related("course", "cycle"),
+        user=professor,
+        cycle=cycle,
+    )
+
+    if request.method == "GET":
+        try:
+            saved_datetimes = json.loads(signup.availability or "[]")
+            if not isinstance(saved_datetimes, list):
+                saved_datetimes = []
+        except (json.JSONDecodeError, TypeError):
+            saved_datetimes = []
+
+        return Response({
+            "signup_id": signup.pk,
+            "available_datetimes": saved_datetimes,
+        })
+
+    if not signup.course_id:
+        raise ValidationError({
+            "detail": "Select a course before saving observation availability."
+        })
+
+    serializer = SignupAvailabilitySerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    proposed_datetimes = serializer.validated_data["available_datetimes"]
+
+    now = timezone.now()
+
+    for proposed_datetime in proposed_datetimes:
+        if proposed_datetime <= now:
+            raise ValidationError({
+                "available_datetimes": "All proposed dates must be in the future."
+            })
+
+        if timezone.localtime(proposed_datetime).date() > cycle.observation_deadline:
+            raise ValidationError({
+                "available_datetimes": (
+                    "Proposed dates must be on or before the observation deadline."
+                )
+            })
+
+    # Store ISO-8601 values as JSON in the existing text field.
+    signup.availability = json.dumps([
+        value.isoformat() for value in proposed_datetimes
+    ])
+    signup.save(update_fields=["availability"])
+
+    return Response({
+        "signup_id": signup.pk,
+        "available_datetimes": json.loads(signup.availability),
+    })
 
 def get_signup_for_current_cycle(user):
     return get_object_or_404(Signup, cycle=get_current_cycle(), user=user)
@@ -425,13 +558,25 @@ def invitation_json(inv):
         "sender_id": inv.sender_id,
         "recipient_id": inv.recipient_id,
         "course_id": inv.course_id,
-        "status": "expired" if inv.status == "pending" and inv.expires_at and timezone.now() >= inv.expires_at else inv.status,
+        "sender": ProfessorSerializer(inv.sender).data,
+        "course": CourseSerializer(inv.course).data,
+        "status": (
+            "expired"
+            if inv.status == "pending"
+            and inv.expires_at
+            and timezone.now() >= inv.expires_at
+            else inv.status
+        ),
         "created_at": inv.created_at,
         "expires_at": inv.expires_at,
         "responded_at": inv.responded_at,
         "proposed_dates": [
-            {"proposed_date_id": d.pk, "datetime": d.proposed_datetime, "status": d.status}
-            for d in inv.proposed_dates.all().order_by("proposed_datetime")
+            {
+                "proposed_date_id": date.pk,
+                "datetime": date.proposed_datetime,
+                "status": date.status,
+            }
+            for date in inv.proposed_dates.all().order_by("proposed_datetime")
         ],
     }
 
@@ -453,6 +598,11 @@ def committee_candidate_pool(request, signup_id):
             {"id": u.pk, "name": u.get_full_name() or u.username, "academic_level": u.academic_level, "department_id": u.department_id}
             for u in people
         ],
+        "released_observer_ids": list(
+            MatchCandidate.objects.filter(signup=signup)
+            .values_list("observer_id", flat=True)
+        ),
+        "matches_released_at": signup.matches_released_at,
     })
 
 
@@ -532,14 +682,24 @@ def send_invitation(request):
 @api_view(["GET"])
 def my_sent_invitations(request):
     user = get_current_professor(request)
-    invs = Invitation.objects.filter(sender=user, cycle=get_current_cycle()).prefetch_related("proposed_dates")
+    invs = (
+        Invitation.objects
+        .filter(sender=user, cycle=get_current_cycle())
+        .select_related("sender", "course", "course__department")
+        .prefetch_related("proposed_dates")
+    )
     return Response([invitation_json(inv) for inv in invs])
 
 
 @api_view(["GET"])
 def my_received_invitations(request):
     user = get_current_professor(request)
-    invs = Invitation.objects.filter(recipient=user, cycle=get_current_cycle()).prefetch_related("proposed_dates")
+    invs = (
+        Invitation.objects
+        .filter(recipient=user, cycle=get_current_cycle())
+        .select_related("sender", "course", "course__department")
+        .prefetch_related("proposed_dates")
+    )
     return Response([invitation_json(inv) for inv in invs])
 
 

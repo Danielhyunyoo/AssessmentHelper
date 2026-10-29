@@ -19,6 +19,10 @@ export default function S02Profile(): React.ReactElement {
   const [department, setDepartment] = useState("");
   const [academicRank, setAcademicRank] = useState("");
 
+  const [evaluationCycle, setEvaluationCycle] = useState("");
+  const [evaluationStatus, setEvaluationStatus] = useState("");
+  const [lastEvaluated, setLastEvaluated] = useState("");
+
   const [profilePhoto, setProfilePhoto] = useState<string>(defaultAvatar);
 
   const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -40,13 +44,25 @@ export default function S02Profile(): React.ReactElement {
         const professor = result.professor;
         const first = professor.first_name || "";
         const last = professor.last_name || "";
+        
+        setEvaluationCycle(result.evaluation_cycle || "Current Cycle");
+        setEvaluationStatus(
+          String(result.evaluation_status || "undetermined")
+        );
+
+        const lastSemester = professor.last_evaluated_semester || "";
+        const lastYear = professor.last_evaluated_year;
+
+        setLastEvaluated(
+          lastSemester
+            ? `${lastSemester}${lastYear ? ` ${lastYear}` : ""}`
+            : "No previous evaluation recorded"
+        );
 
         setFirstName(first);
         setLastName(last);
-        setEmail((professor as typeof professor & { email?: string }).email || "");
-        setDepartment(
-          (professor as typeof professor & { department_name?: string }).department_name || "Not provided"
-        );
+        setEmail(professor.email || "");
+        setDepartment(professor.department_name || "Not provided");
         setAcademicRank(professor.academic_level || "Not provided");
 
         setEditFirstName(first);
@@ -239,17 +255,17 @@ export default function S02Profile(): React.ReactElement {
         <div className="profile-status-grid">
           <div className="profile-status-item">
             <span className="status-label">Last Completed Observation</span>
-            <span className="status-value">Spring 2025</span>
+            <span className="status-value">{lastEvaluated}</span>
           </div>
 
           <div className="profile-status-item">
             <span className="status-label">Current Cycle Status</span>
-            <span className="status-value highlight-status">Fall 2026 - Due for observation</span>
+            <span className="status-value highlight-status">{`${evaluationCycle} — ${evaluationStatus.replaceAll("_", " ")}`}</span>
           </div>
 
           <div className="profile-status-item">
             <span className="status-label">Next Semester Due</span>
-            <span className="status-value">Spring/Fall 2026</span>
+            <span className="status-value">Not provided by the backend yet</span>
           </div>
         </div>
       </section>
