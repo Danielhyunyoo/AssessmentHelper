@@ -131,7 +131,18 @@ export default function Header() {
     async function loadHeaderData() {
       try {
         const { professor } = await authApi.session();
-        if (!professor) return;
+
+        if (cancelled) return;
+
+        if (!professor) {
+          // Being signed out is normal; clear any previous user data.
+          setHeaderError("");
+          setNotifications([]);
+          setHasUnreadNotifications(false);
+          setBackendUnreadCount(0);
+          setCurrentUser(null);
+          return;
+        }
 
         const [notificationResponse, profileResponse] = await Promise.all([
           facultyApi.notifications(),
@@ -154,8 +165,9 @@ export default function Header() {
         setHasUnreadNotifications(notificationResponse.unread_count > 0);
         setBackendUnreadCount(notificationResponse.unread_count);
         setCurrentUser(profileResponse.professor);
+        setHeaderError("");
       } catch {
-        // Keep the header usable if an endpoint is temporarily unavailable.
+        // Only display this when loading actually fails.
         if (!cancelled) {
           setHeaderError("Some header information could not be loaded.");
         }
