@@ -185,7 +185,7 @@ export default function O01ObservationRequest() {
       {/* Faculty Request Card Section */}
       <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
         <div className="yellow-banner" style={{ marginBottom: "1.25rem" }}>
-          ⏰ <strong>NOTE:</strong> Current Invitation Expires in 48 Hours!
+          <strong>NOTE:</strong> Current Invitation Expires in 48 Hours!
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "2rem", alignItems: "center" }}>

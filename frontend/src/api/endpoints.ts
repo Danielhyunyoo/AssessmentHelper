@@ -11,6 +11,7 @@ export const authApi = {
 // L01-L03, S01-S03, E01
 export const facultyApi = {
   profile: () => get<ProfileResponse>("/me/"),
+  updateProfile: (data: { first_name: string; last_name: string; phone: string; }) => patch<ProfileResponse>("/me/", data),
   courses: () => get<Course[]>("/me/courses/"),
   dashboard: () => get<FacultyDashboard>("/dashboard/"),
   registrationStatus: () => get<RegistrationStatus>("/registration/status/"),

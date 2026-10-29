@@ -157,7 +157,7 @@ export default function S01FacultyDashboard() {
 
             <div className="card-grid">
               <article className="dashboard-card">
-                <Link to="/observee/current-past-observations">
+                <Link to="/shared/current-past-observations">
                   <img src={current_and_past_observations_card} alt="Current and Past Observations" />
                   <h4>Current and Past Observations</h4>
                   <p>View observation status</p>

@@ -2,7 +2,7 @@ export type Id = number;
 export type IsoDate = string;
 export type EvaluationStatus = "due" | "overdue" | "not_due" | "undetermined" | string;
 export interface ApiErrorPayload { detail?: string; [field: string]: unknown }
-export interface Professor { id: Id; username: string; first_name: string; last_name: string; email: string; role: string; academic_level: string; department_name: string | null; last_evaluated_semester: string; last_evaluated_year: number | null;}
+export interface Professor { id: Id; username: string; first_name: string; last_name: string; email: string; phone: string; role: string; academic_level: string; department_name: string | null; last_evaluated_semester: string; last_evaluated_year: number | null;}
 export interface Course { course_id: Id; department_id: Id; department_name: string; department_code: string; instructor_id: Id; course_number: string; course_level: number; section: string; schedule: string; title?: string; classroom?: string }
 export interface Signup { signup_id: Id; cycle_id: Id; course_id: Id | null; status: string; availability: string }
 export interface RegistrationStatus { cycle_id: Id; cycle_name: string; start_date: IsoDate; end_date: IsoDate; signup_deadline: IsoDate; observation_deadline: IsoDate; survey_deadline: IsoDate; is_registered: boolean; has_selected_course: boolean; selected_course_id: Id | null; }

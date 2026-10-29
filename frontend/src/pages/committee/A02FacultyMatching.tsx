@@ -560,19 +560,12 @@ export default function A02FacultyMatching() {
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: "1.5rem",
-            gap: "1rem",
-            flexWrap: "wrap",
-          }}
-        >
+        {/* Action Controls Bar - Using standardized grey toggle buttons */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-select-toggle"
               onClick={() => {
                 const allSelected: Record<number, number[]> = {};
 
@@ -593,7 +586,7 @@ export default function A02FacultyMatching() {
 
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-select-toggle"
               onClick={() => setSelectedObservers({})}
             >
               Deselect All

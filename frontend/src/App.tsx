@@ -16,6 +16,9 @@ import O01ObservationRequest from "./pages/observer/O01ObservationRequest";
 import A01CommitteeDashboard from "./pages/committee/A01CommitteeDashboard";
 import A02FacultyMatching from "./pages/committee/A02FacultyMatching";
 import A03UnmatchedObservees from "./pages/committee/A03UnmatchedObservees";
+import A04FacultyRoster from "./pages/committee/A04FacultyRoster";
+import A05PendingRecords from "./pages/committee/A05PendingRecords";
+import A06SurveyTracking from "./pages/committee/A06SurveyTracking";
 
 // Temporary fallback component for pages not yet coded
 function PlaceholderPage() {
@@ -59,9 +62,9 @@ export default function App() {
           <Route path="/committee/dashboard" element={<A01CommitteeDashboard />} />
           <Route path="/committee/faculty-matching" element={<A02FacultyMatching />} />
           <Route path="/committee/unmatched-observees" element={<A03UnmatchedObservees />} />
-          <Route path="/committee/faculty-roster" element={<PlaceholderPage />} />
-          <Route path="/committee/pending-records" element={<PlaceholderPage />} />
-          <Route path="/committee/survey-tracking" element={<PlaceholderPage />} />
+          <Route path="/committee/faculty-roster" element={<A04FacultyRoster />} />
+          <Route path="/committee/pending-records" element={<A05PendingRecords />} />
+          <Route path="/committee/survey-tracking" element={<A06SurveyTracking />} />
           <Route path="/committee/kpi-overview" element={<PlaceholderPage />} />
           <Route path="/committee/form-editor" element={<PlaceholderPage />} />
 

@@ -27,6 +27,7 @@ class ProfessorSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "email",
+            "phone",
             "role",
             "academic_level",
             "department_name",
@@ -34,6 +35,10 @@ class ProfessorSerializer(serializers.ModelSerializer):
             "last_evaluated_year",
         ]
 
+class ProfileUpdateSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=150, allow_blank=False)
+    last_name = serializers.CharField(max_length=150, allow_blank=False)
+    phone = serializers.CharField(max_length=30, allow_blank=True, required=False)
 
 class CourseSerializer(serializers.ModelSerializer):
     department_id = serializers.IntegerField(read_only=True)
@@ -248,4 +253,12 @@ class SignupAvailabilitySerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Proposed date and time choices must be unique."
             )
+
+        # An empty list is allowed when clearing availability after
+        # a course change. Otherwise, require at least four dates.
+        if 0 < len(values) < 4:
+            raise serializers.ValidationError(
+                "Select at least four observation dates."
+            )
+
         return values

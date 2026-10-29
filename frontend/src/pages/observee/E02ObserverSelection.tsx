@@ -37,6 +37,7 @@ export default function E02ObserverSelection() {
   const [candidateDates, setCandidateDates] = useState<Record<string, string[]>>({});
   const [candidateData, setCandidateData] = useState<CandidateRow[]>([]);
   const [responseData, setResponseData] = useState<ResponseRecord[]>([]);
+  const [selectedInvitationId, setSelectedInvitationId] = useState<number | null>(null);
   const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
   const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
   const [cycleStartDate, setCycleStartDate] = useState<string | null>(null);
@@ -285,8 +286,8 @@ export default function E02ObserverSelection() {
                     fontSize: "0.8rem",
                     fontWeight: "600",
                     cursor: "pointer",
-                    border: isSelected ? "1px solid #000000" : "1px solid #cbd5e1",
-                    backgroundColor: isSelected ? "#000000" : "#ffffff",
+                    border: isSelected ? "1px solid #1e293b" : "1px solid #cbd5e1",
+                    backgroundColor: isSelected ? "#1e293b" : "#ffffff",
                     color: isSelected ? "#ffffff" : "#334155",
                     transition: "all 0.15s ease",
                   }}
@@ -318,10 +319,19 @@ export default function E02ObserverSelection() {
           return <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#64748b" }}>AWAITING RESPONSE</span>;
         }
         if (row.responseStatus === "CONFIRMED") {
+          const invitationId = Number(row.id);
+
           return (
-            <span style={{ backgroundColor: "#dcfce7", color: "#166534", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
-              ACCEPTED
-            </span>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => setSelectedInvitationId(invitationId)}
+              style={{
+                fontWeight: selectedInvitationId === invitationId ? "700" : "400",
+              }}
+            >
+              {selectedInvitationId === invitationId ? "Selected" : "Select Observer"}
+            </button>
           );
         }
         if (row.responseStatus === "DECLINED" || row.responseStatus === "CANCELLED") {
@@ -335,6 +345,60 @@ export default function E02ObserverSelection() {
       },
     },
   ];
+
+  const handleConfirmPairing = async () => {
+    setError("");
+    setSuccess("");
+
+    if (selectedInvitationId === null) {
+      setError("Please select an observer who has accepted an invitation.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await matchingApi.confirmPairing(selectedInvitationId);
+
+      setSuccess("Observer and observation date confirmed successfully.");
+
+      // Reload the page's invitation and response data.
+      const invitations = await matchingApi.sentInvitations();
+
+      setResponseData(
+        invitations.flatMap((invitation) =>
+          invitation.proposed_dates.map((date) => ({
+            id: String(invitation.invitation_id),
+            observerName:
+              candidateData.find(
+                (candidate) =>
+                  candidate.id === String(invitation.recipient_id)
+              )?.observerName || `Observer #${invitation.recipient_id}`,
+            proposedDateTime: new Date(date.datetime).toLocaleString(),
+            responseStatus:
+              invitation.status === "declined"
+                ? "DECLINED"
+                : invitation.status === "expired" ||
+                    invitation.status === "closed"
+                  ? "CANCELLED"
+                  : invitation.status === "accepted" ||
+                      invitation.status === "confirmed" ||
+                      date.status === "accepted"
+                    ? "CONFIRMED"
+                    : "PENDING",
+          }))
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to confirm the observation pairing."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -412,19 +476,19 @@ export default function E02ObserverSelection() {
           data={candidateData}
         />
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1rem" }}>
+        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="secondary-btn" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
+            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
               Select All
             </button>
-            <button type="button" className="secondary-btn" onClick={() => setSelectedCandidates([])}>
+            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates([])}>
               Deselect All
             </button>
           </div>
 
           <button
             type="button"
-            className="primary-btn"
+            className="btn-primary"
             onClick={() => void handleSendInvitations()}
             disabled={saving || loading}
           >
@@ -448,17 +512,22 @@ export default function E02ObserverSelection() {
           data={responseData}
         />
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem" }}>
-          <button type="button" className="secondary-btn">
+        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button type="button" className="btn-secondary">
             Reject All
           </button>
-          <button type="button" className="primary-btn" onClick={() => alert("Changes confirmed and locked!")}>
-            Confirm and Lock Changes
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => void handleConfirmPairing()}
+            disabled={saving || selectedInvitationId === null}
+          >
+            {saving ? "Confirming..." : "Confirm and Lock Changes"}
           </button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center", marginTop: "2.5rem" }}>
-          <Link to="/shared/faculty-dashboard" className="secondary-btn">
+        <div className="dashboard-center-action">
+          <Link to="/shared/faculty-dashboard" className="btn-secondary">
             Return to Dashboard
           </Link>
         </div>

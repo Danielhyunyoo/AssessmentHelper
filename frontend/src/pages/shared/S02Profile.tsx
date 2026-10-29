@@ -62,6 +62,8 @@ export default function S02Profile(): React.ReactElement {
         setFirstName(first);
         setLastName(last);
         setEmail(professor.email || "");
+        setPhone(professor.phone || "");
+        setEditPhone(professor.phone || "");
         setDepartment(professor.department_name || "Not provided");
         setAcademicRank(professor.academic_level || "Not provided");
 
@@ -93,12 +95,34 @@ export default function S02Profile(): React.ReactElement {
     }
   };
 
-  const handleSaveInfo = (e: React.FormEvent) => {
+  const handleSaveInfo = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSaveMessage("");
+    setProfileError("");
 
-    setSaveMessage(
-      "Profile editing is not connected to a save endpoint yet. Your changes have not been saved."
-    );
+    try {
+      const result = await facultyApi.updateProfile({
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.trim(),
+      });
+
+      const professor = result.professor;
+
+      setFirstName(professor.first_name || "");
+      setLastName(professor.last_name || "");
+      setPhone(professor.phone || "");
+      setEditFirstName(professor.first_name || "");
+      setEditLastName(professor.last_name || "");
+      setEditPhone(professor.phone || "");
+
+      setIsEditingInfo(false);
+      setSaveMessage("Profile changes saved successfully.");
+    } catch (err) {
+      setProfileError(
+        err instanceof Error ? err.message : "Unable to save profile changes."
+      );
+    }
   };
 
   const handleCancelEdit = () => {

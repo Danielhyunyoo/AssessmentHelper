@@ -18,6 +18,7 @@ from .serializers import (
     CourseSerializer,
     CourseSelectionSerializer,
     ProfessorSerializer,
+    ProfileUpdateSerializer,
     SignupCreateSerializer,
     SignupSerializer,
     NotificationSerializer,
@@ -142,10 +143,21 @@ def notify_course_selected(signup):
     )
 
 
-@api_view(["GET"])
+@api_view(["GET", "PATCH"])
 def my_professor(request):
     professor = get_current_professor(request)
     cycle = get_current_cycle()
+
+    if request.method == "PATCH":
+        serializer = ProfileUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        for field, value in serializer.validated_data.items():
+            setattr(professor, field, value.strip())
+
+        professor.save(
+            update_fields=list(serializer.validated_data.keys())
+        )
 
     signup = (
         Signup.objects.filter(user=professor, cycle=cycle)

@@ -9,23 +9,36 @@ function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
 }
 
+
 function extractCourseStartTime(schedule: string): string {
-  // Handles common formats such as "MW 1:00 PM - 2:15 PM".
+  // Supports formats such as:
+  // "MW 1:00 PM - 2:15 PM"
+  // "MWF 10:00-10:50"
+  // "TR 13:00-14:15"
+
   const match = schedule.match(
-    /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*[-–]/i
+    /(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i
   );
 
   if (!match) return "";
 
   let hours = Number(match[1]);
-  const minutes = Number(match[2] ?? "0");
-  const meridiem = match[3].toUpperCase();
+  const minutes = Number(match[2]);
+  const meridiem = match[3]?.toUpperCase();
 
-  if (meridiem === "AM" && hours === 12) hours = 0;
-  if (meridiem === "PM" && hours !== 12) hours += 12;
+  if (minutes > 59) return "";
+
+  if (meridiem) {
+    if (hours < 1 || hours > 12) return "";
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+  } else if (hours > 23) {
+    return "";
+  }
 
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
+
 
 function localDateString(value: string): string {
   const date = new Date(value);
@@ -67,7 +80,6 @@ export default function E01CourseSelection() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
   const [confirmedCourseId, setConfirmedCourseId] = useState<number | "">("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [selectedTime, setSelectedTime] = useState("");
   const [showCalendarSection, setShowCalendarSection] = useState<boolean>(false);
 
   const [loading, setLoading] = useState(true);
@@ -103,27 +115,6 @@ export default function E01CourseSelection() {
               .filter(Boolean)
           );
 
-          if (savedDateTimes.length > 0) {
-            const firstSavedDate = new Date(savedDateTimes[0]);
-
-            if (!Number.isNaN(firstSavedDate.getTime())) {
-              setSelectedTime(
-                `${String(firstSavedDate.getHours()).padStart(2, "0")}:${String(
-                  firstSavedDate.getMinutes()
-                ).padStart(2, "0")}`
-              );
-            }
-          } else {
-            const selectedCourse = courseData.find(
-              (course) => course.course_id === statusData.selected_course_id
-            );
-
-            setSelectedTime(
-              selectedCourse
-                ? extractCourseStartTime(selectedCourse.schedule)
-                : ""
-            );
-          }
         } catch {
           // Keep the page usable if availability has not been saved yet.
           setSelectedDates([]);
@@ -190,16 +181,6 @@ export default function E01CourseSelection() {
         }
       }
 
-      const newlySelectedCourse = courses.find(
-        (course) => course.course_id === Number(selectedCourseId)
-      );
-
-      setSelectedTime(
-        newlySelectedCourse
-          ? extractCourseStartTime(newlySelectedCourse.schedule)
-          : ""
-      );
-
       const [updatedStatus, updatedCourses] = await Promise.all([
         facultyApi.registrationStatus(),
         facultyApi.courses(),
@@ -232,20 +213,30 @@ export default function E01CourseSelection() {
       return;
     }
 
-    if (selectedDates.length === 0) {
-      setError("Select at least one observation date.");
-      return;
-    }
-
-    if (!selectedTime) {
-      setError(
-        "Enter the class start time before saving your proposed observation dates."
-      );
+    if (selectedDates.length < 4) {
+      setError("Please select at least four observation dates before submitting.");
       return;
     }
 
     if (selectedDates.length > 8) {
       setError("You can select at most eight observation dates.");
+      return;
+    }
+
+    if (!confirmedCourse) {
+      setError("Please confirm a course section before selecting observation dates.");
+      return;
+    }
+
+    const courseStartTime = extractCourseStartTime(confirmedCourse.schedule);
+
+    console.log("Selected course:", confirmedCourse);
+    console.log("Course schedule:", confirmedCourse?.schedule);
+
+    if (!courseStartTime) {
+      setError(
+        "The selected course's meeting time could not be determined. Please contact the team to check the course schedule."
+      );
       return;
     }
 
@@ -255,10 +246,10 @@ export default function E01CourseSelection() {
 
     try {
       const proposedDateTimes = selectedDates.map((date) => {
-        const localDateTime = new Date(`${date}T${selectedTime}:00`);
+        const localDateTime = new Date(`${date}T${courseStartTime}:00`);
 
         if (Number.isNaN(localDateTime.getTime())) {
-          throw new Error(`Invalid date or time: ${date} ${selectedTime}`);
+          throw new Error(`Invalid date or course time: ${date} ${courseStartTime}`);
         }
 
         return localDateTime.toISOString();
@@ -420,7 +411,7 @@ export default function E01CourseSelection() {
           style={{ padding: "1.5rem", marginTop: "2rem" }}
         >
           <div className="yellow-banner" style={{ marginBottom: "1.5rem" }}>
-            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall before Nov 15. You can select up to 8 dates.
+            <strong>IMPORTANT:</strong> Select at least 4 and at most 8 observation dates within the allowed observation period.
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
@@ -431,34 +422,7 @@ export default function E01CourseSelection() {
               <p style={{ marginTop: "0.5rem" }}><strong>Meeting Days and Times:</strong> {confirmedCourse.schedule}</p>
               <p style={{ marginTop: "0.5rem" }}><strong>Classroom Location(s):</strong> {confirmedCourse.classroom || "Not provided"}</p>
               <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "#475569" }}>
-                <em>Selected Dates: {selectedDates.length} / 8 max</em>
-              </p>
-            </div>
-
-            <div style={{ marginBottom: "1rem" }}>
-              <label
-                htmlFor="observation-start-time"
-                style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem" }}
-              >
-                Class Start Time
-              </label>
-
-              <input
-                id="observation-start-time"
-                type="time"
-                value={selectedTime}
-                onChange={(event) => setSelectedTime(event.target.value)}
-                required
-                style={{
-                  padding: "0.5rem",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                }}
-              />
-
-              <p style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.4rem" }}>
-                Use the start time for the selected course. Verify it matches the course
-                schedule shown above.
+                <em>Selected Dates: {selectedDates.length} / 8 (minimum 4 required)</em>
               </p>
             </div>
 
@@ -492,7 +456,7 @@ export default function E01CourseSelection() {
               type="button"
               className="btn-primary"
               onClick={handleFinalSave}
-              disabled={saving}
+              disabled={saving || selectedDates.length < 4}
             >
               {saving ? "Saving..." : "Confirm Selected Dates and Continue"}
             </button>
