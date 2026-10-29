@@ -64,6 +64,7 @@ function parseAllowedDays(scheduleText: string): DayOfWeek[] {
 
   if (upper.includes("MWF")) return ["Mon", "Wed", "Fri"];
   if (upper.includes("MW")) return ["Mon", "Wed"];
+  if (upper.includes("TR")) return ["Tue", "Thu"];
   if (upper.includes("TTH") || upper.includes("TU")) return ["Tue", "Thu"];
   if (upper.includes("M")) days.push("Mon");
   if (upper.includes("TU") || (upper.includes("T") && !upper.includes("TH"))) days.push("Tue");
@@ -124,6 +125,7 @@ export default function E01CourseSelection() {
       const savedId = statusData.selected_course_id ?? "";
       setSelectedCourseId(savedId);
       setConfirmedCourseId(savedId);
+      setShowCalendarSection(savedId !== "");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to load registration information."
@@ -168,6 +170,7 @@ export default function E01CourseSelection() {
       }
 
       await facultyApi.selectCourse(Number(selectedCourseId));
+      window.dispatchEvent(new Event("notifications-changed"));
       setConfirmedCourseId(selectedCourseId);
 
       if (selectedCourseId !== confirmedCourseId) {
@@ -214,7 +217,7 @@ export default function E01CourseSelection() {
     }
 
     if (selectedDates.length < 4) {
-      setError("Please select at least four observation dates before submitting.");
+      setError("Please select at least four observation dates.");
       return;
     }
 
@@ -256,6 +259,7 @@ export default function E01CourseSelection() {
       });
 
       await facultyApi.saveAvailability(proposedDateTimes);
+      window.dispatchEvent(new Event("notifications-changed"));
 
       setSuccess(
         `Your course and ${proposedDateTimes.length} proposed observation date/time choices were saved to the database.`
@@ -291,7 +295,7 @@ export default function E01CourseSelection() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          Back to Dashboard
         </Link>
       </div>
 
@@ -345,7 +349,7 @@ export default function E01CourseSelection() {
       <section className="dashboard-phase">
         <h3>Select a Course Section</h3>
         <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-          <strong>IMPORTANT:</strong> Course registration closes October 9 at 11:59 PM. You must select and register 1 active course section.
+          <strong>IMPORTANT:</strong> Course registration closes {registration && formatDate(registration.signup_deadline)} at 11:59 PM. You must select and register 1 active course section.
         </div>
 
         {courses.length === 0 ? (
@@ -411,7 +415,7 @@ export default function E01CourseSelection() {
           style={{ padding: "1.5rem", marginTop: "2rem" }}
         >
           <div className="yellow-banner" style={{ marginBottom: "1.5rem" }}>
-            <strong>IMPORTANT:</strong> Select at least 4 and at most 8 observation dates within the allowed observation period.
+            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall on or before {registration && formatDate(registration.observation_deadline)}. Select 4 to 8 dates.
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
@@ -434,16 +438,8 @@ export default function E01CourseSelection() {
                 maxSelections={8}
                 minDate={earliestAllowedDate}
                 maxDate={registration?.observation_deadline}
-                initialMonth={
-                  registration
-                    ? new Date(`${registration.start_date}T00:00:00`).getMonth()
-                    : new Date().getMonth()
-                }
-                initialYear={
-                  registration
-                    ? new Date(`${registration.start_date}T00:00:00`).getFullYear()
-                    : new Date().getFullYear()
-                }
+                initialMonth={new Date(`${earliestAllowedDate}T00:00:00`).getMonth()}
+                initialYear={new Date(`${earliestAllowedDate}T00:00:00`).getFullYear()}
               />
             </div>
           </div>
