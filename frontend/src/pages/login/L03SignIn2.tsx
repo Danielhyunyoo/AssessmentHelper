@@ -39,9 +39,22 @@ export default function L03SignIn2() {
   }, []);
 
   const isRegistered = registration?.is_registered ?? false;
-  const todayAsIsoDate = new Date().toLocaleDateString("en-CA");
-  const isPastDeadline = !isRegistered && !!registration && todayAsIsoDate > registration.signup_deadline;
+
+  const todayAsIsoDate = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  })();
+
+  const isPastDeadline =
+    !isRegistered &&
+    !!registration &&
+    todayAsIsoDate > registration.signup_deadline;
+
   const isCommittee = user?.role === "admin";
+  const cycleName = registration?.cycle_name || "Current Evaluation Cycle";
 
   const handleRegister = async () => {
     setSaving(true);
@@ -60,7 +73,7 @@ export default function L03SignIn2() {
   if (loading) {
     return (
       <div className="dashboard-container" style={{ alignItems: "center", paddingTop: "3rem" }}>
-        <h2>Fall 2026 Evaluation Cycle</h2>
+        <h2>{cycleName} Evaluation Cycle</h2>
         <p>Loading your registration...</p>
       </div>
     );
@@ -68,10 +81,27 @@ export default function L03SignIn2() {
 
   return (
     <div className="dashboard-container" style={{ alignItems: "center", paddingTop: "3rem" }}>
-      <h2>Fall 2026 Evaluation Cycle</h2>
-      <p style={{ color: "#475569", marginTop: "-0.5rem", marginBottom: "1.5rem" }}>
-        You are registering for the upcoming peer observation cycle.
+      <h2>{cycleName} Evaluation Cycle</h2>
+      <p style={{ color: "#475569", marginTop: "-0.5rem", marginBottom: "0.75rem" }}>
+        You are viewing the registration status for the current evaluation cycle.
       </p>
+
+      {registration && (
+        <div
+          className="table-instruction"
+          style={{ marginBottom: "1.5rem", width: "100%", maxWidth: "600px" }}
+        >
+          <p>
+            <strong>Cycle dates:</strong>{" "}
+            {new Date(`${registration.start_date}T00:00:00`).toLocaleDateString()} to{" "}
+            {new Date(`${registration.end_date}T00:00:00`).toLocaleDateString()}
+          </p>
+          <p>
+            <strong>Registration deadline:</strong>{" "}
+            {new Date(`${registration.signup_deadline}T00:00:00`).toLocaleDateString()}
+          </p>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="yellow-banner">
@@ -83,7 +113,7 @@ export default function L03SignIn2() {
         {isRegistered ? (
           <>
             <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-              <strong>Cycle Status:</strong> You are registered for the Fall 2026 cycle.
+              <strong>Cycle Status:</strong> You are registered for the {cycleName} cycle.
             </div>
 
             <button
@@ -111,7 +141,7 @@ export default function L03SignIn2() {
                 color: "#991b1b",
               }}
             >
-              ⚠️ <strong>Registration Closed:</strong> The deadline to register for the Fall 2026 evaluation cycle has passed.
+              ⚠️ <strong>Registration Closed:</strong> The deadline to register for the {cycleName} evaluation cycle has passed.
             </div>
 
             <p style={{ fontSize: "0.875rem", color: "#475569", marginBottom: "1rem" }}>
@@ -136,7 +166,7 @@ export default function L03SignIn2() {
             </ul>
 
             <button type="button" className="btn-primary btn-block" onClick={handleRegister} disabled={saving}>
-              {saving ? "Registering..." : "Register for Fall 2026 Cycle"}
+              {saving ? "Registering..." : `Register for ${cycleName} Cycle`}
             </button>
 
             <div className="registration-link-container">

@@ -1,10 +1,12 @@
 // src/pages/observee/E02ObserverSelection.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { matchingApi, facultyApi } from "../../api/endpoints";
+import type { Candidate, Invitation, Course } from "../../api/types";
 import { Link } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
 import Calendar from "../../components/Calendar";
 
-interface Candidate {
+interface CandidateRow {
   id: string;
   observerName: string;
   department: string;
@@ -18,31 +20,208 @@ interface ResponseRecord {
   responseStatus: "CONFIRMED" | "PENDING" | "DECLINED" | "CANCELLED";
 }
 
+function localDateString(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function E02ObserverSelection() {
-  // Mock data for selected observation dates (passed from E01 state or context)
-  const selectedDatesList = ["2026-10-12", "2026-10-14", "2026-10-16", "2026-10-19", "2026-10-21"];
-
-  // State for candidates selection table
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
-  // Store selected observation dates per candidate (candidateId -> array of date strings)
   const [candidateDates, setCandidateDates] = useState<Record<string, string[]>>({});
+  const [candidateData, setCandidateData] = useState<CandidateRow[]>([]);
+  const [responseData, setResponseData] = useState<ResponseRecord[]>([]);
+  const [selectedInvitationId, setSelectedInvitationId] = useState<number | null>(null);
+  const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
+  const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
+  const [cycleStartDate, setCycleStartDate] = useState<string | null>(null);
+  const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
+  const [observationDeadline, setObservationDeadline] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const candidateData: Candidate[] = [
-    { id: "1", observerName: "Professor B", department: "Computer Science", academicLevel: "Assistant Professor" },
-    { id: "2", observerName: "Professor C", department: "Computer Science", academicLevel: "Full Professor" },
-    { id: "3", observerName: "Professor D", department: "Computer Science", academicLevel: "Full Professor" },
-    { id: "4", observerName: "Professor E", department: "Computer Science", academicLevel: "Full Professor" },
-    { id: "5", observerName: "Professor F", department: "Computer Science", academicLevel: "Associate Professor" },
-  ];
+  useEffect(() => {
+    let cancelled = false;
 
-  // Mock records connected to SQL database response status
-  const responseData: ResponseRecord[] = [
-    { id: "1", observerName: "Professor B", proposedDateTime: "Oct 12 @ 1:00 PM - 2:15 PM", responseStatus: "CONFIRMED" },
-    { id: "2", observerName: "Professor C", proposedDateTime: "Oct 14 @ 1:00 PM - 2:15 PM", responseStatus: "PENDING" },
-    { id: "3", observerName: "Professor D", proposedDateTime: "Oct 16 @ 1:00 PM - 2:15 PM", responseStatus: "DECLINED" },
-    { id: "4", observerName: "Professor E", proposedDateTime: "Oct 19 @ 1:00 PM - 2:15 PM", responseStatus: "CONFIRMED" },
-    { id: "5", observerName: "Professor F", proposedDateTime: "Oct 21 @ 1:00 PM - 2:15 PM", responseStatus: "CANCELLED" },
-  ];
+    async function loadObserverSelection() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const [
+          matches,
+          invitations,
+          profile,
+          availability,
+          registration,
+        ] = await Promise.all([
+          matchingApi.matches(),
+          matchingApi.sentInvitations(),
+          facultyApi.profile(),
+          facultyApi.availability(),
+          facultyApi.registrationStatus(),
+        ]);
+
+        if (cancelled) return;
+
+        const savedDateTimes = availability.available_datetimes ?? [];
+
+        setAvailableDateTimes(savedDateTimes);
+
+        setSelectedDatesList(
+          [...new Set(savedDateTimes.map(localDateString).filter(Boolean))]
+        );
+
+        setCandidateData(
+          (matches.candidates ?? []).map((candidate) => ({
+            id: String(candidate.id),
+            observerName: candidate.name,
+            department: candidate.department || "Not provided",
+            academicLevel: candidate.academic_level || "Not provided",
+          }))
+        );
+
+        setRegisteredCourse(profile.selected_course);
+        setObservationDeadline(registration.observation_deadline);
+        setCycleStartDate(registration.start_date);
+
+        setResponseData(
+          invitations.flatMap((invitation) => {
+            const candidate = matches.candidates.find(
+              (item) => item.id === invitation.recipient_id
+            );
+
+            return invitation.proposed_dates.map((date) => ({
+              id: String(invitation.invitation_id),
+              observerName:
+                candidate?.name || `Observer #${invitation.recipient_id}`,
+              proposedDateTime: new Date(date.datetime).toLocaleString(),
+              responseStatus:
+                invitation.status === "confirmed" || date.status === "accepted"
+                  ? "CONFIRMED"
+                  : invitation.status === "declined"
+                    ? "DECLINED"
+                    : invitation.status === "closed" ||
+                        invitation.status === "expired"
+                      ? "CANCELLED"
+                      : "PENDING",
+            }));
+          })
+        );
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load observer candidates and invitations."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadObserverSelection();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSendInvitations = async () => {
+    setError("");
+    setSuccess("");
+
+    if (selectedCandidates.length === 0) {
+      setError("Select at least one observer first.");
+      return;
+    }
+
+    if (availableDateTimes.length === 0) {
+      setError(
+        "No saved observation date/times were found. Return to Course Selection and save your availability."
+      );
+      return;
+    }
+
+    const candidatesWithoutDates = selectedCandidates.filter(
+      (observerId) => (candidateDates[observerId] ?? []).length < 4
+    );
+
+    if (candidatesWithoutDates.length > 0) {
+      setError(
+        "Select at least four proposed dates for every observer you want to invite."
+      );
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      for (const observerId of selectedCandidates) {
+        const datesForObserver = candidateDates[observerId] ?? [];
+
+        const proposedDateTimes = availableDateTimes.filter(
+          (dateTime) => datesForObserver.includes(localDateString(dateTime))
+        );
+
+        if (proposedDateTimes.length === 0) {
+          throw new Error(
+            `No saved date/time choices were found for observer #${observerId}.`
+          );
+        }
+
+        await matchingApi.sendInvitation(
+          Number(observerId),
+          proposedDateTimes
+        );
+      }
+
+      const invitations = await matchingApi.sentInvitations();
+
+      setResponseData(
+        invitations.flatMap((invitation) =>
+          invitation.proposed_dates.map((date) => ({
+            id: String(invitation.invitation_id),
+            observerName:
+              candidateData.find(
+                (candidate) =>
+                  candidate.id === String(invitation.recipient_id)
+              )?.observerName || `Observer #${invitation.recipient_id}`,
+            proposedDateTime: new Date(date.datetime).toLocaleString(),
+            responseStatus:
+              invitation.status === "declined"
+                ? "DECLINED"
+                : invitation.status === "expired" ||
+                    invitation.status === "closed"
+                  ? "CANCELLED"
+                  : invitation.status === "accepted" ||
+                      invitation.status === "confirmed"
+                    ? "CONFIRMED"
+                    : "PENDING",
+          }))
+        )
+      );
+
+      setSuccess("Invitation requests were sent successfully.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to send invitation requests."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Toggle candidate checkbox selection
   const handleCheckboxToggle = (id: string) => {
@@ -66,7 +245,7 @@ export default function E02ObserverSelection() {
   };
 
   // Columns for Table 1: Matched Observer Candidates
-  const candidateColumns: Column<Candidate>[] = [
+  const candidateColumns: Column<CandidateRow>[] = [
     {
       header: "Select",
       width: "60px",
@@ -107,8 +286,8 @@ export default function E02ObserverSelection() {
                     fontSize: "0.8rem",
                     fontWeight: "600",
                     cursor: "pointer",
-                    border: isSelected ? "1px solid #000000" : "1px solid #cbd5e1",
-                    backgroundColor: isSelected ? "#000000" : "#ffffff",
+                    border: isSelected ? "1px solid #1e293b" : "1px solid #cbd5e1",
+                    backgroundColor: isSelected ? "#1e293b" : "#ffffff",
                     color: isSelected ? "#ffffff" : "#334155",
                     transition: "all 0.15s ease",
                   }}
@@ -140,10 +319,19 @@ export default function E02ObserverSelection() {
           return <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#64748b" }}>AWAITING RESPONSE</span>;
         }
         if (row.responseStatus === "CONFIRMED") {
+          const invitationId = Number(row.id);
+
           return (
-            <span style={{ backgroundColor: "#dcfce7", color: "#166534", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
-              ACCEPTED
-            </span>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => setSelectedInvitationId(invitationId)}
+              style={{
+                fontWeight: selectedInvitationId === invitationId ? "700" : "400",
+              }}
+            >
+              {selectedInvitationId === invitationId ? "Selected" : "Select Observer"}
+            </button>
           );
         }
         if (row.responseStatus === "DECLINED" || row.responseStatus === "CANCELLED") {
@@ -158,38 +346,113 @@ export default function E02ObserverSelection() {
     },
   ];
 
+  const handleConfirmPairing = async () => {
+    setError("");
+    setSuccess("");
+
+    if (selectedInvitationId === null) {
+      setError("Please select an observer who has accepted an invitation.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await matchingApi.confirmPairing(selectedInvitationId);
+
+      setSuccess("Observer and observation date confirmed successfully.");
+
+      // Reload the page's invitation and response data.
+      const invitations = await matchingApi.sentInvitations();
+
+      setResponseData(
+        invitations.flatMap((invitation) =>
+          invitation.proposed_dates.map((date) => ({
+            id: String(invitation.invitation_id),
+            observerName:
+              candidateData.find(
+                (candidate) =>
+                  candidate.id === String(invitation.recipient_id)
+              )?.observerName || `Observer #${invitation.recipient_id}`,
+            proposedDateTime: new Date(date.datetime).toLocaleString(),
+            responseStatus:
+              invitation.status === "declined"
+                ? "DECLINED"
+                : invitation.status === "expired" ||
+                    invitation.status === "closed"
+                  ? "CANCELLED"
+                  : invitation.status === "accepted" ||
+                      invitation.status === "confirmed" ||
+                      date.status === "accepted"
+                    ? "CONFIRMED"
+                    : "PENDING",
+          }))
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to confirm the observation pairing."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          Back to Dashboard
         </Link>
       </div>
 
       <h2>Observer Selection</h2>
+
+      {loading && <p>Loading matched observers and invitations...</p>}
+      {error && <div role="alert" className="yellow-banner">{error}</div>}
+      {success && <div role="status" className="yellow-banner">{success}</div>}
 
       {/* Top Section: Registered Course Info & Calendar Widget */}
       <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
           <div>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>Your Registered Course Information</h3>
-            <p><strong>Course Number and Title:</strong> CS 1337 - Computer Science I</p>
-            <p style={{ marginTop: "0.5rem" }}><strong>Course Section:</strong> Section 002</p>
-            <p style={{ marginTop: "0.5rem" }}><strong>Meeting Days and Times:</strong> MW 1:00 PM - 2:15 PM</p>
-            <p style={{ marginTop: "0.5rem" }}><strong>Classroom Location(s):</strong> ECSS 2.412</p>
+            <p>
+              <strong>Course Number and Title:</strong>{" "}
+              {registeredCourse
+                ? `${registeredCourse.department_code} ${registeredCourse.course_number} - ${registeredCourse.title || "Course Title Unavailable"}`
+                : "No course selected"}
+            </p>
+
+            <p style={{ marginTop: "0.5rem" }}>
+              <strong>Course Section:</strong>{" "}
+              {registeredCourse?.section || "Not available"}
+            </p>
+
+            <p style={{ marginTop: "0.5rem" }}>
+              <strong>Meeting Days and Times:</strong>{" "}
+              {registeredCourse?.schedule || "Not available"}
+            </p>
+
+            <p style={{ marginTop: "0.5rem" }}>
+              <strong>Classroom Location(s):</strong>{" "}
+              {registeredCourse?.classroom || "Not available"}
+            </p>    
           </div>
 
+          {/* Staying hardcoded until backend can give observation period and structured course meeting days */}
           <div>
             <Calendar
               selectedDates={selectedDatesList}
               onDateSelectionChange={() => {}}
-              allowedDaysOfWeek={["Mon", "Wed"]}
+              allowedDaysOfWeek={["Mon", "Tue", "Wed", "Thu", "Fri"]}
               maxSelections={8}
-              minDate="2026-10-01"
-              maxDate="2026-11-15"
-              initialMonth={9}
-              initialYear={2026}
+              minDate={cycleStartDate ?? undefined}
+              maxDate={observationDeadline ?? undefined}
+              readOnly
             />
           </div>
         </div>
@@ -200,7 +463,10 @@ export default function E02ObserverSelection() {
         <h3>Select from Matched Observer Candidates List</h3>
 
         <div className="yellow-banner">
-          <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall before Nov 15.
+          <strong>IMPORTANT:</strong>{" "}
+          {observationDeadline
+            ? `Please make sure all proposed observation dates fall before ${new Date(`${observationDeadline}T00:00:00`).toLocaleDateString()}.`
+            : "The observation deadline could not be loaded. Please verify the allowed observation period."}
         </div>
 
         <DataTable
@@ -210,18 +476,23 @@ export default function E02ObserverSelection() {
           data={candidateData}
         />
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1rem" }}>
+        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="secondary-btn" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
+            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
               Select All
             </button>
-            <button type="button" className="secondary-btn" onClick={() => setSelectedCandidates([])}>
+            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates([])}>
               Deselect All
             </button>
           </div>
 
-          <button type="button" className="primary-btn" onClick={() => alert("Invitation requests sent!")}>
-            Send Invitation Requests
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => void handleSendInvitations()}
+            disabled={saving || loading}
+          >
+            {saving ? "Sending..." : "Send Invitation Requests"}
           </button>
         </div>
       </section>
@@ -241,17 +512,22 @@ export default function E02ObserverSelection() {
           data={responseData}
         />
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.5rem" }}>
-          <button type="button" className="secondary-btn">
+        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button type="button" className="btn-secondary">
             Reject All
           </button>
-          <button type="button" className="primary-btn" onClick={() => alert("Changes confirmed and locked!")}>
-            Confirm and Lock Changes
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => void handleConfirmPairing()}
+            disabled={saving || selectedInvitationId === null}
+          >
+            {saving ? "Confirming..." : "Confirm and Lock Changes"}
           </button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center", marginTop: "2.5rem" }}>
-          <Link to="/shared/faculty-dashboard" className="secondary-btn">
+        <div className="dashboard-center-action">
+          <Link to="/shared/faculty-dashboard" className="btn-secondary">
             Return to Dashboard
           </Link>
         </div>

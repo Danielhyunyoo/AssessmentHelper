@@ -1,13 +1,14 @@
 // src/components/Header.tsx
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/brand-symbol.png";
 import home from "../assets/home_icon.png";
 import bellDefault from "../assets/default_bell_icon.png";
 import bellActive from "../assets/active_notifications_bell_icon.png";
 import profileIcon from "../assets/profile_icon.png";
 import avatarPlaceholder from "../assets/avatar.png";
-import { facultyApi } from "../api/endpoints";
+import { authApi, facultyApi } from "../api/endpoints";
+import type { Notification, Professor } from "../api/types";
 
 interface NotificationPreview {
   id: string;
@@ -18,23 +19,19 @@ interface NotificationPreview {
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
-
-  // Toggle for testing notification icon states (0 vs 1+ notifications)
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState<boolean>(true);
-
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  // Sample notifications list with dynamic unread tracking
-  const [notifications, setNotifications] = useState<NotificationPreview[]>([
-    { id: "1", title: "New observer match assigned for Fall 2026", time: "10m ago", unread: true },
-    { id: "2", title: "Course section selection deadline: Oct 9", time: "2h ago", unread: true },
-    { id: "3", title: "Observation record signed by Dr. Smith", time: "1d ago", unread: false },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationPreview[]>([]);
+  const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [headerError, setHeaderError] = useState("");
+  const [backendUnreadCount, setBackendUnreadCount] = useState(0);
 
   const closeAllMenus = () => {
     setIsMenuOpen(false);
@@ -61,19 +58,53 @@ export default function Header() {
   };
 
   // Mark notification as read when clicked
-  const handleNotificationClick = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-    );
+  const handleNotificationClick = async (id: string) => {
+    try {
+      const notification = notifications.find((n) => n.id === id);
 
-    // If no unread notifications remain, turn off active bell icon
-    const remainingUnread = notifications.filter((n) => n.id !== id && n.unread).length;
-    if (remainingUnread === 0) {
-      setHasUnreadNotifications(false);
+      if (notification?.unread) {
+        await facultyApi.markRead(Number(id));
+        setBackendUnreadCount((count) => Math.max(0, count - 1));
+
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+        );
+
+        setHasUnreadNotifications((prev) => {
+          const remaining = notifications.filter(
+            (n) => n.id !== id && n.unread
+          ).length;
+          return remaining > 0 || (prev && remaining > 0);
+        });
+      }
+    } catch {
+      setHeaderError("Unable to mark this notification as read.");
+    } finally {
+      closeAllMenus();
+      navigate("/shared/notifications");
     }
+  };
 
-    closeAllMenus();
-    navigate("/shared/notifications");
+  const handleSignOut = async () => {
+    if (signingOut) return;
+
+    setSigningOut(true);
+    setHeaderError("");
+
+    try {
+      await authApi.logout();
+    } catch (err) {
+      setHeaderError(
+        err instanceof Error ? err.message : "Unable to sign out cleanly."
+      );
+      // Still navigate away; the backend request may have failed because
+      // the session has already expired.
+    } finally {
+      closeAllMenus();
+      setCurrentUser(null);
+      navigate("/login/signin", { replace: true });
+      setSigningOut(false);
+    }
   };
 
   // Close dropdown popovers when clicking outside
@@ -95,25 +126,75 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    async function checkNotifications() {
+    let cancelled = false;
+
+    async function loadHeaderData() {
       try {
-        const response = await facultyApi.notifications();
-        if (response && typeof response.unread_count === "number") {
-          setHasUnreadNotifications(response.unread_count > 0);
+        const { professor } = await authApi.session();
+
+        if (cancelled) return;
+
+        if (!professor) {
+          // Being signed out is normal; clear any previous user data.
+          setHeaderError("");
+          setNotifications([]);
+          setHasUnreadNotifications(false);
+          setBackendUnreadCount(0);
+          setCurrentUser(null);
+          return;
         }
-      } catch (err) {
-        // Keeps state default
+
+        const [notificationResponse, profileResponse] = await Promise.all([
+          facultyApi.notifications(),
+          facultyApi.profile(),
+        ]);
+
+        if (cancelled) return;
+
+        const previews = (notificationResponse.notifications ?? []).slice(0, 3);
+
+        setNotifications(
+          previews.map((n: Notification) => ({
+            id: String(n.notification_id),
+            title: n.title,
+            time: new Date(n.created_at).toLocaleString(),
+            unread: !n.is_read,
+          }))
+        );
+
+        setHasUnreadNotifications(notificationResponse.unread_count > 0);
+        setBackendUnreadCount(notificationResponse.unread_count);
+        setCurrentUser(profileResponse.professor);
+        setHeaderError("");
+      } catch {
+        // Only display this when loading actually fails.
+        if (!cancelled) {
+          setHeaderError("Some header information could not be loaded.");
+        }
       }
     }
 
-    void checkNotifications();
-  }, []);
+    void loadHeaderData();
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+    window.addEventListener("notifications-changed", loadHeaderData);
+
+    return () => {
+      cancelled = true;
+    
+      window.removeEventListener("notifications-changed", loadHeaderData);
+    };
+  }, [location.pathname]);
+
+  const unreadCount = backendUnreadCount;
 
   return (
     <>
       <header>
+        {headerError && (
+          <p role="status" style={{ color: "#b91c1c", fontSize: "0.8rem" }}>
+            {headerError}
+          </p>
+        )}
         {/* Brand Header */}
         <div id="logo">
           <img src={logo} alt="UTD Logo" className="header-logo" />
@@ -214,7 +295,7 @@ export default function Header() {
                       cursor: "pointer",
                     }}
                   >
-                    View All Notifications →
+                    View All Notifications
                   </button>
 
                   {/* Simulator Toggle for Demo Testing */}
@@ -272,11 +353,23 @@ export default function Header() {
                   <img
                     src={avatarPlaceholder}
                     alt="User Avatar"
-                    style={{ width: "42px", height: "42px", borderRadius: "50%", objectFit: "cover", border: "1px solid #cbd5e1" }}
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      border: "1px solid #cbd5e1",
+                    }}
                   />
                   <div>
-                    <h4 style={{ margin: 0, fontSize: "0.95rem", color: "#0f172a", fontWeight: "700" }}>John Doe</h4>
-                    <p style={{ margin: "0.15rem 0 0 0", fontSize: "0.8rem", color: "#64748b" }}>Assistant Professor</p>
+                    <h4 style={{ margin: 0, fontSize: "0.95rem", color: "#0f172a", fontWeight: "700" }}>
+                      {currentUser
+                        ? `${currentUser.first_name} ${currentUser.last_name}`.trim() || currentUser.username
+                        : "Loading profile..."}
+                    </h4>
+                    <p style={{ margin: "0.15rem 0 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+                      {currentUser?.academic_level || currentUser?.role || ""}
+                    </p>
                   </div>
                 </div>
 
@@ -311,10 +404,7 @@ export default function Header() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      closeAllMenus();
-                      navigate("/login/signin");
-                    }}
+                    onClick={() => void handleSignOut()}
                     className="menu-item-hover menu-signout-item"
                     style={{
                       width: "100%",
@@ -391,15 +481,22 @@ export default function Header() {
 
               {/* Observee & Observer Shortcuts */}
               <div className="menu-section">
-                <h4>Observee & Observer Modules</h4>
+                <h4>Observee &amp; Observer Modules</h4>
+
                 <Link to="/observee/course-selection" onClick={closeAllMenus}>
                   Course Section Selection
                 </Link>
-                <Link to="/observee/current-past-observations" onClick={closeAllMenus}>
+
+                <Link to="/observee/observer-selection" onClick={closeAllMenus}>
+                  Observer Selection
+                </Link>
+
+                <Link to="/shared/current-past-observations" onClick={closeAllMenus}>
                   Current / Past Observations
                 </Link>
-                <Link to="/observer/active-observations" onClick={closeAllMenus}>
-                  Active Observations
+
+                <Link to="/observer/observation-request" onClick={closeAllMenus}>
+                  Observation Requests
                 </Link>
               </div>
 
@@ -409,7 +506,7 @@ export default function Header() {
                 <Link to="/shared/profile" onClick={closeAllMenus}>
                   Profile Settings
                 </Link>
-                <Link to="/login/signin" onClick={closeAllMenus} className="menu-signout">
+                <Link to="/login/signin" onClick={() => void handleSignOut()} className="menu-signout">
                   Sign Out
                 </Link>
               </div>

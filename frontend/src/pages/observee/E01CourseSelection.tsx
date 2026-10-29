@@ -9,6 +9,49 @@ function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
 }
 
+
+function extractCourseStartTime(schedule: string): string {
+  // Supports formats such as:
+  // "MW 1:00 PM - 2:15 PM"
+  // "MWF 10:00-10:50"
+  // "TR 13:00-14:15"
+
+  const match = schedule.match(
+    /(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i
+  );
+
+  if (!match) return "";
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3]?.toUpperCase();
+
+  if (minutes > 59) return "";
+
+  if (meridiem) {
+    if (hours < 1 || hours > 12) return "";
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+  } else if (hours > 23) {
+    return "";
+  }
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+
+function localDateString(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function courseName(course: Course) {
   return `${course.department_code} ${course.course_number}${
     course.title ? ` - ${course.title}` : ""
@@ -21,6 +64,7 @@ function parseAllowedDays(scheduleText: string): DayOfWeek[] {
 
   if (upper.includes("MWF")) return ["Mon", "Wed", "Fri"];
   if (upper.includes("MW")) return ["Mon", "Wed"];
+  if (upper.includes("TR")) return ["Tue", "Thu"];
   if (upper.includes("TTH") || upper.includes("TU")) return ["Tue", "Thu"];
   if (upper.includes("M")) days.push("Mon");
   if (upper.includes("TU") || (upper.includes("T") && !upper.includes("TH"))) days.push("Tue");
@@ -60,9 +104,28 @@ export default function E01CourseSelection() {
       setCourses(courseData);
       setRegistration(statusData);
 
+      if (statusData.is_registered && statusData.has_selected_course) {
+        try {
+          const savedAvailability = await facultyApi.availability();
+
+          const savedDateTimes = savedAvailability.available_datetimes ?? [];
+
+          setSelectedDates(
+            savedDateTimes
+              .map(localDateString)
+              .filter(Boolean)
+          );
+
+        } catch {
+          // Keep the page usable if availability has not been saved yet.
+          setSelectedDates([]);
+        }
+      }
+
       const savedId = statusData.selected_course_id ?? "";
       setSelectedCourseId(savedId);
       setConfirmedCourseId(savedId);
+      setShowCalendarSection(savedId !== "");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to load registration information."
@@ -75,6 +138,18 @@ export default function E01CourseSelection() {
   useEffect(() => {
     void loadPage();
   }, []);
+
+  const today = new Date();
+  const todayIsoDate = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  const earliestAllowedDate =
+    registration?.start_date && registration.start_date > todayIsoDate
+      ? registration.start_date
+      : todayIsoDate;
 
   const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
   const allowedDays = confirmedCourse ? parseAllowedDays(confirmedCourse.schedule) : ["Mon", "Wed", "Thu"];
@@ -95,10 +170,18 @@ export default function E01CourseSelection() {
       }
 
       await facultyApi.selectCourse(Number(selectedCourseId));
+      window.dispatchEvent(new Event("notifications-changed"));
       setConfirmedCourseId(selectedCourseId);
 
       if (selectedCourseId !== confirmedCourseId) {
         setSelectedDates([]);
+
+        try {
+          await facultyApi.saveAvailability([]);
+        } catch {
+          // The selected course is still saved. The next availability save
+          // will overwrite the old dates.
+        }
       }
 
       const [updatedStatus, updatedCourses] = await Promise.all([
@@ -133,18 +216,61 @@ export default function E01CourseSelection() {
       return;
     }
 
+    if (selectedDates.length < 4) {
+      setError("Please select at least four observation dates.");
+      return;
+    }
+
+    if (selectedDates.length > 8) {
+      setError("You can select at most eight observation dates.");
+      return;
+    }
+
+    if (!confirmedCourse) {
+      setError("Please confirm a course section before selecting observation dates.");
+      return;
+    }
+
+    const courseStartTime = extractCourseStartTime(confirmedCourse.schedule);
+
+    console.log("Selected course:", confirmedCourse);
+    console.log("Course schedule:", confirmedCourse?.schedule);
+
+    if (!courseStartTime) {
+      setError(
+        "The selected course's meeting time could not be determined. Please contact the team to check the course schedule."
+      );
+      return;
+    }
+
     setSaving(true);
     setError("");
     setSuccess("");
 
     try {
+      const proposedDateTimes = selectedDates.map((date) => {
+        const localDateTime = new Date(`${date}T${courseStartTime}:00`);
+
+        if (Number.isNaN(localDateTime.getTime())) {
+          throw new Error(`Invalid date or course time: ${date} ${courseStartTime}`);
+        }
+
+        return localDateTime.toISOString();
+      });
+
+      await facultyApi.saveAvailability(proposedDateTimes);
+      window.dispatchEvent(new Event("notifications-changed"));
+
       setSuccess(
-        `Your course selection and ${selectedDates.length} observation dates were saved successfully. The confirmation notification should now be available.`
+        `Your course and ${proposedDateTimes.length} proposed observation date/time choices were saved to the database.`
       );
+
       topRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Unable to save your observation dates."
+        err instanceof Error
+          ? err.message
+          : "Unable to save your observation dates."
       );
     } finally {
       setSaving(false);
@@ -169,7 +295,7 @@ export default function E01CourseSelection() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          Back to Dashboard
         </Link>
       </div>
 
@@ -223,7 +349,7 @@ export default function E01CourseSelection() {
       <section className="dashboard-phase">
         <h3>Select a Course Section</h3>
         <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-          <strong>IMPORTANT:</strong> Course registration closes October 9 at 11:59 PM. You must select and register 1 active course section.
+          <strong>IMPORTANT:</strong> Course registration closes {registration && formatDate(registration.signup_deadline)} at 11:59 PM. You must select and register 1 active course section.
         </div>
 
         {courses.length === 0 ? (
@@ -289,7 +415,7 @@ export default function E01CourseSelection() {
           style={{ padding: "1.5rem", marginTop: "2rem" }}
         >
           <div className="yellow-banner" style={{ marginBottom: "1.5rem" }}>
-            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall before Nov 15. You can select up to 8 dates.
+            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall on or before {registration && formatDate(registration.observation_deadline)}. Select 4 to 8 dates.
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
@@ -300,7 +426,7 @@ export default function E01CourseSelection() {
               <p style={{ marginTop: "0.5rem" }}><strong>Meeting Days and Times:</strong> {confirmedCourse.schedule}</p>
               <p style={{ marginTop: "0.5rem" }}><strong>Classroom Location(s):</strong> {confirmedCourse.classroom || "Not provided"}</p>
               <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "#475569" }}>
-                <em>Selected Dates: {selectedDates.length} / 8 max</em>
+                <em>Selected Dates: {selectedDates.length} / 8 (minimum 4 required)</em>
               </p>
             </div>
 
@@ -310,10 +436,10 @@ export default function E01CourseSelection() {
                 onDateSelectionChange={setSelectedDates}
                 allowedDaysOfWeek={allowedDays as DayOfWeek[]}
                 maxSelections={8}
-                minDate="2026-10-01"
-                maxDate="2026-11-15"
-                initialMonth={9}
-                initialYear={2026}
+                minDate={earliestAllowedDate}
+                maxDate={registration?.observation_deadline}
+                initialMonth={new Date(`${earliestAllowedDate}T00:00:00`).getMonth()}
+                initialYear={new Date(`${earliestAllowedDate}T00:00:00`).getFullYear()}
               />
             </div>
           </div>
@@ -326,7 +452,7 @@ export default function E01CourseSelection() {
               type="button"
               className="btn-primary"
               onClick={handleFinalSave}
-              disabled={saving}
+              disabled={saving || selectedDates.length < 4}
             >
               {saving ? "Saving..." : "Confirm Selected Dates and Continue"}
             </button>

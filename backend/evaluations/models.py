@@ -36,6 +36,11 @@ class User(AbstractUser):
         blank=True
     )
 
+    phone = models.CharField(
+        max_length=30, 
+        blank=True
+    )
+
     last_evaluated_semester = models.CharField(
         max_length=20,
         blank=True

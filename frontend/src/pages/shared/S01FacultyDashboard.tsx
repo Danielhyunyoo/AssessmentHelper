@@ -1,8 +1,8 @@
 // src/pages/shared/S01FacultyDashboard.tsx
 import { useEffect, useState } from "react";
-import { facultyApi } from "../../api/endpoints";
-import type { FacultyDashboard } from "../../api/types";
-import { Link } from "react-router-dom";
+import { authApi, facultyApi } from "../../api/endpoints";
+import type { FacultyDashboard, Professor } from "../../api/types";
+import { Link, useNavigate } from "react-router-dom";
 
 import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg";
 import alerts_and_notifications_card from "../../assets/alerts_and_notifications_card.jpg";
@@ -12,9 +12,13 @@ import course_and_section_selection_card from "../../assets/course_and_section_s
 import active_observations_card from "../../assets/active_observations_card.jpg";
 
 export default function S01FacultyDashboard() {
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<FacultyDashboard | null>(null);
   const [dashboardError, setDashboardError] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+  const canUseFacultyModules = !!currentUser && currentUser.role !== "admin";
 
   useEffect(() => {
     facultyApi.dashboard()
@@ -28,6 +32,49 @@ export default function S01FacultyDashboard() {
       })
       .finally(() => setDashboardLoading(false));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    authApi.session()
+      .then(({ professor }) => {
+        if (!cancelled) setCurrentUser(professor);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setRoleLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!roleLoading && !currentUser) {
+      navigate("/login/signin", { replace: true });
+    }
+  }, [roleLoading, currentUser, navigate]);
+
+  if (roleLoading) {
+    return (
+      <div className="dashboard-container">
+        <h2>Faculty Dashboard</h2>
+        <p>Checking account permissions...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="dashboard-container">
+        <h2>Faculty Dashboard</h2>
+        <p>Redirecting to sign in...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
@@ -65,6 +112,8 @@ export default function S01FacultyDashboard() {
           </div>
         )}
       </section>
+      
+      {roleLoading && <p>Checking account permissions...</p>}
 
       {/* General Modules Section */}
       <section className="dashboard-phase">
@@ -87,54 +136,60 @@ export default function S01FacultyDashboard() {
             </Link>
           </article>
 
-          <article className="dashboard-card">
-            <Link to="/shared/post-evaluation-survey">
-              <img src={post_evaluation_survey_card} alt="Post-Evaluation Survey" />
-              <h4>Post-Evaluation Survey</h4>
-              <p>Unlocks after the observation period ends (Nov 15)</p>
-              <span className="card-status">LOCKED UNTIL NOV 15</span>
-            </Link>
-          </article>
+          {canUseFacultyModules && (
+            <article className="dashboard-card">
+              <Link to="/shared/post-evaluation-survey">
+                <img src={post_evaluation_survey_card} alt="Post-Evaluation Survey" />
+                <h4>Post-Evaluation Survey</h4>
+                <p>Unlocks after the observation period ends (Nov 15)</p>
+                <span className="card-status">LOCKED UNTIL NOV 15</span>
+              </Link>
+            </article>
+          )}
         </div>
       </section>
 
-      {/* Observee Modules Section */}
-      <section className="dashboard-phase">
-        <h3>Observee Modules</h3>
+      {canUseFacultyModules && (
+        <>
+          {/* Observee Modules Section */}
+          <section className="dashboard-phase">
+            <h3>Observee Modules</h3>
 
-        <div className="card-grid">
-          <article className="dashboard-card">
-            <Link to="/observee/current-past-observations">
-              <img src={current_and_past_observations_card} alt="Current and Past Observations" />
-              <h4>Current and Past Observations</h4>
-              <p>View observation status</p>
-            </Link>
-          </article>
+            <div className="card-grid">
+              <article className="dashboard-card">
+                <Link to="/shared/current-past-observations">
+                  <img src={current_and_past_observations_card} alt="Current and Past Observations" />
+                  <h4>Current and Past Observations</h4>
+                  <p>View observation status</p>
+                </Link>
+              </article>
 
-          <article className="dashboard-card">
-            <Link to="/observee/course-selection">
-              <img src={course_and_section_selection_card} alt="Course and Section Selection" />
-              <h4>Course and Section Selection</h4>
-              <p>Register or view my chosen class section for the current evaluation cycle</p>
-            </Link>
-          </article>
-        </div>
-      </section>
+              <article className="dashboard-card">
+                <Link to="/observee/course-selection">
+                  <img src={course_and_section_selection_card} alt="Course and Section Selection" />
+                  <h4>Course and Section Selection</h4>
+                  <p>Register or view my chosen class section for the current evaluation cycle</p>
+                </Link>
+              </article>
+            </div>
+          </section>
 
-      {/* Observer Modules Section */}
-      <section className="dashboard-phase">
-        <h3>Observer Modules</h3>
+          {/* Observer Modules Section */}
+          <section className="dashboard-phase">
+            <h3>Observer Modules</h3>
 
-        <div className="card-grid">
-          <article className="dashboard-card">
-            <Link to="/observer/active-observations">
-              <img src={active_observations_card} alt="Active Observations" />
-              <h4>Active Observations</h4>
-              <p>Upload forms and view confirmations</p>
-            </Link>
-          </article>
-        </div>
-      </section>
+            <div className="card-grid">
+              <article className="dashboard-card">
+                <Link to="/observer/active-observations">
+                  <img src={active_observations_card} alt="Active Observations" />
+                  <h4>Active Observations</h4>
+                  <p>Upload forms and view confirmations</p>
+                </Link>
+              </article>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

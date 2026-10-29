@@ -1,24 +1,91 @@
 // src/pages/shared/S02Profile.tsx
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { facultyApi } from "../../api/endpoints";
+import type { ProfileResponse } from "../../api/types";
 import { Link } from "react-router-dom";
 import defaultAvatar from "../../assets/avatar.png";
 
 export default function S02Profile(): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [firstName, setFirstName] = useState<string>("John");
-  const [lastName, setLastName] = useState<string>("Doe");
-  const [phone, setPhone] = useState<string>("(972) 883-2111");
-  const [email] = useState<string>("abc123456@utdallas.edu");
-  const [department] = useState<string>("Computer Science");
-  const [academicRank] = useState<string>("Assistant Professor");
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [department, setDepartment] = useState("");
+  const [academicRank, setAcademicRank] = useState("");
+
+  const [evaluationCycle, setEvaluationCycle] = useState("");
+  const [evaluationStatus, setEvaluationStatus] = useState("");
+  const [lastEvaluated, setLastEvaluated] = useState("");
 
   const [profilePhoto, setProfilePhoto] = useState<string>(defaultAvatar);
 
-  const [isEditingInfo, setIsEditingInfo] = useState<boolean>(false);
-  const [editFirstName, setEditFirstName] = useState<string>(firstName);
-  const [editLastName, setEditLastName] = useState<string>(lastName);
-  const [editPhone, setEditPhone] = useState<string>(phone);
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      setProfileLoading(true);
+      setProfileError("");
+
+      try {
+        const result = await facultyApi.profile();
+        if (cancelled) return;
+
+        const professor = result.professor;
+        const first = professor.first_name || "";
+        const last = professor.last_name || "";
+        
+        setEvaluationCycle(result.evaluation_cycle || "Current Cycle");
+        setEvaluationStatus(
+          String(result.evaluation_status || "undetermined")
+        );
+
+        const lastSemester = professor.last_evaluated_semester || "";
+        const lastYear = professor.last_evaluated_year;
+
+        setLastEvaluated(
+          lastSemester
+            ? `${lastSemester}${lastYear ? ` ${lastYear}` : ""}`
+            : "No previous evaluation recorded"
+        );
+
+        setFirstName(first);
+        setLastName(last);
+        setEmail(professor.email || "");
+        setPhone(professor.phone || "");
+        setEditPhone(professor.phone || "");
+        setDepartment(professor.department_name || "Not provided");
+        setAcademicRank(professor.academic_level || "Not provided");
+
+        setEditFirstName(first);
+        setEditLastName(last);
+      } catch (err) {
+        if (!cancelled) {
+          setProfileError(
+            err instanceof Error ? err.message : "Unable to load your profile."
+          );
+        }
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    }
+
+    void loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -28,18 +95,41 @@ export default function S02Profile(): React.ReactElement {
     }
   };
 
-  const handleSaveInfo = (e: React.FormEvent) => {
+  const handleSaveInfo = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setFirstName(editFirstName);
-    setLastName(editLastName);
-    setPhone(editPhone);
-    setIsEditingInfo(false);
+    setSaveMessage("");
+    setProfileError("");
+
+    try {
+      const result = await facultyApi.updateProfile({
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.trim(),
+      });
+
+      const professor = result.professor;
+
+      setFirstName(professor.first_name || "");
+      setLastName(professor.last_name || "");
+      setPhone(professor.phone || "");
+      setEditFirstName(professor.first_name || "");
+      setEditLastName(professor.last_name || "");
+      setEditPhone(professor.phone || "");
+
+      setIsEditingInfo(false);
+      setSaveMessage("Profile changes saved successfully.");
+    } catch (err) {
+      setProfileError(
+        err instanceof Error ? err.message : "Unable to save profile changes."
+      );
+    }
   };
 
   const handleCancelEdit = () => {
     setEditFirstName(firstName);
     setEditLastName(lastName);
     setEditPhone(phone);
+    setSaveMessage("");
     setIsEditingInfo(false);
   };
 
@@ -48,11 +138,25 @@ export default function S02Profile(): React.ReactElement {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          Back to Dashboard
         </Link>
       </div>
 
       <h2 className="profile-page-title">Profile and Evaluation Status</h2>
+
+      {profileLoading && <p>Loading your profile...</p>}
+
+      {profileError && (
+        <div role="alert" className="yellow-banner">
+          {profileError}
+        </div>
+      )}
+
+      {saveMessage && (
+        <div role="status" className="yellow-banner">
+          {saveMessage}
+        </div>
+      )}
 
       {/* Main Profile Section */}
       <section className="dashboard-phase profile-main-card">
@@ -175,17 +279,17 @@ export default function S02Profile(): React.ReactElement {
         <div className="profile-status-grid">
           <div className="profile-status-item">
             <span className="status-label">Last Completed Observation</span>
-            <span className="status-value">Spring 2025</span>
+            <span className="status-value">{lastEvaluated}</span>
           </div>
 
           <div className="profile-status-item">
             <span className="status-label">Current Cycle Status</span>
-            <span className="status-value highlight-status">Fall 2026 - Due for observation</span>
+            <span className="status-value highlight-status">{`${evaluationCycle}: ${evaluationStatus.replaceAll("_", " ")}`}</span>
           </div>
 
           <div className="profile-status-item">
             <span className="status-label">Next Semester Due</span>
-            <span className="status-value">Spring/Fall 2026</span>
+            <span className="status-value">Not provided by the backend yet</span>
           </div>
         </div>
       </section>

@@ -26,6 +26,10 @@ FACULTY = [
     {"username": "faculty_bob", "first_name": "Bob", "academic_level": "associate", "last_evaluated_year": 2023},
     {"username": "faculty_carol", "first_name": "Carol", "academic_level": "full", "last_evaluated_year": 2025},
     {"username": "faculty_dave", "first_name": "Dave", "academic_level": "assistant", "last_evaluated_year": None},
+    {"username": "faculty_juan", "first_name": "Juan", "academic_level": "associate", "last_evaluated_year": 2024},
+    {"username": "faculty_diego", "first_name": "Diego", "academic_level": "full", "last_evaluated_year": 2023},
+    {"username": "faculty_valeria", "first_name": "Valeria", "academic_level": "assistant", "last_evaluated_year": 2025},
+    {"username": "faculty_maria", "first_name": "Maria", "academic_level": "associate", "last_evaluated_year": 2024},
 ]
 
 COMMITTEE = {"username": "committee_demo", "first_name": "Committee", "role": "admin"}
@@ -33,19 +37,24 @@ COMMITTEE = {"username": "committee_demo", "first_name": "Committee", "role": "a
 DEMO_PASSWORD = "demo-password"
 
 COURSES = [
-    ("faculty_alice", "2337", "001", "Computer Science II", "MWF 10:00-10:50", "ECSS 2.410", "Fall", 2026),
-    ("faculty_alice", "3341", "001", "Probability and Statistics in Computer Science and Software Engineering", "TR 10:00-11:15", "ECSS 2.311", "Fall", 2026),
-    ("faculty_alice", "1337", "002", "Computer Science I", "TR 1:00-2:15", "ECSS 2.306", "Spring", 2026),
-    ("faculty_bob", "2305", "001", "Discrete Mathematics for Computing I", "TR 11:30-12:45", "ECSW 1.315", "Fall", 2026),
-    ("faculty_carol", "3345", "001", "Data Structures and Introduction to Algorithmic Analysis", "MW 2:30-3:45", "ECSS 2.415", "Fall", 2026),
-    ("faculty_dave", "2336", "001", "Computer Science II", "MWF 11:00-11:50", "ECSS 2.412", "Fall", 2026),
+    ("faculty_alice", "2337", "001", "Computer Science II", "MW 10:00 AM - 11:15 AM", "ECSS 2.410", "Fall", 2026),
+    ("faculty_alice", "3341", "001", "Probability and Statistics in Computer Science and Software Engineering", "TR 10:00 AM - 11:15 AM", "ECSS 2.311", "Fall", 2026),
+    ("faculty_alice", "1337", "002", "Computer Science I", "TR 1:00 PM - 2:15 PM", "ECSS 2.306", "Spring", 2026),
+    ("faculty_bob", "2305", "001", "Discrete Mathematics for Computing I", "TR 11:30 AM - 12:45 PM", "ECSW 1.315", "Fall", 2026),
+    ("faculty_carol", "3345", "001", "Data Structures and Introduction to Algorithmic Analysis", "MW 2:30 PM - 3:45 PM", "ECSS 2.415", "Fall", 2026),
+    ("faculty_dave", "2336", "001", "Computer Science II", "MW 11:30 AM - 12:45 PM", "ECSS 2.412", "Fall", 2026),
+    ("faculty_juan", "3354", "001", "Software Engineering", "TR 2:30 PM - 3:45 PM", "ECSS 2.305", "Fall", 2026),
+    ("faculty_diego", "4337", "001", "Programming Language Paradigms", "MW 1:00 PM - 2:15 PM", "ECSS 2.203", "Fall", 2026),
+    ("faculty_valeria", "3377", "001", "Systems Programming in UNIX and Other Environments", "TR 8:30 AM - 9:45 AM", "ECSS 2.306", "Fall", 2026),
+    ("faculty_maria", "4348", "001", "Operating Systems Concepts", "MW 8:30 AM - 9:45 AM", "ECSS 2.311", "Fall", 2026),
 ]
 
 
 class Command(BaseCommand):
     help = (
         "Create or reset the demo cast: faculty_alice (due), faculty_bob (overdue), "
-        "faculty_carol (not due), faculty_dave (undetermined), committee_demo, "
+        "faculty_carol (not due), faculty_dave (undetermined), faculty_juan, faculty_diego, "
+        "faculty_valeria, faculty_maria, committee_demo, "
         "their CS courses, and the active Fall 2026 cycle. Safe to run again. "
         "Existing signups, pairings and observations are kept unless --reset is given. "
         "Every account signs in as <first name>@utdallas.edu with demo-password."

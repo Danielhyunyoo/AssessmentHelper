@@ -12,13 +12,39 @@ export default function L01Home() {
   const [isRegistered, setIsRegistered] = useState<boolean>(false);
 
   useEffect(() => {
-    authApi
-      .session()
-      .then(async ({ professor: sessionUser }) => {
-        setUser(sessionUser);
-        if (sessionUser) setIsRegistered((await facultyApi.registrationStatus()).is_registered);
-      })
-      .catch(() => setUser(null));
+    let cancelled = false;
+
+    async function loadHomeState() {
+      try {
+        const { professor } = await authApi.session();
+
+        if (cancelled) return;
+
+        setUser(professor);
+
+        if (professor) {
+          try {
+            const status = await facultyApi.registrationStatus();
+
+            if (!cancelled) {
+              setIsRegistered(status.is_registered);
+            }
+          } catch {
+            // Keep the logged-in state even if registration status fails.
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      }
+    }
+
+    void loadHomeState();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const isLoggedIn = user !== null;
