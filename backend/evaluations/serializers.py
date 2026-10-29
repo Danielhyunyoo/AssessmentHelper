@@ -236,6 +236,10 @@ class CycleDatesUpdateSerializer(serializers.Serializer):
     survey_deadline = serializers.DateField(required=False)
 
 
+class DemoDateSerializer(serializers.Serializer):
+    date = serializers.DateField(allow_null=True)
+
+
 class SignupAvailabilitySerializer(serializers.Serializer):
     available_datetimes = serializers.ListField(
         child=serializers.DateTimeField(),

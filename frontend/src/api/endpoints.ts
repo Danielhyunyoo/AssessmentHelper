@@ -1,4 +1,4 @@
-import { get, patch, post, qs } from "./http";
+import { get, patch, post, put, qs } from "./http";
 import type { Course, CycleDates, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template } from "./types";
 
 // L02-L03
@@ -7,6 +7,12 @@ export const authApi = {
   login: (username: string, password: string) => post<{professor:Professor}>("/auth/login/", {username, password}),
   logout: () => post<{detail:string}>("/auth/logout/"),
   session: () => get<{professor:Professor|null}>("/auth/session/"),
+};
+// Demo mode
+export const demoApi = {
+  date: () => get<{simulated_date:string|null;today:string}>("/demo/date/"),
+  setDate: (date: string|null) => put<{simulated_date:string|null;today:string}>("/demo/date/", {date}),
+  reset: () => post<{detail:string}>("/demo/reset/"),
 };
 // L01-L03, S01-S03, E01
 export const facultyApi = {

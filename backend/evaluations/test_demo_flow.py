@@ -115,3 +115,40 @@ class DemoFlowTests(APITestCase):
         self.assertEqual(released.status_code, status.HTTP_200_OK, released.data)
         self.assertEqual(sent.status_code, status.HTTP_201_CREATED, sent.data)
         self.assertEqual(Invitation.objects.get(sender=self.alice).proposed_dates.count(), 4)
+
+
+@override_settings(DEBUG=True)
+class DemoDateTests(APITestCase):
+    def setUp(self):
+        call_command("seed_demo", stdout=StringIO())
+        self.addCleanup(self.client.put, "/api/demo/date/", {"date": None}, format="json")
+
+    def test_simulated_date_closes_registration(self):
+        self.client.put("/api/demo/date/", {"date": "2026-12-01"}, format="json")
+        self.client.defaults["HTTP_X_DEMO_USERNAME"] = "faculty_alice"
+
+        response = self.client.post("/api/signups/", {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_clearing_the_simulated_date_returns_to_today(self):
+        self.client.put("/api/demo/date/", {"date": "2026-12-01"}, format="json")
+
+        response = self.client.put("/api/demo/date/", {"date": None}, format="json")
+
+        self.assertIsNone(response.data["simulated_date"])
+        self.assertEqual(response.data["today"], timezone.localdate())
+
+    def test_reset_clears_registrations_and_the_simulated_date(self):
+        self.client.put("/api/demo/date/", {"date": "2026-12-01"}, format="json")
+        alice = User.objects.get(username="faculty_alice")
+        Signup.objects.create(user=alice, cycle=Cycle.objects.get(status="active"))
+
+        self.client.post("/api/demo/reset/")
+
+        self.assertFalse(Signup.objects.filter(user=alice).exists())
+        self.assertIsNone(self.client.get("/api/demo/date/").data["simulated_date"])
+
+    @override_settings(DEBUG=False)
+    def test_demo_date_is_hidden_outside_demo_mode(self):
+        self.assertEqual(self.client.get("/api/demo/date/").status_code, status.HTTP_404_NOT_FOUND)
