@@ -28,18 +28,10 @@ const PAGES = [
   ["Form Editor", "/committee/form-editor"],
 ];
 
-const SIGN_IN_PAGES = ["/", "/login/signin", "/login/signin2"];
-
 async function signInAs(name: string) {
   await authApi.csrf();
   await authApi.login(`${name.toLowerCase()}@utdallas.edu`, "demo-password");
-  if (!SIGN_IN_PAGES.includes(window.location.pathname)) {
-    window.location.reload();
-  } else if (name === "Committee") {
-    window.location.assign("/committee/dashboard");
-  } else {
-    window.location.assign("/shared/faculty-dashboard");
-  }
+  window.location.assign(name === "Committee" ? "/committee/dashboard" : "/shared/faculty-dashboard");
 }
 
 async function setToday(date: string) {
@@ -87,46 +79,48 @@ export default function DevBar() {
     }
   }
 
-  if (!open) {
-    return (
-      <button type="button" className="dev-bar-toggle" onClick={toggle}>
-        dev tools
-      </button>
-    );
-  }
-
   return (
-    <div className="dev-bar">
-      <button type="button" onClick={toggle}>hide</button>
+    <aside className="dev-panel">
+      <button type="button" className="dev-panel-header" onClick={toggle}>
+        Demo tools
+      </button>
 
-      <label>
-        as{" "}
-        <select value={user} onChange={(event) => void signInAs(event.target.value)}>
-          <option value="" disabled>signed out</option>
-          {PERSONAS.map((name) => <option key={name} value={name}>{name}</option>)}
-        </select>
-      </label>
+      {open && (
+        <div className="dev-panel-body">
+          <label>
+            as
+            <select value={user} onChange={(event) => void signInAs(event.target.value)}>
+              <option value="" disabled>signed out</option>
+              {PERSONAS.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
 
-      <label>
-        today{" "}
-        <input type="date" value={today} onChange={(event) => void setToday(event.target.value)} />
-      </label>
-      {simulated && <button type="button" onClick={() => void setToday("")}>real date</button>}
+          <label>
+            today
+            <input type="date" value={today} onChange={(event) => void setToday(event.target.value)} />
+          </label>
+          {simulated && <button type="button" onClick={() => void setToday("")}>real date</button>}
 
-      {cycle && (
-        <span>
-          signup {cycle.signup_deadline}, observe {cycle.observation_deadline}, survey {cycle.survey_deadline}
-        </span>
+          {cycle && (
+            <p>
+              signup {cycle.signup_deadline}
+              <br />
+              observe {cycle.observation_deadline}
+              <br />
+              survey {cycle.survey_deadline}
+            </p>
+          )}
+
+          <label>
+            page
+            <select value={location.pathname} onChange={(event) => navigate(event.target.value)}>
+              {PAGES.map(([name, path]) => <option key={path} value={path}>{name}</option>)}
+            </select>
+          </label>
+
+          <button type="button" onClick={() => void resetData()}>reset data</button>
+        </div>
       )}
-
-      <label>
-        page{" "}
-        <select value={location.pathname} onChange={(event) => navigate(event.target.value)}>
-          {PAGES.map(([name, path]) => <option key={path} value={path}>{name}</option>)}
-        </select>
-      </label>
-
-      <button type="button" onClick={() => void resetData()}>reset data</button>
-    </div>
+    </aside>
   );
 }
