@@ -40,6 +40,16 @@ function extractCourseStartTime(schedule: string): string {
 }
 
 
+const WEEKDAYS: DayOfWeek[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function firstClassDay(fromIsoDate: string, days: string[]): Date {
+  const date = new Date(`${fromIsoDate}T00:00:00`);
+  for (let i = 0; i < 7 && !days.includes(WEEKDAYS[date.getDay()]); i++) {
+    date.setDate(date.getDate() + 1);
+  }
+  return date;
+}
+
 function localDateString(value: string): string {
   const date = new Date(value);
 
@@ -87,6 +97,7 @@ export default function E01CourseSelection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [datesSaved, setDatesSaved] = useState(false);
 
   const topRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -153,6 +164,9 @@ export default function E01CourseSelection() {
 
   const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
   const allowedDays = confirmedCourse ? parseAllowedDays(confirmedCourse.schedule) : ["Mon", "Wed", "Thu"];
+  const calendarStart = selectedDates.length > 0
+    ? new Date(`${[...selectedDates].sort()[0]}T00:00:00`)
+    : firstClassDay(earliestAllowedDate, allowedDays);
 
   const handleConfirmClass = async () => {
     if (selectedCourseId === "") {
@@ -193,6 +207,7 @@ export default function E01CourseSelection() {
       setCourses(updatedCourses);
       setShowCalendarSection(true);
       setSuccess("Course section saved! Please select your observation dates below.");
+      setDatesSaved(false);
 
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -264,6 +279,7 @@ export default function E01CourseSelection() {
       setSuccess(
         `Your course and ${proposedDateTimes.length} proposed observation date/time choices were saved to the database.`
       );
+      setDatesSaved(true);
 
       topRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
@@ -313,6 +329,11 @@ export default function E01CourseSelection() {
           <p style={{ marginTop: "0.25rem" }}>
             <Link to="/shared/notifications">View confirmation notifications</Link>
           </p>
+          {datesSaved && (
+            <p style={{ marginTop: "0.25rem" }}>
+              <Link to="/observee/observer-selection">Continue to Observer Selection</Link>
+            </p>
+          )}
         </div>
       )}
 
@@ -438,8 +459,8 @@ export default function E01CourseSelection() {
                 maxSelections={8}
                 minDate={earliestAllowedDate}
                 maxDate={registration?.observation_deadline}
-                initialMonth={new Date(`${earliestAllowedDate}T00:00:00`).getMonth()}
-                initialYear={new Date(`${earliestAllowedDate}T00:00:00`).getFullYear()}
+                initialMonth={calendarStart.getMonth()}
+                initialYear={calendarStart.getFullYear()}
               />
             </div>
           </div>

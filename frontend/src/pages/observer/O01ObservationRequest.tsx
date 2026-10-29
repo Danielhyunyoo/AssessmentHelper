@@ -105,11 +105,12 @@ export default function O01ObservationRequest() {
     setSaving(true);
 
     try {
-      await matchingApi.respond(
+      const updated = await matchingApi.respond(
         invitation.invitation_id,
         "accept",
         Number(selectedSlotId)
       );
+      setInvitation(updated);
 
       setStatusMessage({
         type: "success",
@@ -146,6 +147,22 @@ export default function O01ObservationRequest() {
       setSaving(false);
     }
   };
+
+  const acceptedDate = invitation?.proposed_dates.find((date) => date.status === "accepted");
+  const answeredStatus: Record<string, string> = {
+    accepted: "You accepted this invitation",
+    confirmed: "The observee confirmed you",
+    declined: "You declined this invitation",
+    expired: "This invitation expired",
+    closed: "This invitation was closed",
+  };
+  const acceptedWhen = acceptedDate
+    ? ` for ${new Date(acceptedDate.datetime).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+    : "";
+  const answeredText =
+    invitation && invitation.status !== "pending"
+      ? `${answeredStatus[invitation.status] ?? invitation.status}${acceptedWhen}.`
+      : null;
 
   return (
     <div className="dashboard-container">
@@ -185,7 +202,7 @@ export default function O01ObservationRequest() {
       {/* Faculty Request Card Section */}
       <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
         <div className="yellow-banner" style={{ marginBottom: "1.25rem" }}>
-          <strong>NOTE:</strong> Current Invitation Expires in 48 Hours!
+          <strong>NOTE:</strong> {answeredText ?? "Current Invitation Expires in 48 Hours!"}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "2rem", alignItems: "center" }}>

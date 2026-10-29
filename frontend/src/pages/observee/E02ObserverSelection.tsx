@@ -17,7 +17,15 @@ interface ResponseRecord {
   id: string;
   observerName: string;
   proposedDateTime: string;
-  responseStatus: "CONFIRMED" | "PENDING" | "DECLINED" | "CANCELLED";
+  responseStatus: "CONFIRMED" | "ACCEPTED" | "NOT SELECTED" | "PENDING" | "DECLINED" | "CANCELLED";
+}
+
+function rowStatus(invitationStatus: string, dateStatus: string): ResponseRecord["responseStatus"] {
+  if (invitationStatus === "declined") return "DECLINED";
+  if (invitationStatus === "expired" || invitationStatus === "closed") return "CANCELLED";
+  if (dateStatus === "accepted") return invitationStatus === "confirmed" ? "CONFIRMED" : "ACCEPTED";
+  if (invitationStatus === "accepted" || invitationStatus === "confirmed") return "NOT SELECTED";
+  return "PENDING";
 }
 
 function localDateString(value: string): string {
@@ -40,6 +48,7 @@ export default function E02ObserverSelection() {
   const [selectedInvitationId, setSelectedInvitationId] = useState<number | null>(null);
   const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
   const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
+  const [released, setReleased] = useState(false);
   const [cycleStartDate, setCycleStartDate] = useState<string | null>(null);
   const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
   const [observationDeadline, setObservationDeadline] = useState<string | null>(null);
@@ -76,8 +85,11 @@ export default function E02ObserverSelection() {
 
         setAvailableDateTimes(savedDateTimes);
 
-        setSelectedDatesList(
-          [...new Set(savedDateTimes.map(localDateString).filter(Boolean))]
+        const savedDates = [...new Set(savedDateTimes.map(localDateString).filter(Boolean))];
+        setSelectedDatesList(savedDates);
+        setReleased(Boolean(matches.released));
+        setCandidateDates(
+          Object.fromEntries((matches.candidates ?? []).map((candidate) => [String(candidate.id), savedDates]))
         );
 
         setCandidateData(
@@ -104,15 +116,7 @@ export default function E02ObserverSelection() {
               observerName:
                 candidate?.name || `Observer #${invitation.recipient_id}`,
               proposedDateTime: new Date(date.datetime).toLocaleString(),
-              responseStatus:
-                invitation.status === "confirmed" || date.status === "accepted"
-                  ? "CONFIRMED"
-                  : invitation.status === "declined"
-                    ? "DECLINED"
-                    : invitation.status === "closed" ||
-                        invitation.status === "expired"
-                      ? "CANCELLED"
-                      : "PENDING",
+              responseStatus: rowStatus(invitation.status, date.status),
             }));
           })
         );
@@ -197,16 +201,7 @@ export default function E02ObserverSelection() {
                   candidate.id === String(invitation.recipient_id)
               )?.observerName || `Observer #${invitation.recipient_id}`,
             proposedDateTime: new Date(date.datetime).toLocaleString(),
-            responseStatus:
-              invitation.status === "declined"
-                ? "DECLINED"
-                : invitation.status === "expired" ||
-                    invitation.status === "closed"
-                  ? "CANCELLED"
-                  : invitation.status === "accepted" ||
-                      invitation.status === "confirmed"
-                    ? "CONFIRMED"
-                    : "PENDING",
+            responseStatus: rowStatus(invitation.status, date.status),
           }))
         )
       );
@@ -319,6 +314,13 @@ export default function E02ObserverSelection() {
           return <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#64748b" }}>AWAITING RESPONSE</span>;
         }
         if (row.responseStatus === "CONFIRMED") {
+          return (
+            <span style={{ backgroundColor: "#dcfce7", color: "#166534", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
+              CONFIRMED
+            </span>
+          );
+        }
+        if (row.responseStatus === "ACCEPTED") {
           const invitationId = Number(row.id);
 
           return (
@@ -375,17 +377,7 @@ export default function E02ObserverSelection() {
                   candidate.id === String(invitation.recipient_id)
               )?.observerName || `Observer #${invitation.recipient_id}`,
             proposedDateTime: new Date(date.datetime).toLocaleString(),
-            responseStatus:
-              invitation.status === "declined"
-                ? "DECLINED"
-                : invitation.status === "expired" ||
-                    invitation.status === "closed"
-                  ? "CANCELLED"
-                  : invitation.status === "accepted" ||
-                      invitation.status === "confirmed" ||
-                      date.status === "accepted"
-                    ? "CONFIRMED"
-                    : "PENDING",
+            responseStatus: rowStatus(invitation.status, date.status),
           }))
         )
       );
@@ -473,6 +465,7 @@ export default function E02ObserverSelection() {
           themeColor="orange"
           instructionText="Select candidates to send an observation request for your registered course times."
           columns={candidateColumns}
+          emptyMessage={released ? "No observers were released to you." : "Waiting for the Assessment Committee to release your observers."}
           data={candidateData}
         />
 

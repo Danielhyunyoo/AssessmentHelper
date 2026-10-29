@@ -352,7 +352,7 @@ export default function A02FacultyMatching() {
           </span>
         </p>
         <p style={{ marginTop: "0.5rem" }}>
-          <strong>Next Scheduled Action:</strong> Auto-Lock Course Registrations and Generate Matches on Oct 10, 2026
+          <strong>Next Scheduled Action:</strong> Course registration closes on {displayEndDate}
         </p>
         <button
           type="button"
@@ -369,7 +369,7 @@ export default function A02FacultyMatching() {
         <h3>Manual Observer-Observee Matching</h3>
 
         <div className="yellow-banner">
-          <strong>IMPORTANT:</strong> The following Observees have either 0 or insufficient Observers currently matched to them. Please ensure each Observee has 5 Observers assigned. Manually select eligible Observers from the dropdowns below.
+          <strong>IMPORTANT:</strong> The following Observees have either 0 or insufficient Observers currently matched to them. Select 1 to 5 eligible Observers for each Observee from the dropdowns below.
         </div>
 
         <div className="table-container theme-green" style={{ padding: "1.25rem" }}>
@@ -449,7 +449,7 @@ export default function A02FacultyMatching() {
         <h3>Review and Approve Existing Observer-Observee Matched Lists</h3>
 
         <div className="yellow-banner">
-          <strong>NOTE:</strong> Course registration closed on October 9. Below are the system-generated matched observer lists ready for review, manual override, and notification dispatch to Observees.
+          <strong>NOTE:</strong> Course registration closes on {displayEndDate}. Below are the system-generated matched observer lists ready for review, manual override, and notification dispatch to Observees.
         </div>
 
         <div className="table-container theme-blue" style={{ padding: "1.25rem" }}>
