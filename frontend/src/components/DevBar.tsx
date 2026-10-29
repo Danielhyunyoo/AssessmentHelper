@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { authApi, demoApi, facultyApi } from "../api/endpoints";
 import type { RegistrationStatus } from "../api/types";
 
-const PERSONAS = ["Alice", "Bob", "Carol", "Dave", "Committee"];
+const PERSONAS = ["Alice", "Bob", "Carol", "Dave", "Juan", "Diego", "Valeria", "Maria", "Committee"];
 
 const PAGES = [
   ["Home", "/"],
