@@ -1,4 +1,6 @@
+from io import StringIO
 from django.conf import settings
+from django.core.management import call_command
 from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.shortcuts import get_object_or_404
@@ -12,6 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authentication import SessionAuthentication
 
 from .models import Course, Cycle, Signup, Notification, Invitation
+from . import clock
 from .evaluation_status import evaluation_status_for
 from django.utils import timezone
 from .serializers import (
@@ -23,6 +26,7 @@ from .serializers import (
     SignupSerializer,
     NotificationSerializer,
     LoginSerializer,
+    DemoDateSerializer,
     CycleDatesUpdateSerializer,
     SignupAvailabilitySerializer,
 )
@@ -74,8 +78,6 @@ def session_login(request):
 @authentication_classes([SessionAuthentication])
 def session_logout(request):
     """Sign out the session user; no demo-header fallback."""
-    if not request.user.is_authenticated:
-        raise NotAuthenticated("Sign in first.")
     django_logout(request._request)
     return Response({"detail": "Signed out."})
 
@@ -89,6 +91,33 @@ def session_user(request):
         return Response({"professor": None})
     return Response({"professor": ProfessorSerializer(request.user).data})
 
+def require_demo_mode():
+    if not (settings.DEBUG and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False)):
+        raise NotFound("Demo mode is off.")
+
+
+@api_view(["GET", "PUT"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([AllowAny])
+def demo_date(request):
+    """Read or set the simulated date used in demo mode."""
+    require_demo_mode()
+    if request.method == "PUT":
+        serializer = DemoDateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        clock.set_simulated_date(serializer.validated_data["date"])
+    return Response({"simulated_date": clock.simulated_date(), "today": clock.today()})
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([AllowAny])
+def demo_reset(request):
+    """Reset the demo data and the simulated date."""
+    require_demo_mode()
+    call_command("seed_demo", "--reset", stdout=StringIO())
+    clock.set_simulated_date(None)
+    return Response({"detail": "Demo data reset."})
 
 def get_current_professor(request):
     """Return the authenticated user or a DEBUG-only demo user."""
@@ -100,10 +129,8 @@ def get_current_professor(request):
         if username:
             return get_object_or_404(User, username=username)
 
-    raise NotAuthenticated(
-        "Sign in first, or use X-Demo-Username with an existing demo user "
-        "when demo authentication is explicitly enabled."
-    )
+    raise NotAuthenticated("Sign in first.")
+
 
 
 def get_current_cycle():
@@ -228,7 +255,7 @@ def create_signup(request):
         course = get_object_or_404(current_courses(professor, cycle), pk=course_id)
 
     already_registered = Signup.objects.filter(user=professor, cycle=cycle).exists()
-    if not already_registered and timezone.localdate() > cycle.signup_deadline:
+    if not already_registered and clock.today() > cycle.signup_deadline:
         raise ValidationError({"detail": "The signup deadline has passed. Contact the Assessment Committee to register late."})
 
     # get_or_create honors unique_user_cycle_signup, including concurrent clicks.
@@ -263,7 +290,7 @@ def select_signup_course(request):
     )
     if signup.matches_released_at or Invitation.objects.filter(cycle=cycle, sender=professor).exists():
         raise ValidationError({"detail": "Course selection is locked after matches are released."})
-    if timezone.localdate() > cycle.signup_deadline:
+    if clock.today() > cycle.signup_deadline:
         raise ValidationError({"detail": "The course signup deadline has passed."})
     if signup.course_id != course.pk:
         signup.course = course
@@ -280,7 +307,7 @@ def faculty_dashboard(request):
 
     professor = get_current_professor(request)
     cycle = get_current_cycle()
-    today = timezone.localdate()
+    today = clock.today()
     signup = (
         Signup.objects.filter(user=professor, cycle=cycle)
         .select_related("course")
@@ -526,7 +553,7 @@ def signup_availability(request):
     serializer.is_valid(raise_exception=True)
     proposed_datetimes = serializer.validated_data["available_datetimes"]
 
-    now = timezone.now()
+    now = clock.now()
 
     for proposed_datetime in proposed_datetimes:
         if proposed_datetime <= now:
@@ -576,7 +603,7 @@ def invitation_json(inv):
             "expired"
             if inv.status == "pending"
             and inv.expires_at
-            and timezone.now() >= inv.expires_at
+            and clock.now() >= inv.expires_at
             else inv.status
         ),
         "created_at": inv.created_at,
@@ -638,11 +665,13 @@ def committee_release_candidates(request, signup_id):
         faculty = list(User.objects.filter(pk__in=ids, is_active=True, role="faculty", department_id=signup.course.department_id))
         if len(faculty) != len(ids) or signup.user_id in ids:
             raise ValidationError({"detail": "Every observer must be an active, different faculty member from the same department."})
-        MatchCandidate.objects.filter(signup=signup).delete()
-        MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
-        signup.matches_released_at = timezone.now()
-        signup.save(update_fields=["matches_released_at"])
-        send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observer-selection")
+        released_ids = set(MatchCandidate.objects.filter(signup=signup).values_list("observer_id", flat=True))
+        if signup.matches_released_at is None or released_ids != set(ids):
+            MatchCandidate.objects.filter(signup=signup).delete()
+            MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
+            signup.matches_released_at = clock.now()
+            signup.save(update_fields=["matches_released_at"])
+            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observer-selection")
     return Response({"signup_id": signup.pk, "released": True, "observer_ids": ids})
 
 
@@ -669,8 +698,8 @@ def send_invitation(request):
     data.is_valid(raise_exception=True)
     observer_id = data.validated_data["observer_id"]
     dates = data.validated_data["proposed_datetimes"]
-    now = timezone.now()
-    if timezone.localdate() > cycle.observation_deadline:
+    now = clock.now()
+    if clock.today() > cycle.observation_deadline:
         raise ValidationError({"detail": "Observation deadline has passed."})
     if any(d <= now or timezone.localtime(d).date() > cycle.observation_deadline for d in dates):
         raise ValidationError({"detail": "Dates must be future dates no later than the observation deadline."})
@@ -722,18 +751,18 @@ def respond_to_invitation(request, invitation_id):
     data.is_valid(raise_exception=True)
     with transaction.atomic():
         inv = get_object_or_404(Invitation.objects.select_for_update(), pk=invitation_id, recipient=user, cycle=get_current_cycle())
-        if inv.status != "pending" or not inv.expires_at or timezone.now() >= inv.expires_at:
+        if inv.status != "pending" or not inv.expires_at or clock.now() >= inv.expires_at:
             raise ValidationError({"detail": "Invitation is closed or expired."})
         if data.validated_data["action"] == "accept":
             date = get_object_or_404(ProposedDate, pk=data.validated_data["proposed_date_id"], invitation=inv)
-            if date.proposed_datetime <= timezone.now():
+            if date.proposed_datetime <= clock.now():
                 raise ValidationError({"detail": "The selected date is in the past."})
             date.status = "accepted"
             date.save(update_fields=["status"])
             inv.status = "accepted"
         else:
             inv.status = "declined"
-        inv.responded_at = timezone.now()
+        inv.responded_at = clock.now()
         inv.save(update_fields=["status", "responded_at"])
         send_workflow_notification(inv.sender, "Invitation response", f"An observer {inv.status} your invitation.", "/observer-selection")
     return Response(invitation_json(inv))
@@ -753,7 +782,7 @@ def confirm_pairing(request):
         if Pairing.objects.filter(cycle=cycle, observee=observee, status="confirmed").exists():
             raise ValidationError({"detail": "An observer has already been finalized."})
         date = inv.proposed_dates.filter(status="accepted").first()
-        if date is None or date.proposed_datetime <= timezone.now():
+        if date is None or date.proposed_datetime <= clock.now():
             raise ValidationError({"detail": "No valid accepted future date."})
         pairing = Pairing.objects.create(cycle=cycle, observee=observee, observer=inv.recipient,
                                           course=inv.course, status="confirmed", confirmed_datetime=date.proposed_datetime)
@@ -837,7 +866,7 @@ def _can_sign(observation, user):
     pairing = observation.pairing
     if pairing.status != "confirmed" or observation.status == "cancelled":
         return False
-    if pairing.confirmed_datetime is None or pairing.confirmed_datetime > timezone.now():
+    if pairing.confirmed_datetime is None or pairing.confirmed_datetime > clock.now():
         return False
     if observation.observer_signed and observation.observee_signed:
         return False
@@ -945,14 +974,14 @@ def sign_observation(request, observation_id):
         if observation.pairing.observer_id == user.pk:
             _check_form_answers(observation.template, observation.responses, require_all=True)
             observation.observer_signed = True
-            observation.observer_signed_at = timezone.now()
+            observation.observer_signed_at = clock.now()
             observation.status = "awaiting_observee_signature"
             observation.save(update_fields=["observer_signed", "observer_signed_at", "status"])
             send_workflow_notification(observation.pairing.observee, "Observation ready to sign",
                                        "The observer submitted the evaluation record.", f"/observations/{observation.pk}")
         else:
             observation.observee_signed = True
-            observation.observee_signed_at = timezone.now()
+            observation.observee_signed_at = clock.now()
             observation.status = "completed"
             observation.save(update_fields=["observee_signed", "observee_signed_at", "status"])
             send_workflow_notification(observation.pairing.observer, "Observation completed",
@@ -1060,7 +1089,7 @@ def surveys_collection(request):
         role = _survey_role(pairing, user)
         if pairing.status != "confirmed":
             raise ValidationError({"detail": "Pairing is not confirmed."})
-        if timezone.localdate() > pairing.cycle.survey_deadline:
+        if clock.today() > pairing.cycle.survey_deadline:
             raise ValidationError({"detail": "The survey deadline has passed."})
         if not Observation.objects.filter(
             pairing=pairing, status="completed", observer_signed=True, observee_signed=True,
@@ -1080,7 +1109,7 @@ def surveys_collection(request):
             score=payload.validated_data["score"],
             pain_points=payload.validated_data.get("pain_points", ""),
             improvements=payload.validated_data.get("improvements", ""),
-            submitted_at=timezone.now(),
+            submitted_at=clock.now(),
         )
     return Response(_survey_json(survey), status=status.HTTP_201_CREATED)
 
@@ -1104,7 +1133,7 @@ def committee_pending_records(request):
     ).prefetch_related("observations").order_by("pairing_id")
     for pairing in pairings:
         # Only past visits should be considered actionable missing records.
-        if not pairing.confirmed_datetime or pairing.confirmed_datetime > timezone.now():
+        if not pairing.confirmed_datetime or pairing.confirmed_datetime > clock.now():
             continue
         records = list(pairing.observations.all())
         record = records[0] if records else None
@@ -1138,7 +1167,7 @@ def committee_remind_record(request, pairing_id):
     member = get_current_professor(request)
     require_committee(member)
     pairing = get_object_or_404(Pairing, pk=pairing_id, cycle=get_current_cycle(), status="confirmed")
-    if not pairing.confirmed_datetime or pairing.confirmed_datetime > timezone.now():
+    if not pairing.confirmed_datetime or pairing.confirmed_datetime > clock.now():
         raise ValidationError({"detail": "The scheduled observation has not happened yet."})
     record = Observation.objects.filter(pairing=pairing).order_by("observation_id").first()
     if record and record.status in ("completed", "cancelled"):
@@ -1352,8 +1381,8 @@ def committee_dashboard(request):
     """Current-cycle committee overview. Counts are derived from stored data."""
     require_committee(get_current_professor(request))
     cycle = get_current_cycle()
-    today = timezone.localdate()
-    now = timezone.now()
+    today = clock.today()
+    now = clock.now()
 
     faculty = User.objects.filter(role="faculty", is_active=True)
     signups = Signup.objects.filter(cycle=cycle)

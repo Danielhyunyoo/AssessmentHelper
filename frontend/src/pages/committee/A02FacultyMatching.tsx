@@ -332,7 +332,7 @@ export default function A02FacultyMatching() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          Back to Dashboard
         </Link>
       </div>
 
@@ -421,7 +421,7 @@ export default function A02FacultyMatching() {
                               (id, index) => id === candidate.id && index !== slotIndex
                             )}
                           >
-                            {candidate.name} — {candidate.academic_level}
+                            {candidate.name} {candidate.academic_level}
                           </option>
                         ))}
                       </select>

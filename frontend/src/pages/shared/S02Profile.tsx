@@ -138,7 +138,7 @@ export default function S02Profile(): React.ReactElement {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          Back to Dashboard
         </Link>
       </div>
 
@@ -284,7 +284,7 @@ export default function S02Profile(): React.ReactElement {
 
           <div className="profile-status-item">
             <span className="status-label">Current Cycle Status</span>
-            <span className="status-value highlight-status">{`${evaluationCycle} — ${evaluationStatus.replaceAll("_", " ")}`}</span>
+            <span className="status-value highlight-status">{`${evaluationCycle}: ${evaluationStatus.replaceAll("_", " ")}`}</span>
           </div>
 
           <div className="profile-status-item">

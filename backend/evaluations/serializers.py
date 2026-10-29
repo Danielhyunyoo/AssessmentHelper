@@ -241,6 +241,10 @@ class CycleDatesUpdateSerializer(serializers.Serializer):
     survey_deadline = serializers.DateField(required=False)
 
 
+class DemoDateSerializer(serializers.Serializer):
+    date = serializers.DateField(allow_null=True)
+
+
 class SignupAvailabilitySerializer(serializers.Serializer):
     available_datetimes = serializers.ListField(
         child=serializers.DateTimeField(),
@@ -249,6 +253,9 @@ class SignupAvailabilitySerializer(serializers.Serializer):
     )
 
     def validate_available_datetimes(self, values):
+        if 0 < len(values) < 4:
+            raise serializers.ValidationError("Select at least four observation dates.")
+        
         if len(values) != len(set(values)):
             raise serializers.ValidationError(
                 "Proposed date and time choices must be unique."

@@ -71,6 +71,10 @@ The `ApiError` object includes HTTP status and either JSON validation errors or 
 
 Today's demo client sets `X-Demo-Username` only if Vite is in development mode and no direct API base is supplied. When real authentication arrives, remove the demo header, use the backend login/session endpoints, and retain `credentials:'include'` plus CSRF on modifying requests. Cookie/CSRF configuration must be confirmed with the backend; `GET /api/auth/session/` does not exist yet in the supplied route list.
 
+## Authentication changeover
+
+Today's demo client sets `X-Demo-Username` only if Vite is in development mode and no direct API base is supplied. When real authentication arrives, remove the demo header, use the backend login/session endpoints, and retain `credentials:'include'` plus CSRF on modifying requests. Cookie/CSRF configuration must be confirmed with the backend; `GET /api/auth/session/` does not exist yet in the supplied route list.
+
 ## Git process
 
 Create a feature branch such as `frontend/api-client`; copy the new directories to the repo root; `git add frontend docs`; commit; push and open a PR. Do not commit `.env` or the `node_modules/` directory. Ask backend teammates to review every marked gap before treating it as implemented. The original frontend team's UI pages can be integrated incrementally rather than replacing their designs with this starter.

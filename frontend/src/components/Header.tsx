@@ -1,6 +1,6 @@
 // src/components/Header.tsx
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/brand-symbol.png";
 import home from "../assets/home_icon.png";
 import bellDefault from "../assets/default_bell_icon.png";
@@ -19,6 +19,7 @@ interface NotificationPreview {
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
@@ -129,6 +130,9 @@ export default function Header() {
 
     async function loadHeaderData() {
       try {
+        const { professor } = await authApi.session();
+        if (!professor) return;
+
         const [notificationResponse, profileResponse] = await Promise.all([
           facultyApi.notifications(),
           facultyApi.profile(),
@@ -160,10 +164,14 @@ export default function Header() {
 
     void loadHeaderData();
 
+    window.addEventListener("notifications-changed", loadHeaderData);
+
     return () => {
       cancelled = true;
+    
+    window.removeEventListener("notifications-changed", loadHeaderData);
     };
-  }, []);
+  }, [location.pathname]);
 
   const unreadCount = backendUnreadCount;
 
@@ -275,7 +283,7 @@ export default function Header() {
                       cursor: "pointer",
                     }}
                   >
-                    View All Notifications →
+                    View All Notifications
                   </button>
 
                   {/* Simulator Toggle for Demo Testing */}
