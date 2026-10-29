@@ -152,12 +152,12 @@ export default function E02ObserverSelection() {
     }
 
     const candidatesWithoutDates = selectedCandidates.filter(
-      (observerId) => (candidateDates[observerId] ?? []).length === 0
+      (observerId) => (candidateDates[observerId] ?? []).length < 4
     );
 
     if (candidatesWithoutDates.length > 0) {
       setError(
-        "Select at least one proposed date for every observer you want to invite."
+        "Select at least four proposed dates for every observer you want to invite."
       );
       return;
     }

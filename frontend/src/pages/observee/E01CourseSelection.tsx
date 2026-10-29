@@ -232,8 +232,8 @@ export default function E01CourseSelection() {
       return;
     }
 
-    if (selectedDates.length === 0) {
-      setError("Select at least one observation date.");
+    if (selectedDates.length < 4) {
+      setError("Select at least four observation dates.");
       return;
     }
 

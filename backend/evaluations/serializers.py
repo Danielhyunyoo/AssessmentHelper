@@ -244,6 +244,8 @@ class SignupAvailabilitySerializer(serializers.Serializer):
     )
 
     def validate_available_datetimes(self, values):
+        if 0 < len(values) < 4:
+            raise serializers.ValidationError("Select at least four observation dates.")
         if len(values) != len(set(values)):
             raise serializers.ValidationError(
                 "Proposed date and time choices must be unique."
