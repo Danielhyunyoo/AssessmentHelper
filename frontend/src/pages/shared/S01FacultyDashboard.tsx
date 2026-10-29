@@ -76,6 +76,10 @@ export default function S01FacultyDashboard() {
     );
   }
 
+  const observationEnd = dashboard
+    ? new Date(`${dashboard.cycle.observation_deadline}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : "";
+
   return (
     <div className="dashboard-container">
       <h2>Faculty Dashboard</h2>
@@ -141,8 +145,8 @@ export default function S01FacultyDashboard() {
               <Link to="/shared/post-evaluation-survey">
                 <img src={post_evaluation_survey_card} alt="Post-Evaluation Survey" />
                 <h4>Post-Evaluation Survey</h4>
-                <p>Unlocks after the observation period ends (Nov 15)</p>
-                <span className="card-status">LOCKED UNTIL NOV 15</span>
+                <p>Unlocks after the observation period ends ({observationEnd})</p>
+                <span className="card-status">LOCKED UNTIL {observationEnd.toUpperCase()}</span>
               </Link>
             </article>
           )}
