@@ -10,6 +10,8 @@ import post_evaluation_survey_card from "../../assets/post_evaluation_survey_car
 import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg";
 import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg";
 import active_observations_card from "../../assets/active_observations_card.jpg";
+import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg";
+import observation_record_management_card from "../../assets/observation_record_management_card.jpg";
 
 export default function S01FacultyDashboard() {
   const navigate = useNavigate();
@@ -175,6 +177,14 @@ export default function S01FacultyDashboard() {
                   <p>Register or view my chosen class section for the current evaluation cycle</p>
                 </Link>
               </article>
+
+              <article className="dashboard-card">
+                <Link to="/observee/observer-selection">
+                  <img src={observer_selection_matching_card} alt="Observer Selection" />
+                  <h4>Observer Selection</h4>
+                  <p>Invite observers from my released list and see their responses</p>
+                </Link>
+              </article>
             </div>
           </section>
 
@@ -188,6 +198,14 @@ export default function S01FacultyDashboard() {
                   <img src={active_observations_card} alt="Active Observations" />
                   <h4>Active Observations</h4>
                   <p>Upload forms and view confirmations</p>
+                </Link>
+              </article>
+
+              <article className="dashboard-card">
+                <Link to="/observer/observation-request">
+                  <img src={observation_record_management_card} alt="Observation Requests" />
+                  <h4>Observation Requests</h4>
+                  <p>Accept or decline requests to observe a colleague</p>
                 </Link>
               </article>
             </div>
