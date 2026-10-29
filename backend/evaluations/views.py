@@ -78,8 +78,6 @@ def session_login(request):
 @authentication_classes([SessionAuthentication])
 def session_logout(request):
     """Sign out the session user; no demo-header fallback."""
-    if not request.user.is_authenticated:
-        raise NotAuthenticated("Sign in first.")
     django_logout(request._request)
     return Response({"detail": "Signed out."})
 
@@ -657,11 +655,13 @@ def committee_release_candidates(request, signup_id):
         faculty = list(User.objects.filter(pk__in=ids, is_active=True, role="faculty", department_id=signup.course.department_id))
         if len(faculty) != len(ids) or signup.user_id in ids:
             raise ValidationError({"detail": "Every observer must be an active, different faculty member from the same department."})
-        MatchCandidate.objects.filter(signup=signup).delete()
-        MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
-        signup.matches_released_at = clock.now()
-        signup.save(update_fields=["matches_released_at"])
-        send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observer-selection")
+        released_ids = set(MatchCandidate.objects.filter(signup=signup).values_list("observer_id", flat=True))
+        if signup.matches_released_at is None or released_ids != set(ids):
+            MatchCandidate.objects.filter(signup=signup).delete()
+            MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
+            signup.matches_released_at = clock.now()
+            signup.save(update_fields=["matches_released_at"])
+            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observer-selection")
     return Response({"signup_id": signup.pk, "released": True, "observer_ids": ids})
 
 

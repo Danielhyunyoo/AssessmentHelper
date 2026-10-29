@@ -122,6 +122,11 @@ class SessionAuthTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.client.get("/api/me/").status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_logout_when_already_signed_out_succeeds(self):
+        response = self.client.post("/api/auth/logout/", HTTP_X_CSRFTOKEN=self.csrf())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     def test_session_endpoint_returns_the_signed_in_user(self):
         self.login("bob", "bob-pass")
 

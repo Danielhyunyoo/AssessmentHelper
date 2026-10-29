@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Course, Cycle, Invitation, Signup
+from .models import Course, Cycle, Invitation, Notification, Signup
 
 User = get_user_model()
 
@@ -99,6 +99,15 @@ class DemoFlowTests(APITestCase):
         response = self.client.patch(CYCLE_DATES, {"signup_deadline": "2026-11-01"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_releasing_the_same_list_twice_sends_one_notification(self):
+        signup = Signup.objects.get(user=self.alice)
+        self.act_as("committee_demo")
+
+        for _ in range(2):
+            self.client.post(f"/api/committee/signups/{signup.pk}/release-candidates/", {"observer_ids": [self.bob.pk]}, format="json")
+
+        self.assertEqual(Notification.objects.filter(user=self.alice, title="Observer candidates available").count(), 1)
 
     def test_saved_dates_released_list_and_invitation(self):
         values = self.future_datetimes(4)

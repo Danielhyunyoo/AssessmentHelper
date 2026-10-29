@@ -115,7 +115,7 @@ export default function DevBar() {
 
       {cycle && (
         <span>
-          signup {cycle.signup_deadline} · observe {cycle.observation_deadline} · survey {cycle.survey_deadline}
+          signup {cycle.signup_deadline}, observe {cycle.observation_deadline}, survey {cycle.survey_deadline}
         </span>
       )}
 

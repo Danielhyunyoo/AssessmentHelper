@@ -93,7 +93,7 @@ export default function L03SignIn2() {
         >
           <p>
             <strong>Cycle dates:</strong>{" "}
-            {new Date(`${registration.start_date}T00:00:00`).toLocaleDateString()} –{" "}
+            {new Date(`${registration.start_date}T00:00:00`).toLocaleDateString()} to{" "}
             {new Date(`${registration.end_date}T00:00:00`).toLocaleDateString()}
           </p>
           <p>

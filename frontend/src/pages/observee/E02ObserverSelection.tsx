@@ -341,7 +341,7 @@ export default function E02ObserverSelection() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          Back to Dashboard
         </Link>
       </div>
 
