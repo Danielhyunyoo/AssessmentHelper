@@ -1237,7 +1237,7 @@ def committee_remind_survey(request, pairing_id, role):
     return Response({"pairing_id": pairing.pk, "respondent_type": role, "reminded_user_id": person.pk})
 
 
-# A04 — Assessment Committee faculty roster and communications
+# A04 - Assessment Committee faculty roster and communications
 from django.db.models import Q
 from .serializers import FacultyRankUpdateSerializer, FacultyReminderSerializer
 
@@ -1375,7 +1375,7 @@ def committee_remind_unregistered(request):
             )
     return Response({"cycle_id": cycle.pk, "reminded_user_ids": ids, "sent_count": len(ids)})
 
-# A01 — Assessment Committee dashboard
+# A01 - Assessment Committee dashboard
 @api_view(["GET"])
 def committee_dashboard(request):
     """Current-cycle committee overview. Counts are derived from stored data."""
@@ -1506,7 +1506,7 @@ def committee_dashboard(request):
     })
 
 
-# A03 — unmatched faculty and committee-approved carry-forward.
+# A03 - unmatched faculty and committee-approved carry-forward.
 # Only zero released candidates are conclusively "unmatched" in this MVP.
 from .models import EvaluationCarryForward
 from .serializers import CarryForwardSerializer
@@ -1690,7 +1690,7 @@ def committee_kpis_csv(request):
     return response
 
 
-# A08 — Committee-managed form versions. Published versions are immutable through this API.
+# A08 - Committee-managed form versions. Published versions are immutable through this API.
 from django.db.models import Max
 from .models import Template
 from .serializers import TemplateDraftSerializer, TemplateCreateSerializer

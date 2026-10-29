@@ -1,6 +1,6 @@
 # Frontend page → backend function mapping (all 23 pages)
 
-Source: **CS 4485 Group 39 — Frontend Backend Data Request List**. The function names below are exports in `frontend/src/api/endpoints.ts`; they are **client wrappers**, not Django Python function names. “Partial” indicates an available endpoint with missing data/behavior. “Mock” means the feature has no adequate endpoint yet.
+Source: **CS 4485 Group 39 - Frontend Backend Data Request List**. The function names below are exports in `frontend/src/api/endpoints.ts`; they are **client wrappers**, not Django Python function names. “Partial” indicates an available endpoint with missing data/behavior. “Mock” means the feature has no adequate endpoint yet.
 
 | Page | Screen | Load function(s) | Save / action function(s) | Current caveat |
 |---|---|---|---|---|

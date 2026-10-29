@@ -169,7 +169,7 @@ export default function Header() {
     return () => {
       cancelled = true;
     
-    window.removeEventListener("notifications-changed", loadHeaderData);
+      window.removeEventListener("notifications-changed", loadHeaderData);
     };
   }, [location.pathname]);
 

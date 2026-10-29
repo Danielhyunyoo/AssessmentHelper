@@ -197,7 +197,7 @@ class CarryForwardSerializer(serializers.Serializer):
         return values
 
 
-# A08 — form templates
+# A08: form templates
 class TemplateQuestionSerializer(serializers.Serializer):
     id = serializers.CharField(max_length=80)
     text = serializers.CharField(max_length=2000)

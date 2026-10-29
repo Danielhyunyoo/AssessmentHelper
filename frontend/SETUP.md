@@ -56,7 +56,7 @@ export function MyCourseTable() {
     facultyApi.courses().then(setCourses).catch(e => setError(String(e)));
   }, []);
   return <section>{error || courses.map(c =>
-    <p key={c.course_id}>{c.department_code} {c.course_number}.{c.section} — {c.schedule}</p>
+    <p key={c.course_id}>{c.department_code} {c.course_number}.{c.section} - {c.schedule}</p>
   )}</section>;
 }
 ```
@@ -66,14 +66,6 @@ For registration: `await facultyApi.register()` followed by `await facultyApi.se
 ## HTTP errors
 
 The `ApiError` object includes HTTP status and either JSON validation errors or plain response text. Show the error next to the relevant field or button. Typical statuses: `400` invalid input/business rule, `401` not signed in, `403` access forbidden, `404` missing/inaccessible object, `409` if later implemented for conflict, `500` backend bug. In DRF, a validation error often has `detail` or `{field:[messages]}`; do not assume every error is one string.
-
-## Authentication changeover
-
-Today's demo client sets `X-Demo-Username` only if Vite is in development mode and no direct API base is supplied. When real authentication arrives, remove the demo header, use the backend login/session endpoints, and retain `credentials:'include'` plus CSRF on modifying requests. Cookie/CSRF configuration must be confirmed with the backend; `GET /api/auth/session/` does not exist yet in the supplied route list.
-
-## Authentication changeover
-
-Today's demo client sets `X-Demo-Username` only if Vite is in development mode and no direct API base is supplied. When real authentication arrives, remove the demo header, use the backend login/session endpoints, and retain `credentials:'include'` plus CSRF on modifying requests. Cookie/CSRF configuration must be confirmed with the backend; `GET /api/auth/session/` does not exist yet in the supplied route list.
 
 ## Git process
 

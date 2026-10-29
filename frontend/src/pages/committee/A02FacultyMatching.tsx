@@ -421,7 +421,7 @@ export default function A02FacultyMatching() {
                               (id, index) => id === candidate.id && index !== slotIndex
                             )}
                           >
-                            {candidate.name} {candidate.academic_level}
+                            {candidate.name} ({candidate.academic_level})
                           </option>
                         ))}
                       </select>
