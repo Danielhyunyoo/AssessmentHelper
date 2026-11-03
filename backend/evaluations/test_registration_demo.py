@@ -1,12 +1,15 @@
+from datetime import date, timedelta
 from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import override_settings
+from django.utils import timezone
 
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from . import clock
 from .models import Course, Cycle, Notification, Signup
 
 User = get_user_model()
@@ -16,6 +19,7 @@ User = get_user_model()
 class RegistrationDemoTests(APITestCase):
     def setUp(self):
         call_command("seed_demo", stdout=StringIO())
+        Cycle.objects.filter(status="active").update(signup_deadline=timezone.localdate() + timedelta(days=7))
         self.alice = User.objects.get(username="faculty_alice")
         self.alice_fall_courses = Course.objects.filter(instructor=self.alice, semester="Fall", year=2026)
         self.course = self.alice_fall_courses.get(course_number="2337")
@@ -23,6 +27,13 @@ class RegistrationDemoTests(APITestCase):
 
     def course_notifications(self):
         return Notification.objects.filter(user=self.alice, type="registration")
+
+    def test_registration_status_reports_the_simulated_today(self):
+        self.addCleanup(clock.set_simulated_date, None)
+        self.assertEqual(self.client.get("/api/registration/status/").data["today"], timezone.localdate())
+
+        clock.set_simulated_date(date(2026, 10, 20))
+        self.assertEqual(self.client.get("/api/registration/status/").data["today"], date(2026, 10, 20))
 
     def test_alice_sees_only_her_current_sections(self):
         response = self.client.get("/api/me/courses/")

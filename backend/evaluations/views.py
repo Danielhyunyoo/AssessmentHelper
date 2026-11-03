@@ -237,6 +237,7 @@ def registration_status(request):
         "is_registered": signup is not None,
         "has_selected_course": bool(signup and signup.course_id),
         "selected_course_id": signup.course_id if signup else None,
+        "today": clock.today(),
         # Availability and reasons should be derived from the team's agreed
         # signup dates and policies before this is used to enable UI controls.
     })
