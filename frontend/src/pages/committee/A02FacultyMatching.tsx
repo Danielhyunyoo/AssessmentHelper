@@ -1,7 +1,5 @@
-// src/pages/committee/A02FacultyMatching.tsx
 import { useEffect, useState } from "react";
-import { committeeApi } from "../../api/endpoints";
-import type { CycleDates } from "../../api/types";
+import { committeeApi, demoApi } from "../../api/endpoints";
 import type { FacultyRow } from "../../api/types";
 import { Link } from "react-router-dom";
 
@@ -21,11 +19,11 @@ export default function A02FacultyMatching() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [startDate, setStartDate] = useState<string>("2026-09-13");
   const [endDate, setEndDate] = useState<string>("2026-10-09");
+  const [currentToday, setCurrentToday] = useState<string>("");
   const [savingDates, setSavingDates] = useState(false);
   const [displayStartDate, setDisplayStartDate] = useState<string>("Sep 13, 2026");
   const [displayEndDate, setDisplayEndDate] = useState<string>("Oct 9, 2026 at 11:59 PM");
   const [sendingNotifications, setSendingNotifications] = useState(false);
-
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
@@ -89,6 +87,13 @@ export default function A02FacultyMatching() {
       setMatchError("");
 
       try {
+        // Fetch current date (simulated date from DevBar or real system date)
+        demoApi.date().then((dateRes) => {
+          if (!cancelled) {
+            setCurrentToday(dateRes.today);
+          }
+        }).catch(() => {});
+
         const cycleDates = await committeeApi.cycleDates();
 
         if (cancelled) return;
@@ -221,7 +226,6 @@ export default function A02FacultyMatching() {
       const current = [...(previous[signupId] ?? [])];
       current[slotIndex] = observerId;
 
-      // Prevent selecting the same observer in multiple slots.
       const unique = current.filter(
         (id, index) => id !== 0 && current.indexOf(id) === index
       );
@@ -327,6 +331,11 @@ export default function A02FacultyMatching() {
     }
   };
 
+  // Determine if course registration is currently open using DevBar simulated date (if set) or today
+  const effectiveToday = currentToday ? new Date(`${currentToday}T00:00:00`) : new Date();
+  const deadlineDate = new Date(`${endDate}T23:59:59`);
+  const isOpen = effectiveToday <= deadlineDate;
+
   return (
     <div className="dashboard-container">
       {/* Top-Left Back Link */}
@@ -343,21 +352,25 @@ export default function A02FacultyMatching() {
       {matchSuccess && <div role="status" className="yellow-banner">{matchSuccess}</div>}
 
       {/* Top Banner Card */}
-      <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
+      <section className="table-container theme-orange summary-card-padding">
         <h3>Manage Course Registrations</h3>
-        <p style={{ marginTop: "0.5rem" }}>
-          <strong>Current Status:</strong> 🟢 COURSE REGISTRATION CURRENTLY OPEN <br />
-          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+        <p className="status-banner-text">
+          <strong>Current Status:</strong>{" "}
+          <span className={`status-dot ${isOpen ? "dot-green" : "dot-red"}`}></span>{" "}
+          {isOpen ? "COURSE REGISTRATION CURRENTLY OPEN" : "COURSE REGISTRATION CLOSED"} <br />
+          <span className="font-slate font-sm">
             (Open from {displayStartDate} until {displayEndDate})
           </span>
         </p>
-        <p style={{ marginTop: "0.5rem" }}>
-          <strong>Next Scheduled Action:</strong> Course registration closes on {displayEndDate}
+        <p className="status-banner-text">
+          <strong>Next Scheduled Action:</strong>{" "}
+          {isOpen
+            ? `Course registration closes on ${displayEndDate}`
+            : `Course registration closed on ${displayEndDate}`}
         </p>
         <button
           type="button"
-          className="btn-secondary"
-          style={{ marginTop: "1rem" }}
+          className="btn-secondary button-margin-top"
           onClick={handleOpenModal}
         >
           Edit Course Registration Dates
@@ -365,30 +378,22 @@ export default function A02FacultyMatching() {
       </section>
 
       {/* Manual Matching */}
-      <section className="dashboard-phase" style={{ marginTop: "1rem" }}>
+      <section className="dashboard-phase section-margin-top">
         <h3>Manual Observer-Observee Matching</h3>
 
         <div className="yellow-banner">
           <strong>IMPORTANT:</strong> The following Observees have either 0 or insufficient Observers currently matched to them. Select 1 to 5 eligible Observers for each Observee from the dropdowns below.
         </div>
 
-        <div className="table-container theme-green" style={{ padding: "1.25rem" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem" }}>
+        <div className="table-container theme-green summary-card-inner-padding">
+          <div className="pairing-grid">
             {observeeList.map((observee) => {
               const signupId = observee.signup_id!;
 
               return (
-                <div
-                  key={signupId}
-                  style={{
-                    backgroundColor: "#fff7ed",
-                    padding: "1rem",
-                    borderRadius: "6px",
-                    border: "1px solid #fed7aa",
-                  }}
-                >
+                <div key={signupId} className="manual-observee-card">
                   <h4>Observee Name</h4>
-                  <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.75rem" }}>
+                  <p className="observee-name-text">
                     {observee.name}
                   </p>
 
@@ -402,7 +407,7 @@ export default function A02FacultyMatching() {
 
                   <strong>List of Available Observers</strong>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+                  <div className="observer-select-list">
                     {[0, 1, 2, 3, 4].map((slotIndex) => (
                       <select
                         key={slotIndex}
@@ -410,7 +415,7 @@ export default function A02FacultyMatching() {
                         onChange={(event) =>
                           handleObserverChange(signupId, slotIndex, Number(event.target.value))
                         }
-                        style={{ padding: "0.3rem", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+                        className="slot-select-input"
                       >
                         <option value="">Select observer {slotIndex + 1}...</option>
                         {(candidateOptions[signupId] ?? []).map((candidate) => (
@@ -430,8 +435,7 @@ export default function A02FacultyMatching() {
 
                   <button
                     type="button"
-                    className="btn-secondary btn-block"
-                    style={{ marginTop: "1rem" }}
+                    className="btn-secondary btn-block button-margin-top"
                     onClick={() => void handleConfirmMatches(signupId)}
                     disabled={savingSignupId === signupId}
                   >
@@ -452,18 +456,12 @@ export default function A02FacultyMatching() {
           <strong>NOTE:</strong> Course registration closes on {displayEndDate}. Below are the system-generated matched observer lists ready for review, manual override, and notification dispatch to Observees.
         </div>
 
-        <div className="table-container theme-blue" style={{ padding: "1.25rem" }}>
-          <p style={{ marginBottom: "1rem", fontWeight: "600" }}>
+        <div className="table-container theme-blue summary-card-inner-padding">
+          <p className="section-intro-text">
             Review the following completed matched lists. Select each Observee you'd like to notify about their successful matches:
           </p>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: "1.25rem",
-            }}
-          >
+          <div className="pairing-grid">
             {observeeList.map((person) => {
               const signupId = person.signup_id;
 
@@ -473,47 +471,24 @@ export default function A02FacultyMatching() {
               const selectedIds = selectedObservers[signupId] ?? [];
 
               return (
-                <div
-                  key={signupId}
-                  style={{
-                    backgroundColor: "#f0fdf4",
-                    padding: "1rem",
-                    borderRadius: "6px",
-                    border: "1px solid #bbf7d0",
-                  }}
-                >
+                <div key={signupId} className="approved-observee-card">
                   <h4>Observee Name</h4>
-                  <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                  <p className="font-slate">
                     {person.name}
                   </p>
 
-                  <strong style={{ display: "block", marginTop: "0.75rem" }}>
+                  <strong className="block-label">
                     List of Eligible Observers
                   </strong>
 
                   {candidates.length === 0 ? (
-                    <p style={{ fontSize: "0.85rem" }}>
+                    <p className="font-sm">
                       No eligible candidates were returned.
                     </p>
                   ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.5rem",
-                        marginTop: "0.5rem",
-                      }}
-                    >
+                    <div className="observer-checkbox-list">
                       {candidates.map((candidate) => (
-                        <label
-                          key={candidate.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            fontSize: "0.85rem",
-                          }}
-                        >
+                        <label key={candidate.id} className="checkbox-row-label">
                           <input
                             type="checkbox"
                             checked={selectedIds.includes(candidate.id)}
@@ -543,8 +518,7 @@ export default function A02FacultyMatching() {
 
                   <button
                     type="button"
-                    className="btn-primary btn-block"
-                    style={{ marginTop: "1rem" }}
+                    className="btn-primary btn-block button-margin-top"
                     onClick={() => void handleConfirmMatches(signupId)}
                     disabled={
                       savingSignupId === signupId || selectedIds.length === 0
@@ -560,9 +534,9 @@ export default function A02FacultyMatching() {
           </div>
         </div>
 
-        {/* Action Controls Bar - Using standardized grey toggle buttons */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+        {/* Action Controls Bar */}
+        <div className="action-controls-bar">
+          <div className="button-group-left">
             <button
               type="button"
               className="btn-select-toggle"
@@ -619,7 +593,7 @@ export default function A02FacultyMatching() {
 
             <div className="modal-field">
               <label htmlFor="reg-opens">
-                Registration opens <span style={{ fontSize: "0.8rem", color: "#64748b" }}>(12:00 AM fixed)</span>
+                Registration opens <span className="modal-fixed-note">(12:00 AM fixed)</span>
               </label>
               <input
                 id="reg-opens"
@@ -632,7 +606,7 @@ export default function A02FacultyMatching() {
 
             <div className="modal-field">
               <label htmlFor="reg-closes">
-                Registration closes <span style={{ fontSize: "0.8rem", color: "#64748b" }}>(11:59 PM fixed)</span>
+                Registration closes <span className="modal-fixed-note">(11:59 PM fixed)</span>
               </label>
               <input
                 id="reg-closes"

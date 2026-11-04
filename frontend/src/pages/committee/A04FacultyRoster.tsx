@@ -227,8 +227,16 @@ export default function A04FacultyRoster() {
 
       {/* Success Banner */}
       {feedbackMessage && (
-        <div role="status" className="yellow-banner">
-          <strong>Success:</strong> {feedbackMessage}
+        <div role="status" className="yellow-banner" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <polygon points="12,2 22,20 2,20" fill="#64748b" />
+            <text x="12" y="17" fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle">
+              !
+            </text>
+          </svg>
+          <div>
+            <strong>Success:</strong> {feedbackMessage}
+          </div>
         </div>
       )}
 
@@ -305,8 +313,8 @@ export default function A04FacultyRoster() {
                     <td>
                       <button
                         type="button"
-                        onClick={() => handleOpenProfileModal(member)}
                         className="table-name-link"
+                        onClick={() => handleOpenProfileModal(member)}
                       >
                         {member.observeeName}
                       </button>
@@ -422,7 +430,7 @@ export default function A04FacultyRoster() {
         </Link>
       </div>
 
-      {/* POP-UP MODAL 1: FACULTY PROFILE & DETAILS (NO BOTTOM CLOSE BUTTON) */}
+      {/* POP-UP MODAL 1: FACULTY PROFILE & DETAILS */}
       {selectedFaculty && (
         <div className="modal-overlay" onClick={handleCloseProfileModal}>
           <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
@@ -491,12 +499,20 @@ export default function A04FacultyRoster() {
         </div>
       )}
 
-      {/* POP-UP MODAL 2: CONFIRMATION POPUP */}
+      {/* POP-UP MODAL 2: CONFIRMATION POPUP WITH WARNING TRIANGLE */}
       {pendingRankChange && (
         <div className="modal-overlay modal-high-z" onClick={handleCancelRankChange}>
           <div className="modal-content-card modal-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-bar">
-              <h3>Confirm Rank Modification</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                  <polygon points="12,2 22,20 2,20" fill="#64748b" />
+                  <text x="12" y="17" fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle">
+                    !
+                  </text>
+                </svg>
+                <h3>Confirm Rank Modification</h3>
+              </div>
               <button
                 type="button"
                 onClick={handleCancelRankChange}

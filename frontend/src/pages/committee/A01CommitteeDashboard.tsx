@@ -1,5 +1,6 @@
 // src/pages/committee/A01CommitteeDashboard.tsx
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg";
 import unmatched_observees_card from "../../assets/unmatched_observees_card.jpg";
@@ -9,7 +10,45 @@ import observation_surveys_card from "../../assets/observation_surveys_card.jpg"
 import kpis_card from "../../assets/kpis_card.jpg";
 import edit_form_card from "../../assets/edit_form_card.jpg";
 
+interface NotificationItem {
+  id: string | number;
+  title: string;
+  time: string;
+  unread: boolean;
+}
+
 export default function A01CommitteeDashboard() {
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: 1,
+      title: "2 OBSERVEES have found 0 eligible OBSERVER matches",
+      time: "October 26, 2026",
+      unread: true,
+    },
+    {
+      id: 2,
+      title: "Faculty Roster deadline reminder updated for Fall 2026 cycle.",
+      time: "October 24, 2026",
+      unread: false,
+    },
+    {
+      id: 3,
+      title: "New evaluation form version draft V2 is saved and ready for review.",
+      time: "October 20, 2026",
+      unread: false,
+    },
+  ]);
+
+  const handleNotificationClick = (id: string | number) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+    );
+    if (id === 1) {
+      navigate("/committee/unmatched-observees");
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <h2>Assessment Committee Dashboard</h2>
@@ -114,11 +153,28 @@ export default function A01CommitteeDashboard() {
             </Link>
           </article>
 
-          <article className="dashboard-card notification-card">
+          {/* Stretched Notification Card matching Header Pop-up with Scrollbar */}
+          <article className="dashboard-card notification-card stretched-notification-card">
             <h4>Alerts and Notifications</h4>
-            <ul>
-              <li>2 OBSERVEES have found 0 eligible OBSERVER matches</li>
-            </ul>
+            
+            <div className="dashboard-notifications-container">
+              {notifications.length === 0 ? (
+                <div className="dashboard-notif-empty">
+                  No new notifications right now.
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n.id)}
+                    className={`menu-item-hover dashboard-notif-item ${n.unread ? "notif-unread-highlight" : "notif-read-item"}`}
+                  >
+                    <p className={`dashboard-notif-title ${n.unread ? "fw-bold" : "fw-medium"}`}>{n.title}</p>
+                    <span className={`dashboard-notif-time ${n.unread ? "text-success-green" : "text-muted-gray"}`}>{n.time}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </article>
         </div>
       </section>

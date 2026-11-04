@@ -139,9 +139,20 @@ export default function L03SignIn2() {
                 backgroundColor: "#fee2e2",
                 borderLeftColor: "#ef4444",
                 color: "#991b1b",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
               }}
             >
-              ⚠️ <strong>Registration Closed:</strong> The deadline to register for the {cycleName} evaluation cycle has passed.
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                <polygon points="12,2 22,20 2,20" fill="#64748b" />
+                <text x="12" y="17" fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle">
+                  !
+                </text>
+              </svg>
+              <div>
+                <strong>Registration Closed:</strong> The deadline to register for the {cycleName} evaluation cycle has passed.
+              </div>
             </div>
 
             <p style={{ fontSize: "0.875rem", color: "#475569", marginBottom: "1rem" }}>

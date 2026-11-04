@@ -99,21 +99,9 @@ export default function S01FacultyDashboard() {
 
         {dashboard && (
           <div className="table-container theme-blue" style={{ padding: "1rem" }}>
-            <p>
-              <strong>Evaluation cycle:</strong> {dashboard.cycle.name}
-            </p>
             <p style={{ marginTop: "0.25rem" }}>
-              <strong>Registration:</strong>{" "}
+              <strong>Registration Status:</strong>{" "}
               {dashboard.is_registered ? "Registered" : "Not registered"}
-            </p>
-            <p style={{ marginTop: "0.25rem" }}>
-              <strong>Course selection:</strong>{" "}
-              {dashboard.has_selected_course ? "Saved" : "Not selected"}
-            </p>
-            <p style={{ marginTop: "0.25rem" }}>
-              <Link to="/shared/notifications">
-                <strong>Unread notifications:</strong> {dashboard.unread_notifications}
-              </Link>
             </p>
           </div>
         )}

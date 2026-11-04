@@ -158,7 +158,7 @@ export default function S02Profile(): React.ReactElement {
         </div>
       )}
 
-      {/* Main Profile Section */}
+      {/* Main Profile Section Phase */}
       <section className="dashboard-phase profile-main-card">
         <div className="profile-card-grid">
           <div className="profile-info-col">
@@ -174,8 +174,25 @@ export default function S02Profile(): React.ReactElement {
                   <p><strong>Phone Number:</strong> {phone}</p>
                 </div>
 
-                <div className="profile-email-note">
-                  ℹ️ <em>To update your university Email ID, please contact Assessment Committee support staff.</em>
+                <div className="profile-email-note" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    style={{ flexShrink: 0 }}
+                  >
+                    <circle cx="12" cy="12" r="10" fill="#00aaff" />
+                    <circle cx="12" cy="7.5" r="1.5" fill="#ffffff" />
+                    <path
+                      d="M10.5 11.5H12V16.5H13.5"
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <em>To update your university Email ID, please contact Assessment Committee support staff.</em>
                 </div>
 
                 <button
