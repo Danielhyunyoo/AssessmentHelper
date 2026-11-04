@@ -779,6 +779,8 @@ def confirm_pairing(request):
         inv = get_object_or_404(Invitation.objects.select_for_update(), pk=data.validated_data["invitation_id"], sender=observee, cycle=cycle)
         if not signup.course_id or inv.course_id != signup.course_id or inv.status != "accepted":
             raise ValidationError({"detail": "The invitation must be accepted for the selected course."})
+        if inv.recipient_id == observee.pk:
+            raise ValidationError({"detail": "A faculty member cannot observe themselves."})
         if Pairing.objects.filter(cycle=cycle, observee=observee, status="confirmed").exists():
             raise ValidationError({"detail": "An observer has already been finalized."})
         date = inv.proposed_dates.filter(status="accepted").first()
@@ -864,6 +866,8 @@ def _check_form_answers(template, responses, require_all=False):
 
 def _can_sign(observation, user):
     pairing = observation.pairing
+    if pairing.observer_id == pairing.observee_id:
+        return False
     if pairing.status != "confirmed" or observation.status == "cancelled":
         return False
     if pairing.confirmed_datetime is None or pairing.confirmed_datetime > clock.now():
@@ -885,6 +889,7 @@ def _observation_json(observation, user):
         questions = []  # Old sample templates may have no form configuration yet.
     is_observer = user.pk == pairing.observer_id
     locked = observation.observer_signed and observation.observee_signed
+    invalid_self_pairing = pairing.observer_id == pairing.observee_id
     return {
         "observation_id": observation.pk,
         "pairing_id": pairing.pk,
@@ -905,9 +910,9 @@ def _observation_json(observation, user):
         "observee_signed": observation.observee_signed,
         "observee_signed_at": observation.observee_signed_at,
         "locked": locked,
-        "can_edit": is_observer and not observation.observer_signed and not locked and observation.status != "cancelled",
+        "can_edit": is_observer and not invalid_self_pairing and not observation.observer_signed and not locked and observation.status != "cancelled",
         "can_sign": _can_sign(observation, user),
-        "can_cancel": pairing.status == "confirmed" and not locked and observation.status != "cancelled",
+        "can_cancel": not invalid_self_pairing and pairing.status == "confirmed" and not locked and observation.status != "cancelled",
     }
 
 
@@ -954,6 +959,8 @@ def observation_detail(request, observation_id):
     serializer.is_valid(raise_exception=True)
     with transaction.atomic():
         observation = _observation_for_participant(user, observation_id, lock=True)
+        if observation.pairing.observer_id == observation.pairing.observee_id:
+            raise ValidationError({"detail": "Self-observation pairings are invalid."})
         if observation.pairing.observer_id != user.pk:
             raise PermissionDenied("Only the assigned observer may edit evaluation answers.")
         if observation.observer_signed or observation.observee_signed or observation.status == "cancelled":
@@ -1017,10 +1024,12 @@ def cancel_observation(request, observation_id):
 
 # --- E04/O04: surveys ---
 from .models import Survey
-from .serializers import SurveySubmitSerializer
+from .serializers import SurveySubmitSerializer, SurveyUpdateSerializer
 
 
 def _survey_role(pairing, user):
+    if pairing.observer_id == pairing.observee_id:
+        raise ValidationError({"detail": "A person cannot be both observer and observee on the same pairing."})
     if user.pk == pairing.observer_id:
         return "observer"
     if user.pk == pairing.observee_id:
@@ -1031,6 +1040,11 @@ def _survey_role(pairing, user):
 def _survey_json(survey):
     pairing = survey.pairing
     template = survey.template
+    responses = survey.responses or {}
+    # Legacy surveys predate the JSON response field.
+    if not responses and survey.submitted_at:
+        responses = {"score": survey.score, "pain_points": survey.pain_points,
+                     "improvements": survey.improvements}
     return {
         "survey_id": survey.pk,
         "pairing_id": pairing.pk,
@@ -1046,12 +1060,14 @@ def _survey_json(survey):
             "instructions": getattr(template, "instructions", ""),
             "questions": getattr(template, "questions", []),
         },
+        "responses": responses,
         "score": survey.score,
         "pain_points": survey.pain_points,
         "improvements": survey.improvements,
         "survey_file": survey.survey_file,
         "submitted_at": survey.submitted_at,
         "status": "submitted" if survey.submitted_at else "draft",
+        "can_edit": survey.submitted_at is None,
     }
 
 
@@ -1062,62 +1078,104 @@ def _survey_queryset(user):
     )
 
 
+def _survey_answers(validated_data, existing=None):
+    """Accept either A08 dynamic responses or the original three survey fields."""
+    answers = dict(existing or {})
+    if "responses" in validated_data:
+        answers.update(validated_data["responses"])
+    for field in ("score", "pain_points", "improvements"):
+        if field in validated_data:
+            answers[field] = validated_data[field]
+    return answers
+
+
+def _validate_survey_answers(template, answers, *, submit):
+    if template.questions:
+        _check_form_answers(template, answers, require_all=submit)
+    elif submit:
+        # Preserve compatibility with early published survey templates without
+        # question metadata; do not silently accept entirely empty submissions.
+        score = answers.get("score")
+        if type(score) is not int or not 1 <= score <= 5:
+            raise ValidationError({"responses": {"score": "A score from 1 to 5 is required."}})
+
+
+def _store_survey_answers(survey, answers, *, submit):
+    survey.responses = answers
+    # Keep the old fixed columns populated for existing reports/clients.
+    survey.score = answers.get("score") if type(answers.get("score")) is int and 1 <= answers["score"] <= 5 else None
+    survey.pain_points = answers.get("pain_points") if isinstance(answers.get("pain_points"), str) else ""
+    survey.improvements = answers.get("improvements") if isinstance(answers.get("improvements"), str) else ""
+    if submit:
+        survey.submitted_at = clock.now()
+    survey.save(update_fields=["responses", "score", "pain_points", "improvements", "submitted_at"])
+
+
+def _assert_survey_ready(pairing, user):
+    role = _survey_role(pairing, user)
+    if pairing.status != "confirmed":
+        raise ValidationError({"detail": "Pairing is not confirmed."})
+    if clock.today() > pairing.cycle.survey_deadline:
+        raise ValidationError({"detail": "The survey deadline has passed."})
+    if not Observation.objects.filter(
+        pairing=pairing, status="completed", observer_signed=True, observee_signed=True,
+    ).exists():
+        raise ValidationError({"detail": "The observation must be completed and signed by both participants."})
+    return role
+
+
 @api_view(["GET", "POST"])
 def surveys_collection(request):
-    """GET own submitted surveys; POST own survey once per confirmed pairing."""
+    """List own surveys; create a draft or submit a response for own pairing."""
     user = get_current_professor(request)
     if request.method == "GET":
         return Response([_survey_json(s) for s in _survey_queryset(user).order_by("-survey_id")])
 
-    # Pairing ID and survey answers are submitted together. Other participants'
-    # survey data is never exposed by this endpoint.
     payload = SurveySubmitSerializer(data=request.data)
     payload.is_valid(raise_exception=True)
-    pairing_id = request.data.get("pairing_id")
-    try:
-        pairing_id = int(pairing_id)
-    except (ValueError, TypeError):
+    data = payload.validated_data
+    pairing_id = data.get("pairing_id")
+    if pairing_id is None:
         raise ValidationError({"pairing_id": "A valid pairing ID is required."})
-    if pairing_id < 1:
-        raise ValidationError({"pairing_id": "Must be positive."})
-
     with transaction.atomic():
         pairing = get_object_or_404(
             Pairing.objects.select_for_update().select_related("cycle", "observer", "observee", "course"),
             pk=pairing_id,
         )
-        role = _survey_role(pairing, user)
-        if pairing.status != "confirmed":
-            raise ValidationError({"detail": "Pairing is not confirmed."})
-        if clock.today() > pairing.cycle.survey_deadline:
-            raise ValidationError({"detail": "The survey deadline has passed."})
-        if not Observation.objects.filter(
-            pairing=pairing, status="completed", observer_signed=True, observee_signed=True,
-        ).exists():
-            raise ValidationError({"detail": "The observation must be completed and signed by both participants."})
-        if Survey.objects.filter(pairing=pairing, respondent_type=role).exists():
-            raise ValidationError({"detail": "Your survey for this assignment was already submitted."})
-        template = get_object_or_404(Template, pk=payload.validated_data["template_id"])
+        role = _assert_survey_ready(pairing, user)
+        existing = Survey.objects.filter(pairing=pairing, respondent_type=role).first()
+        if existing:
+            raise ValidationError({"detail": "A survey already exists for this role. PATCH its survey detail to save or submit."})
+        template = get_object_or_404(Template, pk=data["template_id"])
         if template.type.lower() != "survey" or template.status != "published":
             raise ValidationError({"template_id": "Select a published survey template."})
-        # Fixed MVP survey fields; questions must agree with the score/pain_points/improvements schema.
-        survey = Survey.objects.create(
-            pairing=pairing,
-            respondent=user,
-            respondent_type=role,
-            template=template,
-            score=payload.validated_data["score"],
-            pain_points=payload.validated_data.get("pain_points", ""),
-            improvements=payload.validated_data.get("improvements", ""),
-            submitted_at=clock.now(),
-        )
+        answers = _survey_answers(data)
+        _validate_survey_answers(template, answers, submit=data["submit"])
+        survey = Survey(pairing=pairing, respondent=user, respondent_type=role, template=template)
+        _store_survey_answers(survey, answers, submit=data["submit"])
     return Response(_survey_json(survey), status=status.HTTP_201_CREATED)
 
 
-@api_view(["GET"])
+@api_view(["GET", "PATCH"])
 def survey_detail(request, survey_id):
     user = get_current_professor(request)
-    survey = get_object_or_404(_survey_queryset(user), pk=survey_id)
+    if request.method == "GET":
+        survey = get_object_or_404(_survey_queryset(user), pk=survey_id)
+        return Response(_survey_json(survey))
+
+    payload = SurveyUpdateSerializer(data=request.data)
+    payload.is_valid(raise_exception=True)
+    with transaction.atomic():
+        survey = get_object_or_404(_survey_queryset(user).select_for_update(), pk=survey_id)
+        _assert_survey_ready(survey.pairing, user)
+        if survey.submitted_at is not None:
+            raise ValidationError({"detail": "Submitted surveys are immutable."})
+        if survey.template is None or survey.template.status != "published":
+            raise ValidationError({"detail": "Survey has no published template."})
+        answers = _survey_answers(payload.validated_data, survey.responses)
+        submit = payload.validated_data["submit"]
+        _validate_survey_answers(survey.template, answers, submit=submit)
+        _store_survey_answers(survey, answers, submit=submit)
     return Response(_survey_json(survey))
 
 # --- A05/A06: Assessment Committee pending records and surveys ---
@@ -1160,6 +1218,50 @@ def committee_pending_records(request):
             "action_required_by_user_id": person.pk,
         })
     return Response({"cycle_id": cycle.pk, "count": len(rows), "records": rows})
+
+
+@api_view(["GET"])
+def committee_completed_records(request):
+    """A05: current-cycle completed observation metadata, committee-only."""
+    require_committee(get_current_professor(request))
+    cycle = get_current_cycle()
+    records = Observation.objects.filter(
+        pairing__cycle=cycle, pairing__status="confirmed", status="completed",
+        observer_signed=True, observee_signed=True,
+    ).select_related("pairing", "pairing__observer", "pairing__observee",
+                     "pairing__observee__department", "pairing__course", "template").order_by("-observee_signed_at", "-observation_id")
+    rows = []
+    for record in records:
+        pairing = record.pairing
+        rows.append({
+            "observation_id": record.pk, "pairing_id": pairing.pk,
+            "cycle_id": pairing.cycle_id, "observation_datetime": pairing.confirmed_datetime,
+            "observee_id": pairing.observee_id,
+            "observee_name": pairing.observee.get_full_name() or pairing.observee.username,
+            "observer_id": pairing.observer_id,
+            "observer_name": pairing.observer.get_full_name() or pairing.observer.username,
+            "department": pairing.observee.department.name if pairing.observee.department_id else None,
+            "academic_rank": pairing.observee.academic_level,
+            "course_id": pairing.course_id, "template_id": record.template_id,
+            "template_version": record.template.version,
+            "completed_at": record.observee_signed_at, "status": record.status,
+        })
+    return Response({"cycle_id": cycle.pk, "count": len(rows), "records": rows})
+
+
+@api_view(["GET"])
+def committee_observation_detail(request, observation_id):
+    """Read-only S05 record for committee review; never expose edit permissions."""
+    member = get_current_professor(request)
+    require_committee(member)
+    record = get_object_or_404(
+        Observation.objects.select_related("pairing", "pairing__observer", "pairing__observee",
+                                           "pairing__course", "pairing__course__department", "template"),
+        pk=observation_id,
+    )
+    data = _observation_json(record, member)
+    data.update(can_edit=False, can_sign=False, can_cancel=False, locked=True)
+    return Response(data)
 
 
 @api_view(["POST"])
@@ -1492,7 +1594,8 @@ def committee_dashboard(request):
             "faculty_due": due_count,
             "faculty_overdue": overdue_count,
             "faculty_status_undetermined": undetermined_count,
-            "unmatched_faculty": None,
+            # Confirmed subset: signups with released candidate lists containing zero candidates.
+            "unmatched_faculty": released_with_zero,
         },
         "alerts": alerts,
         "limitations": [
@@ -1500,7 +1603,7 @@ def committee_dashboard(request):
             "Unreleased or empty candidate lists do not establish observer ineligibility.",
             "Due/Overdue currently uses calendar-year rank intervals; confirm official cutoff and rank-change effective-date policies.",
             "Faculty with missing rank or evaluation history are undetermined, not automatically overdue.",
-            "True unmatched-faculty counts still require the approved eligibility rules.",
+            "unmatched_faculty counts only released candidate lists with zero candidates; eligibility-based matching remains manual.",
             "Phase status is derived from current cycle dates; module access still requires server-side permission checks.",
         ],
     })
@@ -1782,11 +1885,7 @@ def committee_template_publish(request, template_id):
         validation.is_valid(raise_exception=True)
         if not form.questions:
             raise ValidationError({"questions": "At least one question is required."})
-        if form.type == "survey":
-            required = {"score", "pain_points", "improvements"}
-            qmap = {q["id"]: q for q in form.questions}
-            if set(qmap) != required or qmap["score"]["type"] != "rating" or qmap["score"].get("min") != 1 or qmap["score"].get("max") != 5 or any(qmap[k]["type"] != "text" for k in ("pain_points", "improvements")):
-                raise ValidationError({"questions": "Current survey submission API requires score (rating 1–5), pain_points (text), and improvements (text)."})
+        # Survey submissions now use the same validated question IDs as observations.
         form.status = "published"
         form.save(update_fields=["status"])
     return Response(_template_payload(form))
