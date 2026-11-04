@@ -41,6 +41,7 @@ export default function S03FacultyNotifications() {
 
     try {
       await facultyApi.markAllRead();
+      window.dispatchEvent(new Event("notifications-changed"));
       await loadNotifications();
       setSuccess("Notifications marked as read.");
     } catch (err) {
@@ -59,7 +60,7 @@ export default function S03FacultyNotifications() {
     {/* 1. TOP-LEFT TEXT LINK */}
     <div className="back-dashboard-wrapper">
       <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-        ← Back to Dashboard
+        Back to Dashboard
       </Link>
     </div>
     

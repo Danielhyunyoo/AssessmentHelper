@@ -1,9 +1,13 @@
-# Backend API reference — supplied code snapshot
+# Backend API reference - supplied code snapshot
 
 Routes below were extracted from the latest available `form_management_update/urls.py` in this conversation. They are not independently confirmed against the live Git repository. All are under `/api/` because earlier integration tests used that prefix.
 
 | Method | URL | Django handler |
 |---|---|---|
+| GET | `/api/auth/csrf/` | `csrf_cookie` |
+| POST | `/api/auth/login/` | `session_login` |
+| POST | `/api/auth/logout/` | `session_logout` |
+| GET | `/api/auth/session/` | `session_user` |
 | GET | `/api/me/` | `my_professor` |
 | GET | `/api/me/courses/` | `my_courses` |
 | POST | `/api/signups/` | `create_signup` |
@@ -90,9 +94,13 @@ Routes below were extracted from the latest available `form_management_update/ur
 - `GET /api/committee/templates/`: `{templates:[...]}`.
 - KPI and committee dashboard responses are aggregated objects; treat optional/provisional metrics conservatively and inspect real responses before writing strict chart types.
 
+## Signing in
+
+Call `GET /api/auth/csrf/` first. Then `POST /api/auth/login/` with `{username, password}`. The username can also be the email. Use `GET /api/auth/session/` to check who is signed in.
+
 ## Requests, errors, and safety
 
-Use `src/api/endpoints.ts` rather than raw fetch in each page. `http.ts` sends JSON, includes cookies, and reports HTTP errors. In local demo mode it adds `X-Demo-Username`. Without real login it is **not safe to expose the server to the internet**.
+Use `src/api/endpoints.ts` rather than raw fetch in each page. `http.ts` sends JSON, includes cookies, and reports HTTP errors. Without real login it is **not safe to expose the server to the internet**.
 
 When `error.status === 400`, display specific DRF field messages. When 401, prompt login once implemented; when 403, hide committee controls; when 404, show not found; when 0, show backend connection guidance. Never assume request rejection means the DB is corrupt.
 

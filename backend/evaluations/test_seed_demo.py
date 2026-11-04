@@ -26,6 +26,19 @@ class SeedDemoTests(APITestCase):
             counts,
         )
 
+    def test_demo_accounts_can_sign_in_by_email(self):
+        for email, username in [
+            ("alice@utdallas.edu", "faculty_alice"),
+            ("committee@utdallas.edu", "committee_demo"),
+        ]:
+            with self.subTest(email=email):
+                response = self.client.post(
+                    "/api/auth/login/",
+                    {"username": email, "password": "demo-password"},
+                    format="json",
+                )
+                self.assertEqual(response.data["professor"]["username"], username)
+
     def test_each_faculty_member_has_a_different_evaluation_status(self):
         expected = {
             "faculty_alice": "due",

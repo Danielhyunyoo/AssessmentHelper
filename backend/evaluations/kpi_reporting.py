@@ -2,6 +2,7 @@
 from collections import defaultdict
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from . import clock
 from .evaluation_status import evaluation_status_for
 from .models import Cycle, Signup, Pairing, Observation, Survey, EvaluationCarryForward
 
@@ -40,7 +41,7 @@ def cycle_metrics(cycle):
             by_rank[rank_label(user_by_id[uid])]['unmatched'] += 1
 
     pending_pairing_ids = []
-    now = timezone.now()
+    now = clock.now()
     # Prefetch prevents N+1 queries on observation and survey lists.
     pairings = Pairing.objects.filter(cycle=cycle, status='confirmed').prefetch_related(
         'observations', 'surveys'
@@ -79,7 +80,7 @@ def cycle_metrics(cycle):
     return {
         'cycle': {'id': cycle.pk, 'name': cycle.semester,
                   'start_date': cycle.start_date.isoformat(), 'end_date': cycle.end_date.isoformat()},
-        'generated_at': timezone.now().isoformat(),
+        'generated_at': clock.now().isoformat(),
         'counts': totals,
         'by_rank': breakdown,
         'record_pairing_ids': pending_pairing_ids,

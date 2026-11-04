@@ -19,6 +19,19 @@ interface PendingCandidate {
   location: string;
 }
 
+interface CompletedRecord {
+  id: string;
+  candidateName: string;
+  department: string;
+  academicLevel: AcademicRank;
+  observerName: string;
+  courseAndSection: string;
+  observationDate: string;
+  observationTime: string;
+  location: string;
+  dateFinalized: string;
+}
+
 export default function A05PendingObservationRecords() {
   const navigate = useNavigate();
 
@@ -28,11 +41,11 @@ export default function A05PendingObservationRecords() {
   // Alert Feedback Banner State
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
-  // Modal State for Selected Candidate Details
+  // Modal State for Selected Candidate Details (Pending or Completed)
   const [selectedCandidateDetails, setSelectedCandidateDetails] =
-    useState<PendingCandidate | null>(null);
+    useState<PendingCandidate | CompletedRecord | null>(null);
 
-  // Sample Data (Anonymized)
+  // Sample Pending Data
   const [pendingList] = useState<PendingCandidate[]>([
     {
       id: "p1",
@@ -69,6 +82,46 @@ export default function A05PendingObservationRecords() {
     },
   ]);
 
+  // Sample Completed Data (Matches A06 Table Structure)
+  const [completedList] = useState<CompletedRecord[]>([
+    {
+      id: "c1",
+      candidateName: "Professor E",
+      department: "Computer Science",
+      academicLevel: "Full Professor",
+      observerName: "Dr. Smith",
+      courseAndSection: "CS 4349.002",
+      observationDate: "10/13/2026",
+      observationTime: "01:00 PM - 02:15 PM",
+      location: "ECSS 2.410",
+      dateFinalized: "10/22/2026",
+    },
+    {
+      id: "c2",
+      candidateName: "Professor F",
+      department: "Electrical Engineering",
+      academicLevel: "Assistant Professor",
+      observerName: "Dr. Johnson",
+      courseAndSection: "EE 3302.001",
+      observationDate: "10/15/2026",
+      observationTime: "10:00 AM - 11:15 AM",
+      location: "ECSN 1.202",
+      dateFinalized: "10/24/2026",
+    },
+    {
+      id: "c3",
+      candidateName: "Professor G",
+      department: "Mechanical Engineering",
+      academicLevel: "Full Professor",
+      observerName: "Dr. Williams",
+      courseAndSection: "MECH 2310.001",
+      observationDate: "10/20/2026",
+      observationTime: "02:30 PM - 03:45 PM",
+      location: "ECSS 2.311",
+      dateFinalized: "10/25/2026",
+    },
+  ]);
+
   // Bulk Selection Handlers
   const handleSelectAll = () => {
     setSelectedCandidates(pendingList.map((c) => c.id));
@@ -85,7 +138,7 @@ export default function A05PendingObservationRecords() {
   };
 
   // Modal Handlers
-  const handleOpenDetailsModal = (candidate: PendingCandidate) => {
+  const handleOpenDetailsModal = (candidate: PendingCandidate | CompletedRecord) => {
     setSelectedCandidateDetails(candidate);
   };
 
@@ -130,8 +183,10 @@ export default function A05PendingObservationRecords() {
         </div>
       )}
 
-      {/* Main Section Phase */}
+      {/* SECTION 1: PENDING EVALUATION FORMS */}
       <section className="dashboard-phase">
+        <h3>Pending Evaluation Forms</h3>
+
         {/* Blue Theme Table Box Container */}
         <div className="table-container theme-blue">
           <div className="table-instruction">
@@ -182,7 +237,7 @@ export default function A05PendingObservationRecords() {
           </div>
         </div>
 
-        {/* Action Controls Bar - Closer to the bottom of the table */}
+        {/* Action Controls Bar */}
         <div className="unregistered-actions-bar compact-actions-bar">
           <div className="bulk-btn-group">
             <button
@@ -211,6 +266,50 @@ export default function A05PendingObservationRecords() {
         </div>
       </section>
 
+      {/* SECTION 2: VIEW COMPLETED OBSERVATION RECORDS (MATCHES A06 TABLE FORMAT) */}
+      <section className="dashboard-phase phase-spacing">
+        <h3>View Completed Observation Records</h3>
+
+        <div className="table-container theme-green">
+          <div className="table-instruction">
+            Select View Details to see a summary of the completed observation record.
+          </div>
+
+          <div className="table-scroll-wrapper">
+            <table className="custom-data-table">
+              <thead>
+                <tr>
+                  <th>Observee Name</th>
+                  <th>Department</th>
+                  <th>Academic Level</th>
+                  <th>Completion Date</th>
+                  <th className="align-center">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {completedList.map((record) => (
+                  <tr key={record.id}>
+                    <td>{record.candidateName}</td>
+                    <td>{record.department}</td>
+                    <td>{record.academicLevel}</td>
+                    <td>{record.dateFinalized}</td>
+                    <td className="align-center">
+                      <button
+                        type="button"
+                        className="table-name-link"
+                        onClick={() => handleOpenDetailsModal(record)}
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       {/* Standardized Bottom Return Button */}
       <div className="dashboard-center-action">
         <button
@@ -222,7 +321,7 @@ export default function A05PendingObservationRecords() {
         </button>
       </div>
 
-      {/* POP-UP MODAL: OBSERVATION DETAILS (WITHOUT BOTTOM CLOSE BUTTON) */}
+      {/* POP-UP MODAL: OBSERVATION DETAILS */}
       {selectedCandidateDetails && (
         <div className="modal-overlay" onClick={handleCloseDetailsModal}>
           <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
@@ -279,6 +378,13 @@ export default function A05PendingObservationRecords() {
                 <span className="detail-label">Location:</span>
                 <span>{selectedCandidateDetails.location}</span>
               </div>
+
+              {"dateFinalized" in selectedCandidateDetails && (
+                <div className="modal-detail-row">
+                  <span className="detail-label">Date Finalized:</span>
+                  <span>{selectedCandidateDetails.dateFinalized}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

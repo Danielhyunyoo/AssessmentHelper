@@ -1,39 +1,119 @@
 // src/pages/login/L03SignIn2.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { authApi, facultyApi } from "../../api/endpoints";
+import type { Professor, RegistrationStatus } from "../../api/types";
 
 export default function L03SignIn2() {
   const navigate = useNavigate();
 
-  const [userRole, setUserRole] = useState<"faculty" | "committee">("committee");
-  const [isRegistered, setIsRegistered] = useState<boolean>(() => {
-    return localStorage.getItem("isRegisteredForCycle") === "true";
-  });
-  const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
+  const [user, setUser] = useState<Professor | null>(null);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleRegister = () => {
-    localStorage.setItem("isRegisteredForCycle", "true");
-    setIsRegistered(true);
-    navigate("/shared/faculty-dashboard");
+  async function loadPage() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const { professor: sessionUser } = await authApi.session();
+      if (!sessionUser) {
+        navigate("/login/signin");
+        return;
+      }
+      setUser(sessionUser);
+      setRegistration(await facultyApi.registrationStatus());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to load registration information."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadPage();
+  }, []);
+
+  const isRegistered = registration?.is_registered ?? false;
+
+  const todayAsIsoDate = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  })();
+
+  const isPastDeadline =
+    !isRegistered &&
+    !!registration &&
+    todayAsIsoDate > registration.signup_deadline;
+
+  const isCommittee = user?.role === "admin";
+  const cycleName = registration?.cycle_name || "Current Evaluation Cycle";
+
+  const handleRegister = async () => {
+    setSaving(true);
+    setError("");
+
+    try {
+      await facultyApi.register();
+      navigate("/shared/faculty-dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to register for the cycle.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleRegistrationToggle = (checked: boolean) => {
-    setIsRegistered(checked);
-    localStorage.setItem("isRegisteredForCycle", checked ? "true" : "false");
-  };
+  if (loading) {
+    return (
+      <div className="dashboard-container" style={{ alignItems: "center", paddingTop: "3rem" }}>
+        <h2>{cycleName} Evaluation Cycle</h2>
+        <p>Loading your registration...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container" style={{ alignItems: "center", paddingTop: "3rem" }}>
-      <h2>Fall 2026 Evaluation Cycle</h2>
-      <p style={{ color: "#475569", marginTop: "-0.5rem", marginBottom: "1.5rem" }}>
-        You are registering for the upcoming peer observation cycle.
+      <h2>{cycleName} Evaluation Cycle</h2>
+      <p style={{ color: "#475569", marginTop: "-0.5rem", marginBottom: "0.75rem" }}>
+        You are viewing the registration status for the current evaluation cycle.
       </p>
+
+      {registration && (
+        <div
+          className="table-instruction"
+          style={{ marginBottom: "1.5rem", width: "100%", maxWidth: "600px" }}
+        >
+          <p>
+            <strong>Cycle dates:</strong>{" "}
+            {new Date(`${registration.start_date}T00:00:00`).toLocaleDateString()} to{" "}
+            {new Date(`${registration.end_date}T00:00:00`).toLocaleDateString()}
+          </p>
+          <p>
+            <strong>Registration deadline:</strong>{" "}
+            {new Date(`${registration.signup_deadline}T00:00:00`).toLocaleDateString()}
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div role="alert" className="yellow-banner">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
 
       <div className="table-container registration-card">
         {isRegistered ? (
           <>
             <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-              <strong>Cycle Status:</strong> You are registered for the Fall 2026 cycle.
+              <strong>Cycle Status:</strong> You are registered for the {cycleName} cycle.
             </div>
 
             <button
@@ -59,9 +139,20 @@ export default function L03SignIn2() {
                 backgroundColor: "#fee2e2",
                 borderLeftColor: "#ef4444",
                 color: "#991b1b",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
               }}
             >
-              ⚠️ <strong>Registration Closed:</strong> The deadline to register for the Fall 2026 evaluation cycle has passed.
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                <polygon points="12,2 22,20 2,20" fill="#64748b" />
+                <text x="12" y="17" fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle">
+                  !
+                </text>
+              </svg>
+              <div>
+                <strong>Registration Closed:</strong> The deadline to register for the {cycleName} evaluation cycle has passed.
+              </div>
             </div>
 
             <p style={{ fontSize: "0.875rem", color: "#475569", marginBottom: "1rem" }}>
@@ -85,8 +176,8 @@ export default function L03SignIn2() {
               </li>
             </ul>
 
-            <button type="button" className="btn-primary btn-block" onClick={handleRegister}>
-              Register for Fall 2026 Cycle
+            <button type="button" className="btn-primary btn-block" onClick={handleRegister} disabled={saving}>
+              {saving ? "Registering..." : `Register for ${cycleName} Cycle`}
             </button>
 
             <div className="registration-link-container">
@@ -100,7 +191,7 @@ export default function L03SignIn2() {
           </>
         )}
 
-        {userRole === "committee" && (
+        {isCommittee && (
           <div className="committee-section">
             <h4 className="committee-title">ASSESSMENT COMMITTEE ONLY:</h4>
             <p className="committee-desc">
@@ -112,63 +203,6 @@ export default function L03SignIn2() {
             </Link>
           </div>
         )}
-
-        {/* Demo State Simulator */}
-        <div
-          style={{
-            marginTop: "2.5rem",
-            padding: "1rem",
-            backgroundColor: "#f8fafc",
-            border: "1px dashed #cbd5e1",
-            borderRadius: "12px",
-            textAlign: "left",
-          }}
-        >
-          <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
-            Demo State Simulator
-          </p>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontWeight: "600" }}>User Role Permissions:</span>
-              <select
-                value={userRole}
-                onChange={(e) => setUserRole(e.target.value as "faculty" | "committee")}
-                style={{ padding: "0.2rem 0.5rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-              >
-                <option value="committee">Both (Faculty & Committee)</option>
-                <option value="faculty">Regular Faculty Only</option>
-              </select>
-            </div>
-
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={isRegistered}
-                onChange={(e) => handleRegistrationToggle(e.target.checked)}
-              />
-              <strong>Cycle Registered:</strong> {isRegistered ? "True" : "False"}
-            </label>
-
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                cursor: "pointer",
-                opacity: isRegistered ? 0.5 : 1,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isPastDeadline}
-                disabled={isRegistered}
-                onChange={(e) => setIsPastDeadline(e.target.checked)}
-              />
-              <strong>Missed Deadline (Unregistered):</strong> {isPastDeadline ? "True" : "False"}
-            </label>
-          </div>
-        </div>
       </div>
     </div>
   );
