@@ -356,6 +356,10 @@ class Survey(models.Model):
         blank=True
     )
 
+    # Dynamic A08 survey answers keyed by immutable published-template question IDs.
+    # Existing fixed fields remain for compatibility with older clients/records.
+    responses = models.JSONField(default=dict, blank=True)
+
     score = models.IntegerField(
         null=True,
         blank=True
