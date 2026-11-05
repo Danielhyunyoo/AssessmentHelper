@@ -36,6 +36,8 @@ export const matchingApi = {
   incomingInvitations: () => get<Invitation[]>("/invitations/received/"),
   sendInvitation: (observer_id: number, proposed_datetimes: string[]) => post<Invitation>("/invitations/send/", {observer_id, proposed_datetimes}),
   respond: (invitationId: number, action: "accept"|"decline", proposed_date_id?: number) => post<Invitation>(`/invitations/${invitationId}/respond/`, {action, ...(proposed_date_id ? {proposed_date_id} : {})}),
+  reject: (invitationId: number) => post<Invitation>(`/invitations/${invitationId}/reject/`),
+  rejectAll: () => post<{rejected_ids:number[]}>("/invitations/reject-all/"),
   confirmPairing: (invitation_id: number) => post<{pairing_id:number;observer_id:number;course_id:number;confirmed_datetime:string}>("/pairings/confirm/", {invitation_id}),
 };
 // E03-E05, O03-O04

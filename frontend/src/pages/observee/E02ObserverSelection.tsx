@@ -17,12 +17,14 @@ interface ResponseRecord {
   id: string;
   observerName: string;
   proposedDateTime: string;
-  responseStatus: "CONFIRMED" | "ACCEPTED" | "NOT SELECTED" | "PENDING" | "DECLINED" | "CANCELLED";
+  responseStatus: "CONFIRMED" | "ACCEPTED" | "NOT SELECTED" | "PENDING" | "DECLINED" | "EXPIRED" | "CLOSED" | "REJECTED";
 }
 
 function rowStatus(invitationStatus: string, dateStatus: string): ResponseRecord["responseStatus"] {
   if (invitationStatus === "declined") return "DECLINED";
-  if (invitationStatus === "expired" || invitationStatus === "closed") return "CANCELLED";
+  if (invitationStatus === "expired") return "EXPIRED";
+  if (invitationStatus === "closed") return "CLOSED";
+  if (invitationStatus === "rejected") return "REJECTED";
   if (dateStatus === "accepted") return invitationStatus === "confirmed" ? "CONFIRMED" : "ACCEPTED";
   if (invitationStatus === "accepted" || invitationStatus === "confirmed") return "NOT SELECTED";
   return "PENDING";
@@ -324,22 +326,32 @@ export default function E02ObserverSelection() {
           const invitationId = Number(row.id);
 
           return (
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => setSelectedInvitationId(invitationId)}
-              style={{
-                fontWeight: selectedInvitationId === invitationId ? "700" : "400",
-              }}
-            >
-              {selectedInvitationId === invitationId ? "Selected" : "Select Observer"}
-            </button>
+            <span style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setSelectedInvitationId(invitationId)}
+                style={{
+                  fontWeight: selectedInvitationId === invitationId ? "700" : "400",
+                }}
+              >
+                {selectedInvitationId === invitationId ? "Selected" : "Select Observer"}
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => void handleReject(invitationId)}
+                disabled={saving}
+              >
+                Reject
+              </button>
+            </span>
           );
         }
-        if (row.responseStatus === "DECLINED" || row.responseStatus === "CANCELLED") {
+        if (["DECLINED", "EXPIRED", "CLOSED", "REJECTED"].includes(row.responseStatus)) {
           return (
             <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
-              DECLINED
+              {row.responseStatus}
             </span>
           );
         }
@@ -347,6 +359,50 @@ export default function E02ObserverSelection() {
       },
     },
   ];
+
+  const reloadResponses = async () => {
+    const invitations = await matchingApi.sentInvitations();
+
+    setResponseData(
+      invitations.flatMap((invitation) =>
+        invitation.proposed_dates.map((date) => ({
+          id: String(invitation.invitation_id),
+          observerName:
+            candidateData.find((candidate) => candidate.id === String(invitation.recipient_id))?.observerName ||
+            `Observer #${invitation.recipient_id}`,
+          proposedDateTime: new Date(date.datetime).toLocaleString(),
+          responseStatus: rowStatus(invitation.status, date.status),
+        }))
+      )
+    );
+  };
+
+  const runAction = async (action: () => Promise<unknown>, message: string) => {
+    setError("");
+    setSuccess("");
+    setSaving(true);
+
+    try {
+      await action();
+      setSelectedInvitationId(null);
+      setSuccess(message);
+      await reloadResponses();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update the invitation.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReject = (invitationId: number) =>
+    runAction(() => matchingApi.reject(invitationId), "Response rejected. You can invite this observer again.");
+
+  const handleRejectAll = () =>
+    runAction(() => matchingApi.rejectAll(), "All open invitations were withdrawn.");
+
+  const hasOpenInvitations = responseData.some(
+    (row) => row.responseStatus === "PENDING" || row.responseStatus === "ACCEPTED"
+  );
 
   const handleConfirmPairing = async () => {
     setError("");
@@ -506,7 +562,12 @@ export default function E02ObserverSelection() {
         />
 
         <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button type="button" className="btn-secondary">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => void handleRejectAll()}
+            disabled={saving || !hasOpenInvitations}
+          >
             Reject All
           </button>
           <button
