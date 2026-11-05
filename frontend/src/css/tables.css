@@ -1,883 +1,180 @@
 /* ==========================================
-   PAGE-SPECIFIC STYLES
+   TABLES & DATATABLES STYLES
    ========================================== */
-
-/* L01 Home */
-.home-container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 3rem 2rem;
-}
-
-.home-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4rem;
-}
-
-.home-text {
-  flex: 1;
-  max-width: 480px;
-}
-
-.home-title {
-  font-size: 3.25rem;
-  font-weight: 800;
-  font-style: italic;
-  line-height: 1.1;
-  color: #000000;
-  margin: 0 0 1.5rem 0;
-  letter-spacing: -0.02em;
-}
-
-.home-subtitle {
-  font-size: 1.2rem;
-  font-style: italic;
-  color: #64748b;
-  line-height: 1.5;
-  margin: 0 0 2.5rem 0;
-}
-
-.home-image-container {
-  flex: 1.2;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.campus-img {
-  width: 100%;
-  max-width: 600px;
-  height: auto;
-  border-radius: 4px;
-  object-fit: cover;
-}
-
-/* L02 Sign In */
-.signin-page-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 60vh;
-  padding: 2rem 1rem;
-}
-
-.signin-card {
-  width: 100%;
-  max-width: 380px;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-
-.signin-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.signin-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.signin-field label {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: #1e293b;
-}
-
-.signin-field input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  color: #0f172a;
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.signin-field input:focus {
-  border-color: #0f172a;
-}
-
-.signin-checkbox-container {
-  display: flex;
-  align-items: center;
-  margin-top: 0.25rem;
-}
-
-.signin-checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: #1e293b;
-  cursor: pointer;
-  user-select: none;
-}
-
-.signin-submit-btn {
-  width: 100%;
-  padding: 0.85rem;
-  background-color: #27272a;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 0.5rem;
-  transition: background-color 0.2s ease;
-}
-
-.signin-submit-btn:hover:not(:disabled) {
-  background-color: #09090b;
-}
-
-.signin-error-banner,
-.registration-closed-banner {
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  margin-bottom: 1.25rem;
-}
-
-/* L03 Registration */
-html.dark-mode .red {
-  color: #991b1b
-}
-
-.registration-card,
-.registration-info-box {
-  max-width: 520px;
-  width: 100%;
-  padding: 2rem;
-  text-align: center;
-  background-color: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-}
-
-.registration-title {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-}
-
-.registration-list {
-  text-align: left;
-  font-size: 0.9rem;
-  color: #64748b;
-  padding-left: 1.25rem;
-  line-height: 1.6;
-}
-
-.registration-list li:first-child {
-  margin-bottom: 0.75rem;
-}
-
-.registration-link-container {
-  margin-top: 1rem;
-}
-
-.registration-link {
-  font-size: 0.875rem;
-  color: #2563eb;
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-.committee-section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px dashed #cbd5e1;
-}
-
-.committee-title {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  color: #64748b;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-}
-
-.committee-desc {
-  font-size: 0.75rem;
-  color: #64748b;
-  margin: 0.5rem 0 0 0;
-}W
-
-/* ao3 my beloved*/
-/* A03 UNMATCHED OBSERVEES STYLES */
-
-/* Page Level Title Styling */
-.unmatched-page-title {
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: #000000;
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-/* Alert Banner */
-.unmatched-alert-banner {
-  background-color: #fef08a;
-  border: 1px solid #fde047;
-  color: #000000;
-  padding: 1rem 1.25rem;
-  border-radius: 9999px;
-  text-align: center;
-  font-size: 0.85rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-/* Outer Table Theme Frame */
-.unmatched-table-frame {
-  background-color: #e2e8f0;
-  border: 1px solid #cbd5e1;
+.table-container {
   border-radius: 8px;
   overflow: hidden;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 2px solid #cbd5e1;
+  background-color: #ffffff;
 }
 
-.unmatched-table-instruction {
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
+.table-container.theme-green { border-color: #86efac; }
+.table-container.theme-orange { border-color: #fdba74; }
+.table-container.theme-blue { border-color: #93c5fd; }
+.table-container.theme-pink { border-color: #f472b6; }
+
+.table-instruction,
+.table-sub-header-banner {
+  background-color: #cbd5e1;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  color: #1e293b;
-  margin: 0;
+  color: #0f172a;
+  border-bottom: 1px solid #cbd5e1;
 }
 
-/* Inner Orange Data Table Container */
-.unmatched-table-wrapper {
-  background-color: #ffedd5;
-  border-top: 1px solid #fed7aa;
-  padding: 0.75rem;
+.table-scroll-wrapper {
   overflow-x: auto;
+  background-color: #ffffff;
 }
 
-.unmatched-table {
+.custom-data-table,
+.roster-data-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.9rem;
   text-align: left;
 }
 
-.unmatched-table th {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #000000;
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid #fed7aa;
-}
-
-.unmatched-table td {
-  font-size: 0.875rem;
-  color: #1e293b;
-  padding: 0.6rem 0.75rem;
-}
-
-.unmatched-checkbox-cell {
-  width: 50px;
-  text-align: center;
-}
-
-.unmatched-table input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-/* Action Controls Bar below table */
-.unmatched-actions-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 2.5rem;
-}
-
-.unmatched-select-btns {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* Dark Mode Overrides */
-html.dark-mode .unmatched-page-title {
-  color: #ffffff;
-}
-
-html.dark-mode .unmatched-alert-banner {
-  background-color: #451a03;
-  border-color: #78350f;
-  color: #fef08a;
-}
-
-html.dark-mode .unmatched-table-frame {
-  background-color: #18181b;
-  border-color: #27272a;
-}
-
-html.dark-mode .unmatched-table-instruction {
-  color: #f4f4f5;
-}
-
-html.dark-mode .unmatched-table-wrapper {
-  background-color: #121212;
-  border-top-color: #27272a;
-}
-
-html.dark-mode .unmatched-table th {
-  color: #ffffff;
-  border-bottom-color: #27272a;
-}
-
-html.dark-mode .unmatched-table td {
-  color: #a1a1aa;
-}
-
-/* S02 Profile */
-.profile-page-title {
-  font-size: 2rem;
-  font-weight: 800;
-  font-style: italic;
-  color: #0f172a;
-  margin-bottom: 1.5rem;
-}
-
-.profile-main-card {
-  padding: 2rem;
-  margin-bottom: 2rem;
-}
-
-.profile-card-grid {
-  display: grid;
-  grid-template-columns: 1fr 240px;
-  gap: 2.5rem;
-  align-items: start;
-}
-
-.profile-user-name {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 1rem;
-}
-
-.profile-details-list p {
-  font-size: 0.95rem;
-  color: #64748b;
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.profile-email-note {
-  background-color: #f8fafc;
-  border-left: 4px solid #94a3b8;
+.custom-data-table th,
+.roster-data-table th {
   padding: 0.75rem 1rem;
-  font-size: 0.85rem;
-  color: #64748b;
-  margin: 1.25rem 0;
-  border-radius: 4px;
-}
-
-.profile-edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-width: 480px;
-}
-
-.profile-edit-form h3 {
-  font-size: 1.25rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.profile-field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.profile-field-group label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #334155;
-}
-
-.profile-field-group input {
-  padding: 0.6rem 0.85rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  outline: none;
-}
-
-.profile-field-group input.disabled-input {
-  background-color: #f1f5f9;
-  color: #64748b;
-  cursor: not-allowed;
-}
-
-.profile-form-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.profile-photo-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.profile-avatar-container {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 3px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  background-color: #f1f5f9;
-}
-
-.profile-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.profile-status-card {
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.profile-status-card h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 1.25rem;
-}
-
-.profile-status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
-}
-
-.profile-status-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.status-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.status-value {
-  font-size: 1rem;
-  font-weight: 600;
   color: #0f172a;
-}
-
-.status-value.highlight-status {
-  color: #15803d;
-}
-
-/* S04 Current & Past Observations */
-.reminders-card {
-  padding: 1.5rem;
-}
-
-.reminders-title {
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 1rem;
-}
-
-.reminders-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.reminder-date {
-  color: #64748b;
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
-}
-
-.observation-cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.25rem;
-  width: 100%;
-}
-
-.observation-card-history {
   background-color: #f8fafc;
-  padding: 1.25rem;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  max-width: 420px;
-}
-
-.observation-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #1e293b;
-}
-
-.observation-card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0f172a;
-  display: block;
-}
-
-.observation-card-text {
-  font-size: 0.875rem;
-  color: #334155;
-  margin: 0.25rem 0;
-}
-
-.observation-card-subtext {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin: 0.25rem 0;
-}
-
-.observation-card-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.pill-badge {
-  display: inline-block;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border-radius: 9999px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.pill-badge.pill-observee {
-  background-color: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-}
-
-.pill-badge.pill-observer {
-  background-color: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.25);
-}
-
-.section-header-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.btn-demo-toggle {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.6rem;
-}
-
-.observation-empty-state {
-  padding: 2rem;
-  text-align: center;
-  color: #64748b;
-  font-style: italic;
-}
-
-.accordion-wrapper {
-  padding: 1rem;
-}
-
-.accordion-item {
   border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.75rem;
 }
 
-.accordion-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #1e293b;
-  padding: 0.5rem 0;
+.custom-data-table td,
+.roster-data-table td {
+  padding: 0.75rem 1rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
 }
 
-.accordion-content {
-  margin-top: 0.75rem;
-  padding-left: 0.5rem;
-}
-
-/* padding for s05 and s06 */
-/* Card section container padding */
-.summary-card-padding {
-  padding: 1.75rem 2rem;
-  margin-bottom: 2rem;
-  border-radius: 8px;
-  line-height: 1.8; /* Increases the distance between lines of text */
-}
-
-.summary-card-padding .submit-action-row{
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-}
-
-/* Faculty Roster & Controls */
-.roster-controls-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-
-.search-control-group,
-.sort-control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.search-control-group {
-  flex: 1;
-  min-width: 260px;
-}
-
-.search-control-group label,
-.sort-control-group label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.search-input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.instruction-bullet-list {
-  padding-left: 1.25rem;
-  color: #64748b;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  margin-bottom: 1rem;
-}
-
-.unregistered-actions-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.bulk-btn-group {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.compact-actions-bar {
-  margin-top: 0.5rem !important;
-}
-
-/* Form Editor & Pairing Summary */
-.pairing-summary-wrapper {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 2rem;
-  margin: 2rem 0;
-  flex-wrap: wrap;
-}
-
-.pairing-summary-left {
-  flex: 1;
-  min-width: 250px;
-  text-align: center;
-}
-
-.pairing-summary-left h3 {
-  font-size: 2.25rem !important;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 0.35rem;
-}
-
-.pairing-summary-card {
-  background-color: #e2e8f0;
-  border-radius: 8px;
-  padding: 1.25rem 1.75rem;
-  width: 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.editor-control-banner {
-  padding: 1.25rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  background-color: #ffffff;
-}
-
-.editor-control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  flex: 1;
-  min-width: 260px;
-}
-
-.editor-question-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+.custom-data-table tr:hover {
   background-color: #f8fafc;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
-.edit-indicator-tag,
-.edit-question-badge {
-  font-size: 0.75rem;
-  color: #dc2626;
-  font-weight: 700;
-  margin-left: 0.5rem;
-  background-color: #fee2e2;
-  padding: 0.15rem 0.4rem;
+.clickable-table-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.clickable-table-row:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.empty-row {
+  text-align: center;
+  color: #94a3b8;
+  padding: 1.5rem !important;
+}
+
+.custom-data-table input[type="checkbox"],
+.custom-data-table input[type="radio"],
+.table-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.custom-data-table select {
+  padding: 0.3rem 0.5rem;
   border-radius: 4px;
-  display: inline-block;
-}
-
-
-
-.warning-icon-triangle {
-  display: inline-block;
-  color: #64748b;
+  border: 1px solid #cbd5e1;
   font-size: 0.85rem;
-  margin-right: 0.35rem;
-  transform: scaleY(0.9);
 }
 
-html.dark-mode .warning-icon-triangle {
-  color: #a1a1aa;
+.status-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
+.status-confirmed { background-color: #dcfce7; color: #166534; }
+.status-pending { background-color: #fef9c3; color: #854d0e; }
+.status-cancelled { background-color: #fee2e2; color: #991b1b; }
 
+.table-name-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #1e293b;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.875rem;
+}
 
-/* Page-Specific Dark Mode Overrides (Colors Only) */
-html.dark-mode .signin-card,
-html.dark-mode .registration-card,
-html.dark-mode .registration-info-box,
-html.dark-mode .pairing-summary-card,
-html.dark-mode .editor-control-banner,
-html.dark-mode .observation-card-history {
+.table-arrow-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.roster-pink-frame {
+  border: 8px solid #fecdd3;
+  background-color: #fecdd3;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.roster-green-frame {
+  border: 8px solid #a7f3d0;
+  background-color: #a7f3d0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Tables Dark Mode Overrides (Colors Only) */
+html.dark-mode .table-container,
+html.dark-mode .table-scroll-wrapper {
   background-color: #121212;
   color: #f4f4f5;
   border-color: #27272a;
 }
 
-/* Fix for dark blue title in dark mode */
-html.dark-mode .home-title,
-html.dark-mode .profile-user-name,
-html.dark-mode .roster-header-title,
-html.dark-mode .roster-section-title,
-html.dark-mode .observation-card-title,
-html.dark-mode .status-value,
-html.dark-mode .dashboard-card h3,
-html.dark-mode .dashboard-card h4,
-html.dark-mode .observation-card-history h3,
-html.dark-mode .observation-card-history h4,
-html.dark-mode .observation-card-history p strong,
-html.dark-mode .observation-card-history a {
-  color: #ffffff !important;
-}
-
-/* Unified subtexts across regular & dark modes */
-html.dark-mode p,
-html.dark-mode span,
-html.dark-mode label,
-html.dark-mode .home-subtitle,
-html.dark-mode .registration-list,
-html.dark-mode .instruction-bullet-list,
-html.dark-mode .status-label,
-html.dark-mode .observation-empty-state,
-html.dark-mode .observation-card-subtext,
-html.dark-mode .profile-details-list p,
-html.dark-mode .profile-email-note,
-html.dark-mode .observation-card-text {
-  color: #a1a1aa !important;
-}
-
-html.dark-mode .signin-error-banner,
-html.dark-mode .registration-closed-banner {
-  background-color: #360c0c;
-  color: #fca5a5;
-  border-color: #7f1d1d;
-}
-
-html.dark-mode .editor-question-card,
-html.dark-mode .profile-email-note {
+html.dark-mode .custom-data-table th,
+html.dark-mode .roster-data-table th,
+html.dark-mode .table-instruction,
+html.dark-mode .table-sub-header-banner {
   background-color: #18181b;
+  color: #ffffff;
   border-color: #27272a;
 }
 
-html.dark-mode .registration-link {
+html.dark-mode .custom-data-table td,
+html.dark-mode .roster-data-table td {
+  color: #a1a1aa;
+  border-color: #27272a;
+}
+
+html.dark-mode .custom-data-table tr:hover,
+html.dark-mode .clickable-table-row:hover {
+  background-color: #18181b !important;
+}
+
+html.dark-mode .table-name-link {
   color: #60a5fa;
 }
 
-html.dark-mode .edit-indicator-tag,
-html.dark-mode .edit-question-badge {
-  background-color: #450a0a;
-  color: #fca5a5;
+html.dark-mode .empty-row {
+  color: #a1a1aa;
 }
 
-html.dark-mode .accordion-item,
-html.dark-mode .editor-action-footer,
-html.dark-mode .committee-section,
-html.dark-mode .observation-card-header {
-  border-color: #27272a;
+html.dark-mode .roster-pink-frame {
+  border-color: #881337;
+  background-color: #881337;
+}
+
+html.dark-mode .roster-green-frame {
+  border-color: #064e3b;
+  background-color: #064e3b;
 }
