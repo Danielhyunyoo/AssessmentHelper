@@ -200,7 +200,15 @@ export default function DevBar() {
 
           <label className="dev-field">
             <span>Today:</span>
-            <input type="date" value={today} onChange={(event) => void setToday(event.target.value)} />
+            <input
+              type="date"
+              value={today}
+              onChange={(event) => {
+                const value = event.target.value;
+                setTodayValue(value);
+                if (Number(value.slice(0, 4)) >= 2000) void setToday(value);
+              }}
+            />
           </label>
 
           {cycle && (
