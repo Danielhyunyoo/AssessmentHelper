@@ -78,7 +78,7 @@ export default function S04CurrentAndPastObservations() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          Back to Dashboard
+          ← Return to Dashboard
         </Link>
       </div>
 
@@ -116,7 +116,7 @@ export default function S04CurrentAndPastObservations() {
         )}
 
         {!liveLoading && !liveError && liveRecords.length === 0 && (
-          <div className="table-container theme-green">
+          <div className="table-container theme-green summary-card-padding">
             No observation records have been returned for your account yet.
           </div>
         )}
@@ -183,10 +183,10 @@ export default function S04CurrentAndPastObservations() {
         )}
       </section>
 
-      {/* Current Observations Section */}
+      {/* Ongoing Evaluations Section */}
       <section className="dashboard-phase">
         <div className="section-header-bar">
-          <h3>Current Evaluations</h3>
+          <h3>Ongoing Evaluations</h3>
           <button
             type="button"
             className="secondary-btn btn-demo-toggle"
@@ -196,88 +196,90 @@ export default function S04CurrentAndPastObservations() {
           </button>
         </div>
 
-        <div className="table-container theme-green observation-card-wrapper">
-          {!hasActiveObservation ? (
-            <div className="observation-empty-state">
-              No current observations
-            </div>
-          ) : (
-            <div className="observation-cards-container">
-              {/* Left Card: Observee */}
-              <div className="observation-card-history">
-                <div className="observation-card-header">
-                  <strong className="observation-card-title">
-                    Tuesday, Oct. 13, 2026
-                  </strong>
-                  <span className="pill-badge pill-observee">
-                    Observee
-                  </span>
+        <div className="table-container accordion-wrapper">
+          <div className="accordion-content">
+            {!hasActiveObservation ? (
+              <div className="observation-empty-state">
+                No current observations
+              </div>
+            ) : (
+              <div className="observation-cards-container">
+                {/* Left Card: Observee */}
+                <div className="observation-card-history">
+                  <div className="observation-card-header">
+                    <strong className="observation-card-title">
+                      Tuesday, Oct. 13, 2026
+                    </strong>
+                    <span className="pill-badge pill-observee">
+                      Observee
+                    </span>
+                  </div>
+
+                  <p className="observation-card-text">
+                    <strong>Observer Name:</strong> Last Name, First Name
+                  </p>
+                  <p className="observation-card-text">
+                    <strong>Class:</strong> CS 4349
+                  </p>
+                  <p className="observation-card-text">
+                    <strong>Section:</strong> 002
+                  </p>
+                  <p className="observation-card-text">
+                    <strong>Time:</strong> 1:00 PM - 2:15 PM
+                  </p>
+                  <p className="observation-card-subtext">
+                    <strong>Status:</strong> Incomplete
+                  </p>
+
+                  <div className="observation-card-actions">
+                    <button type="button" className="btn-primary">
+                      View Observation Record
+                    </button>
+                    <button type="button" className="btn-secondary">
+                      View Post-Observation Survey
+                    </button>
+                  </div>
                 </div>
 
-                <p className="observation-card-text">
-                  <strong>Observer Name:</strong> Last Name, First Name
-                </p>
-                <p className="observation-card-text">
-                  <strong>Class:</strong> CS 4349
-                </p>
-                <p className="observation-card-text">
-                  <strong>Section:</strong> 002
-                </p>
-                <p className="observation-card-text">
-                  <strong>Time:</strong> 1:00 PM - 2:15 PM
-                </p>
-                <p className="observation-card-subtext">
-                  <strong>Status:</strong> Incomplete
-                </p>
+                {/* Right Card: Observer */}
+                <div className="observation-card-history">
+                  <div className="observation-card-header">
+                    <strong className="observation-card-title">
+                      Thursday, Oct. 22, 2026
+                    </strong>
+                    <span className="pill-badge pill-observer">
+                      Observer
+                    </span>
+                  </div>
 
-                <div className="observation-card-actions">
-                  <button type="button" className="btn-primary">
-                    View Observation Record
-                  </button>
-                  <button type="button" className="btn-secondary">
-                    View Post-Observation Survey
-                  </button>
+                  <p className="observation-card-text">
+                    <strong>Observee Name:</strong> Smith, Jane
+                  </p>
+                  <p className="observation-card-text">
+                    <strong>Class:</strong> CS 3345
+                  </p>
+                  <p className="observation-card-text">
+                    <strong>Section:</strong> 001
+                  </p>
+                  <p className="observation-card-text">
+                    <strong>Time:</strong> 10:00 AM - 11:15 AM
+                  </p>
+                  <p className="observation-card-subtext">
+                    <strong>Status:</strong> Pending Review
+                  </p>
+
+                  <div className="observation-card-actions">
+                    <button type="button" className="btn-primary">
+                      View Observation Record
+                    </button>
+                    <button type="button" className="btn-secondary">
+                      View Post-Observation Survey
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              {/* Right Card: Observer */}
-              <div className="observation-card-history">
-                <div className="observation-card-header">
-                  <strong className="observation-card-title">
-                    Thursday, Oct. 22, 2026
-                  </strong>
-                  <span className="pill-badge pill-observer">
-                    Observer
-                  </span>
-                </div>
-
-                <p className="observation-card-text">
-                  <strong>Observee Name:</strong> Smith, Jane
-                </p>
-                <p className="observation-card-text">
-                  <strong>Class:</strong> CS 3345
-                </p>
-                <p className="observation-card-text">
-                  <strong>Section:</strong> 001
-                </p>
-                <p className="observation-card-text">
-                  <strong>Time:</strong> 10:00 AM - 11:15 AM
-                </p>
-                <p className="observation-card-subtext">
-                  <strong>Status:</strong> Pending Review
-                </p>
-
-                <div className="observation-card-actions">
-                  <button type="button" className="btn-primary">
-                    View Observation Record
-                  </button>
-                  <button type="button" className="btn-secondary">
-                    View Post-Observation Survey
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </section>
       

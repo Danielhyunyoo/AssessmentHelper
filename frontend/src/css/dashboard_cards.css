@@ -1,0 +1,464 @@
+/* ==========================================
+   DASHBOARD & CARD GRID STYLES
+   ========================================== */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+
+.dashboard-container h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.dashboard-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dashboard-phase h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.yellow-banner,
+.reminder-banner {
+  background-color: #fef9c3;
+  border-left: 4px solid #eab308;
+  color: #713f12;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 4px;
+}
+
+.feedback-banner-success {
+  background-color: #dcfce7;
+  border-left: 5px solid #16a34a;
+  color: #14532d;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.dashboard-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-card img {
+  width: 100%;
+  max-width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 6px;
+  background-color: #e2e8f0;
+  display: block;
+}
+
+.dashboard-card a {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard-card h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dashboard-card p {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.card-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b45309;
+  background-color: #fef3c7;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  align-self: flex-start;
+  text-transform: uppercase;
+}
+
+.dashboard-center-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 2.5rem;
+}
+
+/* Dashboard Notifications Widget */
+.notification-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  height: 220px;
+}
+
+.notification-card h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dashboard-notifications-container {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 0.25rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dashboard-notif-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.dashboard-notif-item {
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background-color: #f8fafc;
+  border: 1px solid #f1f5f9;
+  transition: background-color 0.15s ease;
+}
+
+.dashboard-notif-item:hover {
+  background-color: #f1f5f9;
+}
+
+.dashboard-notif-title {
+  margin: 0 0 0.15rem 0;
+  color: #1e293b;
+}
+
+.dashboard-notif-title.fw-bold { font-weight: 700; }
+.dashboard-notif-title.fw-medium { font-weight: 500; }
+
+.dashboard-notif-time {
+  font-size: 0.75rem;
+}
+
+.dashboard-notif-time.text-success-green { color: #166534; }
+.dashboard-notif-time.text-muted-gray { color: #94a3b8; }
+
+.notif-unread-highlight {
+  background-color: #f0fdf4 !important;
+  border-left: 3px solid #22c55e !important;
+}
+
+.notif-unread-highlight:hover {
+  background-color: #dcfce7 !important;
+}
+
+.notif-read-item {
+  background-color: #ffffff;
+  border-left: 3px solid transparent;
+}
+
+.notif-read-item:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.full-width-notification-card {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.notification-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.notification-card-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.alert-count-badge {
+  background-color: #fee2e2;
+  color: #991b1b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid #fca5a5;
+}
+
+.notification-action-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.notification-alert-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #fffbebf5;
+  border: 1px solid #fde68a;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+}
+
+.notification-alert-link:hover {
+  background-color: #fef3c7;
+  border-color: #f59e0b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.alert-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.alert-text-wrapper {
+  flex-grow: 1;
+}
+
+.alert-text-wrapper strong {
+  display: block;
+  font-size: 0.925rem;
+  color: #92400e;
+  margin-bottom: 0.2rem;
+}
+
+.alert-text-wrapper p {
+  margin: 0;
+  font-size: 0.825rem;
+  color: #b45309;
+}
+
+.alert-arrow {
+  font-size: 1.1rem;
+  color: #b45309;
+  transition: transform 0.15s ease;
+}
+
+.notification-alert-link:hover .alert-arrow {
+  transform: translateX(4px);
+}
+
+.dashboard-card.notification-card.stretched-notification-card {
+  height: 270px !important;
+  max-height: 270px !important;
+  min-height: 270px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.dashboard-card.notification-card.stretched-notification-card .dashboard-notifications-container {
+  flex: 1 !important;
+  min-height: 0 !important;
+  max-height: 170px !important;
+  overflow-y: auto !important;
+  padding-right: 4px !important;
+}
+
+.inline-alert-card {
+  padding: 1.25rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-sizing: border-box;
+}
+
+.inline-alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.inline-alert-header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.action-required-badge {
+  background-color: #fee2e2;
+  color: #991b1b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid #fca5a5;
+  white-space: nowrap;
+}
+
+.inline-alert-box {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border-radius: 8px;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+}
+
+.inline-alert-box:hover {
+  background-color: #fef3c7;
+  border-color: #f59e0b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.alert-warning-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.alert-content-text {
+  flex-grow: 1;
+}
+
+.alert-content-text strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #92400e;
+  line-height: 1.35;
+  margin-bottom: 0.25rem;
+}
+
+.alert-content-text p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #b45309;
+  line-height: 1.3;
+}
+
+.alert-arrow-btn {
+  font-size: 1rem;
+  color: #b45309;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.inline-alert-box:hover .alert-arrow-btn {
+  transform: translateX(3px);
+}
+
+/* Dashboard & Cards Dark Mode Overrides (Colors Only) */
+html.dark-mode .dashboard-card,
+html.dark-mode .full-width-notification-card,
+html.dark-mode .inline-alert-card {
+  background-color: #121212;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .yellow-banner,
+html.dark-mode .reminder-banner {
+  background-color: #291e03;
+  color: #fef08a;
+  border-left-color: #eab308;
+}
+
+html.dark-mode .feedback-banner-success {
+  background-color: #052e16;
+  color: #86efac;
+  border-left-color: #22c55e;
+}
+
+html.dark-mode .notification-alert-link,
+html.dark-mode .inline-alert-box {
+  background-color: #1f1a07;
+  border-color: #713f12;
+}
+
+html.dark-mode .notification-alert-link:hover,
+html.dark-mode .inline-alert-box:hover {
+  background-color: #2e240a;
+  border-color: #a16207;
+}
+
+html.dark-mode .alert-text-wrapper strong,
+html.dark-mode .alert-content-text strong {
+  color: #fef08a;
+}
+
+html.dark-mode .alert-text-wrapper p,
+html.dark-mode .alert-content-text p,
+html.dark-mode .alert-arrow,
+html.dark-mode .alert-arrow-btn {
+  color: #fde047;
+}
+
+html.dark-mode .dashboard-notif-item {
+  background-color: #18181b;
+  border-color: #27272a;
+}
+
+html.dark-mode .dashboard-notif-item:hover {
+  background-color: #27272a;
+}

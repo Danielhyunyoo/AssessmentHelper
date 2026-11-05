@@ -142,6 +142,7 @@ export default function L03SignIn2() {
                 display: "flex",
                 alignItems: "center",
                 gap: "0.5rem",
+                opacity: ".8",
               }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
@@ -151,7 +152,7 @@ export default function L03SignIn2() {
                 </text>
               </svg>
               <div>
-                <strong>Registration Closed:</strong> The deadline to register for the {cycleName} evaluation cycle has passed.
+                <strong className="red">Registration Closed:</strong> The deadline to register for the {cycleName} evaluation cycle has passed.
               </div>
             </div>
 

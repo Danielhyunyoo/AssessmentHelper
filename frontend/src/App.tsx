@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 
-//PAGES FOR THIS WEEK'S DEMO
+// PAGES FOR DEMO
 import L01Home from "./pages/login/L01Home";
 import L02SignIn from "./pages/login/L02SignIn";
 import L03SignIn2 from "./pages/login/L03SignIn2";

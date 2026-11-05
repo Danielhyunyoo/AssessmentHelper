@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { facultyApi } from "../../api/endpoints";
 import type { ProfileResponse } from "../../api/types";
 import { Link } from "react-router-dom";
-import defaultAvatar from "../../assets/avatar.png";
+import defaultProfile from "../../assets/profile_icon.png";
 
 export default function S02Profile(): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,7 +23,7 @@ export default function S02Profile(): React.ReactElement {
   const [evaluationStatus, setEvaluationStatus] = useState("");
   const [lastEvaluated, setLastEvaluated] = useState("");
 
-  const [profilePhoto, setProfilePhoto] = useState<string>(defaultAvatar);
+  const [profilePhoto, setProfilePhoto] = useState<string>(defaultProfile);
 
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editFirstName, setEditFirstName] = useState("");
@@ -138,7 +138,7 @@ export default function S02Profile(): React.ReactElement {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          Back to Dashboard
+          ← Return to Dashboard
         </Link>
       </div>
 

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { matchingApi } from "../../api/endpoints";
 import type { Invitation } from "../../api/types";
 import { Link, useNavigate } from "react-router-dom";
-import avatarPlaceholder from "../../assets/avatar.png";
+import profileIcon from "../../assets/profile_icon.png";
 
 interface ProposedDateSlot {
   id: string;
@@ -169,7 +169,7 @@ export default function O01ObservationRequest() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          Back to Dashboard
+          ← Return to Dashboard
         </Link>
       </div>
 
@@ -207,7 +207,7 @@ export default function O01ObservationRequest() {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "2rem", alignItems: "center" }}>
           <div>
-            <h3 style={{ fontSize: "1.5rem", fontWeight: "800", color: "#0f172a", marginBottom: "1rem" }}>
+            <h3 className="request" style={{ fontSize: "1.5rem", fontWeight: "800", marginBottom: "1rem" }}>
               This faculty member is requesting you to be their observer.
             </h3>
 
@@ -220,7 +220,7 @@ export default function O01ObservationRequest() {
                     : "Faculty details unavailable"}
                 </strong>
 
-                <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0 }}>
+                <p>
                   {invitation?.sender?.academic_level || "Academic level not provided"}
                 </p>
               </div>
@@ -259,7 +259,7 @@ export default function O01ObservationRequest() {
           {/* Profile Avatar Silhouette */}
           <div style={{ display: "flex", justifyContent: "center" }}>
             <img
-              src={avatarPlaceholder}
+              src={profileIcon}
               alt="Faculty Avatar"
               style={{
                 width: "140px",

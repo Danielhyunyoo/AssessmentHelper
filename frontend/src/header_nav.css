@@ -1,0 +1,232 @@
+/* ==========================================
+   HEADER & NAVIGATION STYLES
+   ========================================== */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+#logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+#logo h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.header-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+#user-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.icon,
+header .icon,
+#user-shortcuts .icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Back Links */
+.back-dashboard-wrapper,
+.top-nav-wrapper,
+.profile-back-link-wrapper {
+  margin-bottom: 0.75rem;
+}
+
+.back-dashboard-link,
+.profile-back-link {
+  color: #0f172a;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: opacity 0.15s ease;
+}
+
+.back-dashboard-link:hover,
+.profile-back-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+/* Hamburger & Slide-Over Drawer */
+.hamburger-btn {
+  background: none;
+  border: none;
+  color: #0f172a;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.hamburger-btn:hover {
+  background-color: #f1f5f9;
+}
+
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.menu-drawer {
+  width: 320px;
+  max-width: 85vw;
+  height: 100%;
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow-y: auto;
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.menu-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.close-btn:hover {
+  color: #0f172a;
+  background-color: #e2e8f0;
+}
+
+.menu-body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.menu-section h4 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 0 0 0.25rem 0;
+  font-weight: 700;
+}
+
+.menu-section a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  color: #334155;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.menu-section a:hover,
+.menu-item-hover:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  padding-left: 0.95rem;
+}
+
+.menu-signout,
+.menu-signout-item {
+  color: #dc2626 !important;
+}
+
+.menu-signout:hover,
+.menu-signout-item:hover {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Header & Nav Dark Mode Overrides (Colors Only) */
+html.dark-mode header,
+html.dark-mode .menu-drawer {
+  background-color: #121212;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .menu-header {
+  background-color: #18181b;
+  color: #ffffff;
+  border-color: #27272a;
+}
+
+html.dark-mode .back-dashboard-link,
+html.dark-mode .profile-back-link {
+  color: #60a5fa;
+}
+
+html.dark-mode .menu-section a:hover,
+html.dark-mode .menu-item-hover:hover {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+}
