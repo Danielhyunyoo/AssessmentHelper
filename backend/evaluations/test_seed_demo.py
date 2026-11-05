@@ -6,7 +6,7 @@ from django.test import override_settings
 
 from rest_framework.test import APITestCase
 
-from .models import Course, Cycle, Signup
+from .models import Course, Cycle, Signup, Template
 
 User = get_user_model()
 
@@ -17,14 +17,27 @@ class SeedDemoTests(APITestCase):
         call_command("seed_demo", stdout=StringIO())
 
     def test_running_twice_creates_nothing_new(self):
-        counts = (User.objects.count(), Course.objects.count(), Cycle.objects.count())
+        counts = (User.objects.count(), Course.objects.count(), Cycle.objects.count(), Template.objects.count())
 
         call_command("seed_demo", stdout=StringIO())
 
         self.assertEqual(
-            (User.objects.count(), Course.objects.count(), Cycle.objects.count()),
+            (User.objects.count(), Course.objects.count(), Cycle.objects.count(), Template.objects.count()),
             counts,
         )
+
+    def test_seeds_a_published_observation_template(self):
+        template = Template.objects.get(type="observation", status="published")
+
+        self.assertEqual(len(template.questions), 5)
+
+    def test_keeps_a_template_the_committee_already_published(self):
+        Template.objects.all().delete()
+        Template.objects.create(name="Committee form", type="observation", status="published", questions=[])
+
+        call_command("seed_demo", stdout=StringIO())
+
+        self.assertEqual(list(Template.objects.values_list("name", flat=True)), ["Committee form"])
 
     def test_personas_list_the_seeded_accounts_in_order(self):
         response = self.client.get("/api/demo/personas/")

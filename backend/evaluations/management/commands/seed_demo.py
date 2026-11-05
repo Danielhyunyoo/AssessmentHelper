@@ -7,10 +7,24 @@ from django.db.models import Q
 
 from evaluations.models import (
     Course, Cycle, Department, EvaluationCarryForward, Invitation, Notification,
-    Observation, Pairing, Signup, Survey,
+    Observation, Pairing, Signup, Survey, Template,
 )
 
 User = get_user_model()
+
+OBSERVATION_TEMPLATE = {
+    "name": "Peer classroom observation",
+    "type": "observation",
+    "status": "published",
+    "instructions": "Rate each area from 1 (needs improvement) to 5 (excellent), then add comments.",
+    "questions": [
+        {"id": "organization", "text": "Class was organized and objectives were clear", "type": "rating", "required": True, "min": 1, "max": 5},
+        {"id": "clarity", "text": "Explanations were clear and accurate", "type": "rating", "required": True, "min": 1, "max": 5},
+        {"id": "engagement", "text": "Students were engaged and participating", "type": "rating", "required": True, "min": 1, "max": 5},
+        {"id": "strengths", "text": "Strengths observed", "type": "text", "required": True},
+        {"id": "suggestions", "text": "Suggestions for improvement", "type": "text", "required": False},
+    ],
+}
 
 FALL_2026 = {
     "start_date": date(2026, 8, 24),
@@ -122,6 +136,9 @@ class Command(BaseCommand):
             users[username] = user
 
         Cycle.objects.update_or_create(semester="Fall 2026", defaults=FALL_2026)
+
+        if not Template.objects.filter(type="observation", status="published").exists():
+            Template.objects.create(**OBSERVATION_TEMPLATE)
 
         for username, number, section, title, schedule, classroom, semester, year in COURSES:
             Course.objects.update_or_create(
