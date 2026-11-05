@@ -256,6 +256,8 @@ class Invitation(models.Model):
 
     expires_at = models.DateTimeField(null=True, blank=True)
 
+    reminded_at = models.DateTimeField(null=True, blank=True)
+
     responded_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):

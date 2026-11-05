@@ -17,10 +17,10 @@ class SessionAuthTests(APITestCase):
         self.client = APIClient(enforce_csrf_checks=True)
 
         department = Department.objects.create(name="Computer Science", department_code="CS")
-        self.alice = User.objects.create_user(
-            username="alice", password="alice-pass", email="alice@utdallas.edu"
+        self.professor_a = User.objects.create_user(
+            username="professor_a", password="professor_a-pass", email="professora@utdallas.edu"
         )
-        self.bob = User.objects.create_user(username="bob", password="bob-pass")
+        self.professor_b = User.objects.create_user(username="professor_b", password="professor_b-pass")
         self.committee = User.objects.create_user(
             username="committee", password="committee-pass", role="admin"
         )
@@ -34,7 +34,7 @@ class SessionAuthTests(APITestCase):
             survey_deadline=date.today() + timedelta(days=45),
             status="active",
         )
-        for instructor, number in [(self.alice, "2337"), (self.bob, "2305")]:
+        for instructor, number in [(self.professor_a, "2337"), (self.professor_b, "2305")]:
             Course.objects.create(
                 department=department,
                 instructor=instructor,
@@ -59,11 +59,11 @@ class SessionAuthTests(APITestCase):
         )
 
     def test_login_starts_a_session(self):
-        response = self.login("alice", "alice-pass")
+        response = self.login("professor_a", "professor_a-pass")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["professor"]["username"], "alice")
-        self.assertEqual(self.client.get("/api/me/").data["professor"]["username"], "alice")
+        self.assertEqual(response.data["professor"]["username"], "professor_a")
+        self.assertEqual(self.client.get("/api/me/").data["professor"]["username"], "professor_a")
 
     def test_login_reports_the_role(self):
         response = self.login("committee", "committee-pass")
@@ -71,21 +71,21 @@ class SessionAuthTests(APITestCase):
         self.assertEqual(response.data["professor"]["role"], "admin")
 
     def test_login_accepts_email(self):
-        response = self.login("Alice@UTDallas.edu", "alice-pass")
+        response = self.login("ProfessorA@UTDallas.edu", "professor_a-pass")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["professor"]["username"], "alice")
+        self.assertEqual(response.data["professor"]["username"], "professor_a")
 
     def test_shared_email_is_rejected(self):
-        self.bob.email = "alice@utdallas.edu"
-        self.bob.save()
+        self.professor_b.email = "professora@utdallas.edu"
+        self.professor_b.save()
 
-        response = self.login("alice@utdallas.edu", "alice-pass")
+        response = self.login("professora@utdallas.edu", "professor_a-pass")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_wrong_password_is_rejected(self):
-        response = self.login("alice", "wrong")
+        response = self.login("professor_a", "wrong")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIsNone(self.client.get("/api/auth/session/").data["professor"])
@@ -93,7 +93,7 @@ class SessionAuthTests(APITestCase):
     def test_login_without_csrf_token_is_rejected(self):
         response = self.client.post(
             "/api/auth/login/",
-            {"username": "alice", "password": "alice-pass"},
+            {"username": "professor_a", "password": "professor_a-pass"},
             format="json",
         )
 
@@ -102,7 +102,7 @@ class SessionAuthTests(APITestCase):
     def login_from(self, origin):
         return self.client.post(
             "/api/auth/login/",
-            {"username": "alice", "password": "alice-pass"},
+            {"username": "professor_a", "password": "professor_a-pass"},
             format="json",
             HTTP_X_CSRFTOKEN=self.csrf(),
             HTTP_ORIGIN=origin,
@@ -115,7 +115,7 @@ class SessionAuthTests(APITestCase):
         self.assertEqual(self.login_from("http://evil.example").status_code, status.HTTP_403_FORBIDDEN)
 
     def test_logout_ends_the_session(self):
-        self.login("alice", "alice-pass")
+        self.login("professor_a", "professor_a-pass")
 
         response = self.client.post("/api/auth/logout/", HTTP_X_CSRFTOKEN=self.csrf())
 
@@ -128,11 +128,11 @@ class SessionAuthTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_session_endpoint_returns_the_signed_in_user(self):
-        self.login("bob", "bob-pass")
+        self.login("professor_b", "professor_b-pass")
 
         response = self.client.get("/api/auth/session/")
 
-        self.assertEqual(response.data["professor"]["username"], "bob")
+        self.assertEqual(response.data["professor"]["username"], "professor_b")
 
     def test_session_endpoint_without_login_returns_null(self):
         response = self.client.get("/api/auth/session/")
@@ -141,24 +141,24 @@ class SessionAuthTests(APITestCase):
         self.assertIsNone(response.data["professor"])
 
     def test_demo_header_is_ignored_when_debug_is_off(self):
-        response = self.client.get("/api/me/", HTTP_X_DEMO_USERNAME="alice")
+        response = self.client.get("/api/me/", HTTP_X_DEMO_USERNAME="professor_a")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @override_settings(DEBUG=True, ASSESSMENT_HELPER_DEMO_AUTH=False)
     def test_demo_header_can_be_turned_off_in_debug(self):
-        response = self.client.get("/api/me/", HTTP_X_DEMO_USERNAME="alice")
+        response = self.client.get("/api/me/", HTTP_X_DEMO_USERNAME="professor_a")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @override_settings(DEBUG=True)
     def test_demo_header_works_in_debug_by_default(self):
-        response = self.client.get("/api/me/", HTTP_X_DEMO_USERNAME="alice")
+        response = self.client.get("/api/me/", HTTP_X_DEMO_USERNAME="professor_a")
 
-        self.assertEqual(response.data["professor"]["username"], "alice")
+        self.assertEqual(response.data["professor"]["username"], "professor_a")
 
     def test_each_account_sees_only_its_own_courses(self):
-        for username, number in [("alice", "2337"), ("bob", "2305")]:
+        for username, number in [("professor_a", "2337"), ("professor_b", "2305")]:
             self.login(username, f"{username}-pass")
 
             numbers = [c["course_number"] for c in self.client.get("/api/me/courses/").data]

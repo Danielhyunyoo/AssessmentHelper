@@ -22,12 +22,13 @@ class DemoFlowTests(APITestCase):
     def setUp(self):
         call_command("seed_demo", stdout=StringIO())
         self.cycle = Cycle.objects.get(status="active")
+        self.cycle.signup_deadline = timezone.localdate() + timedelta(days=7)
         self.cycle.observation_deadline = timezone.localdate() + timedelta(days=30)
-        self.cycle.save(update_fields=["observation_deadline"])
-        self.alice = User.objects.get(username="faculty_alice")
-        self.bob = User.objects.get(username="faculty_bob")
-        self.course = Course.objects.get(instructor=self.alice, course_number="2337", year=2026)
-        self.act_as("faculty_alice")
+        self.cycle.save(update_fields=["signup_deadline", "observation_deadline"])
+        self.professor_a = User.objects.get(username="professor_a")
+        self.professor_b = User.objects.get(username="professor_b")
+        self.course = Course.objects.get(instructor=self.professor_a, course_number="2337", year=2026)
+        self.act_as("professor_a")
         self.client.post("/api/signups/", {"course_id": self.course.course_id}, format="json")
 
     def act_as(self, username):
@@ -73,7 +74,7 @@ class DemoFlowTests(APITestCase):
                 self.assertEqual(self.save_availability(self.future_datetimes(4, start=start)).status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_availability_requires_a_selected_course(self):
-        Signup.objects.filter(user=self.alice).update(course=None)
+        Signup.objects.filter(user=self.professor_a).update(course=None)
 
         response = self.save_availability(self.future_datetimes(4))
 
@@ -101,29 +102,29 @@ class DemoFlowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_releasing_the_same_list_twice_sends_one_notification(self):
-        signup = Signup.objects.get(user=self.alice)
+        signup = Signup.objects.get(user=self.professor_a)
         self.act_as("committee_demo")
 
         for _ in range(2):
-            self.client.post(f"/api/committee/signups/{signup.pk}/release-candidates/", {"observer_ids": [self.bob.pk]}, format="json")
+            self.client.post(f"/api/committee/signups/{signup.pk}/release-candidates/", {"observer_ids": [self.professor_b.pk]}, format="json")
 
-        self.assertEqual(Notification.objects.filter(user=self.alice, title="Observer candidates available").count(), 1)
+        self.assertEqual(Notification.objects.filter(user=self.professor_a, title="Observer candidates available").count(), 1)
 
     def test_saved_dates_released_list_and_invitation(self):
         values = self.future_datetimes(4)
         self.save_availability(values)
-        signup = Signup.objects.get(user=self.alice)
+        signup = Signup.objects.get(user=self.professor_a)
 
         self.act_as("committee_demo")
         released = self.client.post(
-            f"/api/committee/signups/{signup.pk}/release-candidates/", {"observer_ids": [self.bob.pk]}, format="json",
+            f"/api/committee/signups/{signup.pk}/release-candidates/", {"observer_ids": [self.professor_b.pk]}, format="json",
         )
-        self.act_as("faculty_alice")
-        sent = self.client.post("/api/invitations/send/", {"observer_id": self.bob.pk, "proposed_datetimes": values}, format="json")
+        self.act_as("professor_a")
+        sent = self.client.post("/api/invitations/send/", {"observer_id": self.professor_b.pk, "proposed_datetimes": values}, format="json")
 
         self.assertEqual(released.status_code, status.HTTP_200_OK, released.data)
         self.assertEqual(sent.status_code, status.HTTP_201_CREATED, sent.data)
-        self.assertEqual(Invitation.objects.get(sender=self.alice).proposed_dates.count(), 4)
+        self.assertEqual(Invitation.objects.get(sender=self.professor_a).proposed_dates.count(), 4)
 
 
 @override_settings(DEBUG=True)
@@ -134,7 +135,7 @@ class DemoDateTests(APITestCase):
 
     def test_simulated_date_closes_registration(self):
         self.client.put("/api/demo/date/", {"date": "2026-12-01"}, format="json")
-        self.client.defaults["HTTP_X_DEMO_USERNAME"] = "faculty_alice"
+        self.client.defaults["HTTP_X_DEMO_USERNAME"] = "professor_a"
 
         response = self.client.post("/api/signups/", {}, format="json")
 
@@ -150,13 +151,33 @@ class DemoDateTests(APITestCase):
 
     def test_reset_clears_registrations_and_the_simulated_date(self):
         self.client.put("/api/demo/date/", {"date": "2026-12-01"}, format="json")
-        alice = User.objects.get(username="faculty_alice")
-        Signup.objects.create(user=alice, cycle=Cycle.objects.get(status="active"))
+        professor_a = User.objects.get(username="professor_a")
+        Signup.objects.create(user=professor_a, cycle=Cycle.objects.get(status="active"))
 
         self.client.post("/api/demo/reset/")
 
-        self.assertFalse(Signup.objects.filter(user=alice).exists())
+        self.assertFalse(Signup.objects.filter(user=professor_a).exists())
         self.assertIsNone(self.client.get("/api/demo/date/").data["simulated_date"])
+
+    def test_reset_rebuilds_an_empty_database(self):
+        call_command("seed_demo", "--reset", stdout=StringIO())
+        Course.objects.all().delete()
+        Cycle.objects.all().delete()
+        User.objects.all().delete()
+        self.assertFalse(self.client.get("/api/demo/personas/").data)
+
+        response = self.client.post("/api/demo/reset/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(self.client.get("/api/demo/personas/").data), 9)
+        self.assertTrue(Cycle.objects.filter(status="active").exists())
+
+    def test_reset_works_with_a_stale_session_cookie(self):
+        self.client.cookies["sessionid"] = "no-such-session"
+
+        response = self.client.post("/api/demo/reset/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @override_settings(DEBUG=False)
     def test_demo_date_is_hidden_outside_demo_mode(self):

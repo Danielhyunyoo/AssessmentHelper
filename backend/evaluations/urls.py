@@ -9,6 +9,7 @@ urlpatterns = [
     path("auth/session/", views.session_user, name="auth-session"),
     path("demo/date/", views.demo_date, name="demo-date"),
     path("demo/reset/", views.demo_reset, name="demo-reset"),
+    path("demo/personas/", views.demo_personas, name="demo-personas"),
     path("me/", views.my_professor, name="my-professor"),
     path("me/courses/", views.my_courses, name="my-courses"),
     path("signups/", views.create_signup, name="create-signup"),
@@ -35,6 +36,8 @@ urlpatterns += [
     path("invitations/", views.my_sent_invitations, name="sent-invitations"),
     path("invitations/send/", views.send_invitation, name="send-invitation"),
     path("invitations/received/", views.my_received_invitations, name="received-invitations"),
+    path("invitations/reject-all/", views.reject_all_invitations, name="invitations-reject-all"),
+    path("invitations/<int:invitation_id>/reject/", views.reject_invitation, name="invitation-reject"),
     path("invitations/<int:invitation_id>/respond/", views.respond_to_invitation, name="respond-invitation"),
     path("pairings/confirm/", views.confirm_pairing, name="confirm-pairing"),
 ]
