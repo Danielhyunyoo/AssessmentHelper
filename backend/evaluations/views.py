@@ -640,7 +640,7 @@ def process_invitation_deadlines():
         for inv in expiring.select_related("sender", "recipient"):
             inv.reminded_at = now
             inv.save(update_fields=["reminded_at"])
-            expires = timezone.localtime(inv.expires_at).strftime("%b %-d at %-I:%M %p")
+            expires = timezone.localtime(inv.expires_at).strftime("%b %d at %I:%M %p").replace(" 0", " ")
             send_workflow_notification(inv.recipient, "Invitation expires soon",
                                        f"The observation request from {display_name(inv.sender)} expires {expires}.",
                                        "/observer/observation-request")
