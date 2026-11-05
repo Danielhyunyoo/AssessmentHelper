@@ -1,9 +1,8 @@
-// src/components/NightModeToggle.tsx
 import { useEffect, useState } from "react";
 import SunIcon from "../assets/sun.png";
 import MoonIcon from "../assets/moon.png";
-import BlackLogo from "../assets/logo-black.png"; // Replace with your actual paths
-import WhiteLogo from "../assets/logo-white.png";
+import defaultLogo from "../assets/default_logo.png";
+import darkModeLogo from "../assets/dark_mode_logo.png";
 
 interface NightModeToggleProps {
   onThemeChange?: (isDark: boolean) => void;
@@ -48,9 +47,11 @@ export default function NightModeToggle({ onThemeChange }: NightModeToggleProps)
   );
 }
 
-// Helper hook or asset export for Header/Navbar logo rendering:
-export function useLogo(blackLogoPath: string, whiteLogoPath: string) {
-  const [isDark, setIsDark] = useState<boolean>(() => 
+export function useLogo(
+  lightLogoPath: string = defaultLogo,
+  darkLogoPath: string = darkModeLogo
+) {
+  const [isDark, setIsDark] = useState<boolean>(() =>
     document.documentElement.classList.contains("dark-mode")
   );
 
@@ -58,9 +59,27 @@ export function useLogo(blackLogoPath: string, whiteLogoPath: string) {
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark-mode"));
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
     return () => observer.disconnect();
   }, []);
 
-  return isDark ? whiteLogoPath : blackLogoPath;
+  return isDark ? darkLogoPath : lightLogoPath;
+}
+
+interface LogoProps {
+  alt?: string;
+  className?: string;
+}
+
+export function Logo({
+  alt = "App Logo",
+  className = "header-logo",
+}: LogoProps) {
+  const activeLogo = useLogo();
+  return <img src={activeLogo} alt={alt} className={className} />;
 }

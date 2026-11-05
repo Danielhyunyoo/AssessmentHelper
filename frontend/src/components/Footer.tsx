@@ -1,14 +1,14 @@
 // src/components/Footer.jsx
-import logo from "../assets/brand-symbol.png";
+import { Logo } from "./NightModeToggle";
 
 export default function Footer() {
   return (
     <footer className="footer-container">
       <div className="footer-brand">
-        <img src={logo} alt="Logo" className="footer-logo" />
+        <Logo alt="Logo" className="footer-logo" />
         <span className="footer-title">UTD Assessment Helper</span>
       </div>
-      
+
       <div className="footer-info">
         <span className="footer-version">Version 1.0</span>
         <span className="footer-copyright">

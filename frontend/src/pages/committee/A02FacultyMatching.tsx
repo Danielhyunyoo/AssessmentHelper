@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { committeeApi, demoApi } from "../../api/endpoints";
 import type { FacultyRow } from "../../api/types";
 import { Link } from "react-router-dom";
@@ -25,8 +25,16 @@ export default function A02FacultyMatching() {
   const [displayEndDate, setDisplayEndDate] = useState<string>("Oct 9, 2026 at 11:59 PM");
   const [sendingNotifications, setSendingNotifications] = useState(false);
 
+  // Demo Sandbox State (similar to S04 pattern)
+  const [showManualMatching, setShowManualMatching] = useState<boolean>(false);
+  const manualSectionRef = useRef<HTMLDivElement>(null);
+
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
+
+  const scrollToManualMatching = () => {
+    manualSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const handleSaveDates = async () => {
     if (!startDate || !endDate) {
@@ -87,7 +95,6 @@ export default function A02FacultyMatching() {
       setMatchError("");
 
       try {
-        // Fetch current date (simulated date from DevBar or real system date)
         demoApi.date().then((dateRes) => {
           if (!cancelled) {
             setCurrentToday(dateRes.today);
@@ -142,11 +149,7 @@ export default function A02FacultyMatching() {
             try {
               const result = await committeeApi.candidatePool(signupId);
 
-              const candidates: {
-                id: number;
-                name: string;
-                academic_level: string;
-              }[] = Array.isArray(result.candidates)
+              const candidates = Array.isArray(result.candidates)
                 ? (result.candidates as {
                     id: number;
                     name: string;
@@ -331,7 +334,6 @@ export default function A02FacultyMatching() {
     }
   };
 
-  // Determine if course registration is currently open using DevBar simulated date (if set) or today
   const effectiveToday = currentToday ? new Date(`${currentToday}T00:00:00`) : new Date();
   const deadlineDate = new Date(`${endDate}T23:59:59`);
   const isOpen = effectiveToday <= deadlineDate;
@@ -341,7 +343,7 @@ export default function A02FacultyMatching() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          Back to Dashboard
+          ← Return to Dashboard
         </Link>
       </div>
 
@@ -377,86 +379,25 @@ export default function A02FacultyMatching() {
         </button>
       </section>
 
-      {/* Manual Matching */}
+      {showManualMatching && (
+        <button
+          type="button"
+          className="btn-secondary button-margin-top"
+          onClick={scrollToManualMatching}
+        >
+          Jump to Manual Matching Section ↓
+        </button>
+      )}
+
+      {/* 1. Review & Approve (Automatic Matching Section First) */}
       <section className="dashboard-phase section-margin-top">
-        <h3>Manual Observer-Observee Matching</h3>
-
-        <div className="yellow-banner">
-          <strong>IMPORTANT:</strong> The following Observees have either 0 or insufficient Observers currently matched to them. Select 1 to 5 eligible Observers for each Observee from the dropdowns below.
-        </div>
-
-        <div className="table-container theme-green summary-card-inner-padding">
-          <div className="pairing-grid">
-            {observeeList.map((observee) => {
-              const signupId = observee.signup_id!;
-
-              return (
-                <div key={signupId} className="manual-observee-card">
-                  <h4>Observee Name</h4>
-                  <p className="observee-name-text">
-                    {observee.name}
-                  </p>
-
-                  <p>
-                    <strong>
-                      {observee.course
-                        ? `${observee.course.department_code} ${observee.course.course_number}.${observee.course.section}`
-                        : "Course not selected"}
-                    </strong>
-                  </p>
-
-                  <strong>List of Available Observers</strong>
-
-                  <div className="observer-select-list">
-                    {[0, 1, 2, 3, 4].map((slotIndex) => (
-                      <select
-                        key={slotIndex}
-                        value={selectedObservers[signupId]?.[slotIndex] ?? ""}
-                        onChange={(event) =>
-                          handleObserverChange(signupId, slotIndex, Number(event.target.value))
-                        }
-                        className="slot-select-input"
-                      >
-                        <option value="">Select observer {slotIndex + 1}...</option>
-                        {(candidateOptions[signupId] ?? []).map((candidate) => (
-                          <option
-                            key={candidate.id}
-                            value={candidate.id}
-                            disabled={(selectedObservers[signupId] ?? []).some(
-                              (id, index) => id === candidate.id && index !== slotIndex
-                            )}
-                          >
-                            {candidate.name} ({candidate.academic_level})
-                          </option>
-                        ))}
-                      </select>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="btn-secondary btn-block button-margin-top"
-                    onClick={() => void handleConfirmMatches(signupId)}
-                    disabled={savingSignupId === signupId}
-                  >
-                    {savingSignupId === signupId ? "Saving..." : "Confirm Matches"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Review & Approve */}
-      <section className="dashboard-phase">
         <h3>Review and Approve Existing Observer-Observee Matched Lists</h3>
 
         <div className="yellow-banner">
           <strong>NOTE:</strong> Course registration closes on {displayEndDate}. Below are the system-generated matched observer lists ready for review, manual override, and notification dispatch to Observees.
         </div>
 
-        <div className="table-container theme-blue summary-card-inner-padding">
+        <div className="table-container theme-blue summary-card-padding">
           <p className="section-intro-text">
             Review the following completed matched lists. Select each Observee you'd like to notify about their successful matches:
           </p>
@@ -576,14 +517,99 @@ export default function A02FacultyMatching() {
             {sendingNotifications ? "Sending..." : "Release Selected Lists & Notify"}
           </button>
         </div>
+       </section>
 
-        {/* Bottom Centered Return Button */}
-        <div className="dashboard-center-action">
-          <Link to="/committee/dashboard" className="btn-secondary">
-            Return to Dashboard
-          </Link>
-        </div>
-      </section>
+      {/* S04-style Demo Toggle Box placed strictly under the automatic matching section */}
+      <div className="demo-toggle-section button-margin-top">
+        <label className="checkbox-row-label">
+          <input
+            type="checkbox"
+            checked={showManualMatching}
+            onChange={(e) => setShowManualMatching(e.target.checked)}
+          />
+          <span><strong>Demo Sandbox:</strong> Simulate unmatched professor scenario (Reveal Manual Matching)</span>
+        </label>
+      </div>
+
+      {/* 2. Manual Matching Section (Hidden until toggled on) */}
+      {showManualMatching && (
+        <section ref={manualSectionRef} className="dashboard-phase section-margin-top">
+          <h3>Manual Observer-Observee Matching</h3>
+
+          <div className="yellow-banner">
+            <strong>IMPORTANT:</strong> The following Observees have either 0 or insufficient Observers currently matched to them. Select 1 to 5 eligible Observers for each Observee from the dropdowns below.
+          </div>
+
+          <div className="table-container theme-green summary-card-padding">
+            <div className="pairing-grid">
+              {observeeList.map((observee) => {
+                const signupId = observee.signup_id!;
+
+                return (
+                  <div key={signupId} className="manual-observee-card">
+                    <h4>Observee Name</h4>
+                    <p className="observee-name-text">
+                      {observee.name}
+                    </p>
+
+                    <p>
+                      <strong>
+                        {observee.course
+                          ? `${observee.course.department_code} ${observee.course.course_number}.${observee.course.section}`
+                          : "Course not selected"}
+                      </strong>
+                    </p>
+
+                    <strong>List of Available Observers</strong>
+
+                    <div className="observer-select-list">
+                      {[0, 1, 2, 3, 4].map((slotIndex) => (
+                        <select
+                          key={slotIndex}
+                          value={selectedObservers[signupId]?.[slotIndex] ?? ""}
+                          onChange={(event) =>
+                            handleObserverChange(signupId, slotIndex, Number(event.target.value))
+                          }
+                          className="slot-select-input"
+                        >
+                          <option value="">Select observer {slotIndex + 1}...</option>
+                          {(candidateOptions[signupId] ?? []).map((candidate) => (
+                            <option
+                              key={candidate.id}
+                              value={candidate.id}
+                              disabled={(selectedObservers[signupId] ?? []).some(
+                                (id, index) => id === candidate.id && index !== slotIndex
+                              )}
+                            >
+                              {candidate.name} ({candidate.academic_level})
+                            </option>
+                          ))}
+                        </select>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-secondary btn-block button-margin-top"
+                      onClick={() => void handleConfirmMatches(signupId)}
+                      disabled={savingSignupId === signupId}
+                    >
+                      {savingSignupId === signupId ? "Saving..." : "Confirm Matches"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Bottom Centered Return Button */}
+      <div className="dashboard-center-action">
+        <Link to="/committee/dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
+      </div>
 
       {/* Date Control Modal Popup */}
       {isModalOpen && (

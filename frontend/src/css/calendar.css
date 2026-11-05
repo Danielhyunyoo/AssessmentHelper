@@ -1,0 +1,204 @@
+/* ==========================================
+   GLOBAL STANDARDIZED BUTTON SYSTEM
+   ========================================== */
+.btn-primary,
+.btn-secondary,
+.primary-btn,
+.secondary-btn,
+.btn-pill-primary,
+.btn-pill-secondary,
+.registration-btn,
+.home-signin-btn,
+.profile-action-btn,
+.profile-photo-btn,
+.e01-btn,
+.e01-btn-primary,
+.e01-btn-secondary,
+.btn-select-toggle,
+.btn-primary-action,
+.btn-secondary-action {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.4;
+  letter-spacing: normal;
+  padding: 0.75rem 1.75rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.primary-btn:disabled,
+.secondary-btn:disabled,
+.e01-btn:disabled,
+.btn-select-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Primary Variant (Solid Black) */
+.btn-primary,
+.primary-btn,
+.btn-pill-primary,
+.home-signin-btn,
+.profile-action-btn,
+.e01-btn-primary,
+.modal-btn-primary,
+.btn-primary-action {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled),
+.primary-btn:hover:not(:disabled),
+.btn-pill-primary:hover:not(:disabled),
+.home-signin-btn:hover:not(:disabled),
+.profile-action-btn:hover:not(:disabled),
+.e01-btn-primary:hover:not(:disabled),
+.modal-btn-primary:hover:not(:disabled),
+.btn-primary-action:hover:not(:disabled) {
+  background-color: #1e293b;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Secondary Variant (Dark Slate / Charcoal) */
+.btn-secondary,
+.secondary-btn,
+.btn-pill-secondary,
+.registration-btn,
+.profile-photo-btn,
+.e01-btn-secondary,
+.modal-btn-secondary,
+.btn-secondary-action {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+.btn-secondary:hover:not(:disabled),
+.secondary-btn:hover:not(:disabled),
+.btn-pill-secondary:hover:not(:disabled),
+.registration-btn:hover:not(:disabled),
+.profile-photo-btn:hover:not(:disabled),
+.e01-btn-secondary:hover:not(:disabled),
+.modal-btn-secondary:hover:not(:disabled),
+.btn-secondary-action:hover:not(:disabled) {
+  background-color: #0f172a;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-select-toggle {
+  background-color: #cbd5e1;
+  color: #1e293b;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.btn-select-toggle:hover:not(:disabled) {
+  background-color: #94a3b8;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.btn-block {
+  width: 100%;
+  display: block;
+}
+
+.btn-danger-sm {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-danger-sm:hover {
+  background-color: #fecaca;
+  color: #7f1d1d;
+}
+
+/* Button Dark Mode Overrides (Colors Only) */
+html.dark-mode .btn-primary,
+html.dark-mode .primary-btn,
+html.dark-mode .btn-pill-primary,
+html.dark-mode .home-signin-btn,
+html.dark-mode .profile-action-btn,
+html.dark-mode .e01-btn-primary,
+html.dark-mode .modal-btn-primary,
+html.dark-mode .search-submit-btn,
+html.dark-mode .btn-primary-action {
+  background-color: #27272a;
+  color: #ffffff;
+}
+
+html.dark-mode .btn-primary:hover:not(:disabled),
+html.dark-mode .primary-btn:hover:not(:disabled),
+html.dark-mode .btn-pill-primary:hover:not(:disabled),
+html.dark-mode .home-signin-btn:hover:not(:disabled),
+html.dark-mode .profile-action-btn:hover:not(:disabled),
+html.dark-mode .e01-btn-primary:hover:not(:disabled),
+html.dark-mode .modal-btn-primary:hover:not(:disabled),
+html.dark-mode .search-submit-btn:hover:not(:disabled),
+html.dark-mode .btn-primary-action:hover:not(:disabled) {
+  background-color: #3f3f46;
+  color: #ffffff;
+}
+
+html.dark-mode .btn-secondary,
+html.dark-mode .secondary-btn,
+html.dark-mode .btn-pill-secondary,
+html.dark-mode .registration-btn,
+html.dark-mode .profile-photo-btn,
+html.dark-mode .e01-btn-secondary,
+html.dark-mode .modal-btn-secondary,
+html.dark-mode .btn-secondary-action,
+html.dark-mode .btn-modal-close,
+html.dark-mode .btn-modal-cancel {
+  background-color: #18181b;
+  color: #e4e4e7;
+  border: 1px solid #3f3f46;
+}
+
+html.dark-mode .btn-secondary:hover:not(:disabled),
+html.dark-mode .secondary-btn:hover:not(:disabled),
+html.dark-mode .btn-pill-secondary:hover:not(:disabled),
+html.dark-mode .registration-btn:hover:not(:disabled),
+html.dark-mode .profile-photo-btn:hover:not(:disabled),
+html.dark-mode .e01-btn-secondary:hover:not(:disabled),
+html.dark-mode .modal-btn-secondary:hover:not(:disabled),
+html.dark-mode .btn-secondary-action:hover:not(:disabled),
+html.dark-mode .btn-modal-close:hover,
+html.dark-mode .btn-modal-cancel:hover {
+  background-color: #27272a;
+  color: #ffffff;
+}
+
+html.dark-mode .btn-select-toggle {
+  background-color: #27272a;
+  color: #f4f4f5;
+}
+
+html.dark-mode .btn-select-toggle:hover:not(:disabled) {
+  background-color: #3f3f46;
+}

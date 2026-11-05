@@ -139,7 +139,7 @@ export default function S05ObservationRecord() {
       {/* Top Navigation */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+          ← Return to Dashboard
         </Link>
       </div>
 

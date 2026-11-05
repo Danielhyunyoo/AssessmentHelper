@@ -1,0 +1,47 @@
+/* ==========================================
+   FOOTER STYLES
+   ========================================== */
+.footer-container {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #e5e7eb;
+  background-color: #ffffff;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.footer-logo {
+  height: 28px;
+  width: auto;
+}
+
+.footer-title {
+  font-weight: 700;
+  font-style: italic;
+  font-size: 1.1rem;
+}
+
+.footer-info {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* Footer Dark Mode Overrides (Colors Only) */
+html.dark-mode .footer-container {
+  background-color: #121212;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .footer-info {
+  color: #a1a1aa;
+}

@@ -1,0 +1,148 @@
+/* ==========================================
+   HELPER UTILITIES, DEV PANEL & NIGHTMODE FLOATING TOGGLE
+   ========================================== */
+.align-center,
+.text-center {
+  text-align: center;
+}
+
+.col-checkbox,
+.checkbox-col {
+  width: 60px;
+  text-align: center;
+}
+
+.font-semibold { font-weight: 600; }
+.font-slate { color: #64748b; }
+.font-sm { font-size: 0.85rem; }
+.block-label { display: block; margin-bottom: 0.25rem; }
+.margin-none { margin: 0 !important; }
+.phase-spacing, .section-margin-top { margin-top: 2rem; }
+.button-margin-top { margin-top: 1rem; }
+
+.dev-panel {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  width: 260px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+}
+
+.dev-panel-header {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  background: #f8fafc;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dev-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem;
+}
+
+.dev-divider {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 0.25rem 0;
+}
+
+.nightmode-floating-btn {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9998;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #18181b;
+  color: #ffffff;
+  border: 2px solid #52525b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.nightmode-floating-btn:hover {
+  transform: scale(1.08);
+  background-color: #27272a;
+}
+
+.nightmode-icon {
+  width: 55px;
+  height: 55px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 868px) {
+  .home-content {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  
+  .home-title {
+    font-size: 2.5rem;
+  }
+  
+  .home-text {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-photo-col {
+    order: -1;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Utilities & Dev Dark Mode Overrides (Colors Only) */
+html.dark-mode .dev-panel {
+  background: #121212;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .dev-panel-header {
+  background-color: #18181b;
+  color: #ffffff;
+  border-color: #27272a;
+}
+
+html.dark-mode .dev-divider {
+  border-color: #27272a;
+}
+
+html.dark-mode .font-slate,
+html.dark-mode .dev-footer-note {
+  color: #a1a1aa;
+}

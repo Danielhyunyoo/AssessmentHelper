@@ -60,7 +60,7 @@ export default function S03FacultyNotifications() {
     {/* 1. TOP-LEFT TEXT LINK */}
     <div className="back-dashboard-wrapper">
       <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-        Back to Dashboard
+        ← Return to Dashboard
       </Link>
     </div>
     
