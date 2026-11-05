@@ -36,6 +36,8 @@ urlpatterns += [
     path("invitations/", views.my_sent_invitations, name="sent-invitations"),
     path("invitations/send/", views.send_invitation, name="send-invitation"),
     path("invitations/received/", views.my_received_invitations, name="received-invitations"),
+    path("invitations/reject-all/", views.reject_all_invitations, name="invitations-reject-all"),
+    path("invitations/<int:invitation_id>/reject/", views.reject_invitation, name="invitation-reject"),
     path("invitations/<int:invitation_id>/respond/", views.respond_to_invitation, name="respond-invitation"),
     path("pairings/confirm/", views.confirm_pairing, name="confirm-pairing"),
 ]

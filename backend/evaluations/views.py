@@ -318,6 +318,7 @@ def select_signup_course(request):
 @api_view(["GET"])
 def faculty_dashboard(request):
     """Dashboard data for S01, scoped to the current professor and cycle."""
+    process_invitation_deadlines()
     from django.utils import timezone
     from .models import Invitation, Notification, Pairing, Observation
 
@@ -417,6 +418,7 @@ def faculty_dashboard(request):
 @api_view(["GET"])
 def my_notifications(request):
     """S03: Return only the current user's notifications, newest first."""
+    process_invitation_deadlines()
     professor = get_current_professor(request)
     notifications = Notification.objects.filter(user=professor).order_by(
         "-created_at", "-notification_id"
@@ -606,6 +608,39 @@ def send_workflow_notification(user, title, message, destination):
     )
 
 
+CLOSED_INVITATION_STATUSES = ("expired", "declined", "rejected")
+
+
+def display_name(user):
+    return user.get_full_name() or user.username
+
+
+def process_invitation_deadlines():
+    """Expire unanswered invitations and remind observers a day before they lapse."""
+    now = clock.now()
+    with transaction.atomic():
+        overdue = Invitation.objects.select_for_update().filter(status="pending", expires_at__lte=now)
+        for inv in overdue.select_related("sender", "recipient"):
+            inv.status = "expired"
+            inv.save(update_fields=["status"])
+            send_workflow_notification(inv.sender, "Invitation expired",
+                                       f"{display_name(inv.recipient)} did not answer within 48 hours. You can invite them again.",
+                                       "/observee/observer-selection")
+            send_workflow_notification(inv.recipient, "Invitation expired",
+                                       f"The observation request from {display_name(inv.sender)} expired.",
+                                       "/observer/observation-request")
+        expiring = Invitation.objects.select_for_update().filter(
+            status="pending", reminded_at__isnull=True, expires_at__gt=now, expires_at__lte=now + timedelta(hours=24),
+        )
+        for inv in expiring.select_related("sender", "recipient"):
+            inv.reminded_at = now
+            inv.save(update_fields=["reminded_at"])
+            expires = timezone.localtime(inv.expires_at).strftime("%b %-d at %-I:%M %p")
+            send_workflow_notification(inv.recipient, "Invitation expires soon",
+                                       f"The observation request from {display_name(inv.sender)} expires {expires}.",
+                                       "/observer/observation-request")
+
+
 def invitation_json(inv):
     return {
         "invitation_id": inv.pk,
@@ -687,7 +722,7 @@ def committee_release_candidates(request, signup_id):
             MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
             signup.matches_released_at = clock.now()
             signup.save(update_fields=["matches_released_at"])
-            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observer-selection")
+            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observee/observer-selection")
     return Response({"signup_id": signup.pk, "released": True, "observer_ids": ids})
 
 
@@ -708,6 +743,7 @@ def my_matched_candidates(request):
 
 @api_view(["POST"])
 def send_invitation(request):
+    process_invitation_deadlines()
     sender = get_current_professor(request)
     cycle = get_current_cycle()
     data = InvitationCreateSerializer(data=request.data)
@@ -727,17 +763,19 @@ def send_invitation(request):
             raise PermissionDenied("Observer is not in your released candidate list.")
         if Pairing.objects.filter(cycle=cycle, observee=sender, status="confirmed").exists():
             raise ValidationError({"detail": "Already finalized an observer."})
-        if Invitation.objects.filter(cycle=cycle, sender=sender, recipient_id=observer_id).exists():
-            raise ValidationError({"detail": "An invitation to this observer already exists this cycle."})
+        if Invitation.objects.filter(cycle=cycle, sender=sender, recipient_id=observer_id).exclude(
+                status__in=CLOSED_INVITATION_STATUSES).exists():
+            raise ValidationError({"detail": "An invitation to this observer is already open this cycle."})
         inv = Invitation.objects.create(cycle=cycle, sender=sender, recipient_id=observer_id,
                                         course=signup.course, expires_at=now + timedelta(hours=48))
         ProposedDate.objects.bulk_create([ProposedDate(invitation=inv, proposed_datetime=d) for d in dates])
-        send_workflow_notification(inv.recipient, "Observation invitation", "You have a new observation request.", f"/observer-requests/{inv.pk}")
+        send_workflow_notification(inv.recipient, "Observation invitation", "You have a new observation request.", "/observer/observation-request")
     return Response(invitation_json(inv), status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET"])
 def my_sent_invitations(request):
+    process_invitation_deadlines()
     user = get_current_professor(request)
     invs = (
         Invitation.objects
@@ -750,6 +788,7 @@ def my_sent_invitations(request):
 
 @api_view(["GET"])
 def my_received_invitations(request):
+    process_invitation_deadlines()
     user = get_current_professor(request)
     invs = (
         Invitation.objects
@@ -762,6 +801,7 @@ def my_received_invitations(request):
 
 @api_view(["POST"])
 def respond_to_invitation(request, invitation_id):
+    process_invitation_deadlines()
     user = get_current_professor(request)
     data = InvitationResponseSerializer(data=request.data)
     data.is_valid(raise_exception=True)
@@ -780,12 +820,51 @@ def respond_to_invitation(request, invitation_id):
             inv.status = "declined"
         inv.responded_at = clock.now()
         inv.save(update_fields=["status", "responded_at"])
-        send_workflow_notification(inv.sender, "Invitation response", f"An observer {inv.status} your invitation.", "/observer-selection")
+        send_workflow_notification(inv.sender, "Invitation response",
+                                   f"{display_name(inv.recipient)} {inv.status} your invitation.", "/observee/observer-selection")
+    return Response(invitation_json(inv))
+
+
+def _reject(inv):
+    inv.status = "rejected"
+    inv.responded_at = inv.responded_at or clock.now()
+    inv.save(update_fields=["status", "responded_at"])
+    send_workflow_notification(inv.recipient, "Invitation withdrawn",
+                               f"{display_name(inv.sender)} withdrew their observation request.",
+                               "/observer/observation-request")
+
+
+@api_view(["POST"])
+def reject_invitation(request, invitation_id):
+    """The observee withdraws one pending or accepted invitation."""
+    sender = get_current_professor(request)
+    process_invitation_deadlines()
+    with transaction.atomic():
+        inv = get_object_or_404(Invitation.objects.select_for_update().select_related("sender", "recipient"),
+                                pk=invitation_id, sender=sender, cycle=get_current_cycle())
+        if inv.status not in ("pending", "accepted"):
+            raise ValidationError({"detail": "Only pending or accepted invitations can be rejected."})
+        _reject(inv)
     return Response(invitation_json(inv))
 
 
 @api_view(["POST"])
+def reject_all_invitations(request):
+    """The observee withdraws every pending or accepted invitation this cycle."""
+    sender = get_current_professor(request)
+    process_invitation_deadlines()
+    with transaction.atomic():
+        open_invitations = Invitation.objects.select_for_update().select_related("sender", "recipient").filter(
+            sender=sender, cycle=get_current_cycle(), status__in=("pending", "accepted"))
+        rejected = list(open_invitations)
+        for inv in rejected:
+            _reject(inv)
+    return Response({"rejected_ids": [inv.pk for inv in rejected]})
+
+
+@api_view(["POST"])
 def confirm_pairing(request):
+    process_invitation_deadlines()
     observee = get_current_professor(request)
     data = PairingConfirmSerializer(data=request.data)
     data.is_valid(raise_exception=True)
