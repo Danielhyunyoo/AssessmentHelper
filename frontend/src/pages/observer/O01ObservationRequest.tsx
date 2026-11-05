@@ -155,6 +155,7 @@ export default function O01ObservationRequest() {
     declined: "You declined this invitation",
     expired: "This invitation expired",
     closed: "This invitation was closed",
+    rejected: "The observee withdrew this request",
   };
   const acceptedWhen = acceptedDate
     ? ` for ${new Date(acceptedDate.datetime).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
@@ -274,7 +275,17 @@ export default function O01ObservationRequest() {
         </div>
       </section>
 
-      {/* Observation Date and Time Selection Section */}
+      {answeredText && (
+        <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
+          <h3>Your Response</h3>
+          <div className="yellow-banner">
+            <strong>{answeredText}</strong>
+            {invitation?.status === "accepted" && " Waiting for the observee to confirm the visit."}
+          </div>
+        </section>
+      )}
+
+      {!answeredText && (
       <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
         <h3>Observation Date and Time Selection</h3>
 
@@ -338,6 +349,7 @@ export default function O01ObservationRequest() {
           </button>
         </div>
       </section>
+      )}
 
       {/* Bottom Centered Return Button */}
       <div className="dashboard-center-action">
