@@ -6,7 +6,7 @@ from django.test import override_settings
 
 from rest_framework.test import APITestCase
 
-from .models import Course, Cycle
+from .models import Course, Cycle, Signup
 
 User = get_user_model()
 
@@ -26,9 +26,28 @@ class SeedDemoTests(APITestCase):
             counts,
         )
 
+    def test_personas_list_the_seeded_accounts_in_order(self):
+        response = self.client.get("/api/demo/personas/")
+
+        self.assertEqual(
+            [persona["name"] for persona in response.data],
+            [f"Professor {letter}" for letter in "ABCDEFGH"] + ["Assessment Committee"],
+        )
+        self.assertEqual(response.data[0]["email"], "professora@utdallas.edu")
+        self.assertEqual(response.data[-1]["role"], "admin")
+
+    def test_an_old_named_account_is_renamed_and_keeps_its_signup(self):
+        User.objects.filter(username="professor_a").update(username="faculty_alice")
+        Signup.objects.create(user=User.objects.get(username="faculty_alice"), cycle=Cycle.objects.get(status="active"))
+
+        call_command("seed_demo", stdout=StringIO())
+
+        self.assertFalse(User.objects.filter(username="faculty_alice").exists())
+        self.assertTrue(Signup.objects.filter(user__username="professor_a").exists())
+
     def test_demo_accounts_can_sign_in_by_email(self):
         for email, username in [
-            ("alice@utdallas.edu", "faculty_alice"),
+            ("professora@utdallas.edu", "professor_a"),
             ("committee@utdallas.edu", "committee_demo"),
         ]:
             with self.subTest(email=email):
@@ -41,10 +60,10 @@ class SeedDemoTests(APITestCase):
 
     def test_each_faculty_member_has_a_different_evaluation_status(self):
         expected = {
-            "faculty_alice": "due",
-            "faculty_bob": "overdue",
-            "faculty_carol": "not_due",
-            "faculty_dave": "undetermined",
+            "professor_a": "due",
+            "professor_b": "overdue",
+            "professor_c": "not_due",
+            "professor_d": "undetermined",
         }
 
         for username, status in expected.items():

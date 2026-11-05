@@ -9,6 +9,7 @@ urlpatterns = [
     path("auth/session/", views.session_user, name="auth-session"),
     path("demo/date/", views.demo_date, name="demo-date"),
     path("demo/reset/", views.demo_reset, name="demo-reset"),
+    path("demo/personas/", views.demo_personas, name="demo-personas"),
     path("me/", views.my_professor, name="my-professor"),
     path("me/courses/", views.my_courses, name="my-courses"),
     path("signups/", views.create_signup, name="create-signup"),

@@ -1,5 +1,5 @@
 import { get, patch, post, put, qs } from "./http";
-import type { Course, CycleDates, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template, CommitteePendingRecords, CommitteeCompletedRecords, CommitteeSurveyTracking, } from "./types";
+import type { Course, CommitteeCompletedRecords, CommitteePendingRecords, CommitteeSurveyTracking, CycleDates, DemoPersona, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template } from "./types";
 // L02-L03
 export const authApi = {
   csrf: () => get<{detail:string}>("/auth/csrf/"),
@@ -12,6 +12,7 @@ export const demoApi = {
   date: () => get<{simulated_date:string|null;today:string}>("/demo/date/"),
   setDate: (date: string|null) => put<{simulated_date:string|null;today:string}>("/demo/date/", {date}),
   reset: () => post<{detail:string}>("/demo/reset/"),
+  personas: () => get<DemoPersona[]>("/demo/personas/"),
 };
 // L01-L03, S01-S03, E01
 export const facultyApi = {

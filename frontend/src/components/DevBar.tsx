@@ -2,9 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { authApi, demoApi, facultyApi } from "../api/endpoints";
-import type { RegistrationStatus } from "../api/types";
-
-const PERSONAS = ["Alice", "Bob", "Carol", "Dave", "Juan", "Diego", "Valeria", "Maria", "Committee"];
+import type { DemoPersona, RegistrationStatus } from "../api/types";
 
 // Grouped page options with category headers for the dropdown
 const PAGE_GROUPS: { group: string; items: [string, string][] }[] = [
@@ -58,10 +56,10 @@ const PAGE_GROUPS: { group: string; items: [string, string][] }[] = [
 // Flattened list for index calculations and lookup navigation
 const ALL_PAGES = PAGE_GROUPS.flatMap((g) => g.items);
 
-async function signInAs(name: string) {
+async function signInAs(persona: DemoPersona) {
   await authApi.csrf();
-  await authApi.login(`${name.toLowerCase()}@utdallas.edu`, "demo-password");
-  window.location.assign(name === "Committee" ? "/committee/dashboard" : "/shared/faculty-dashboard");
+  await authApi.login(persona.email, "demo-password");
+  window.location.assign(persona.role === "admin" ? "/committee/dashboard" : "/shared/faculty-dashboard");
 }
 
 async function setToday(date: string) {
@@ -87,12 +85,14 @@ export default function DevBar() {
   const [open, setOpen] = useState(savedOpen);
   const location = useLocation();
   const [user, setUser] = useState("");
+  const [personas, setPersonas] = useState<DemoPersona[]>([]);
   const [today, setTodayValue] = useState("");
   const [, setSimulated] = useState(false);
   const [cycle, setCycle] = useState<RegistrationStatus | null>(null);
 
   useEffect(() => {
-    authApi.session().then((result) => setUser(result.professor?.first_name ?? "")).catch(() => {});
+    authApi.session().then((result) => setUser(result.professor?.email ?? "")).catch(() => {});
+    demoApi.personas().then(setPersonas).catch(() => {});
     demoApi.date().then(async (result) => {
       if (!result.simulated_date && !today) {
         // Default to Sept 1 of the current year if no simulated date is active yet
@@ -106,7 +106,7 @@ export default function DevBar() {
       }
     }).catch(() => {});
     facultyApi.registrationStatus().then(setCycle).catch(() => {});
-  }, []);
+  }, [location.pathname]);
 
   function toggle() {
     const nextOpen = !open;
@@ -186,9 +186,15 @@ export default function DevBar() {
 
           <label className="dev-field">
             <span>As:</span>
-            <select value={user} onChange={(event) => void signInAs(event.target.value)}>
-              <option value="" disabled>Signed Out</option>
-              {PERSONAS.map((name) => <option key={name} value={name}>{name}</option>)}
+            <select
+              value={user}
+              onChange={(event) => {
+                const persona = personas.find((item) => item.email === event.target.value);
+                if (persona) void signInAs(persona);
+              }}
+            >
+              <option value="" disabled>{personas.length ? "Signed Out" : "No demo accounts"}</option>
+              {personas.map((persona) => <option key={persona.email} value={persona.email}>{persona.name}</option>)}
             </select>
           </label>
 

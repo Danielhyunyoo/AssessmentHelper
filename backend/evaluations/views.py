@@ -16,6 +16,7 @@ from rest_framework.authentication import SessionAuthentication
 from .models import Course, Cycle, Signup, Notification, Invitation
 from . import clock
 from .evaluation_status import evaluation_status_for
+from .management.commands.seed_demo import COMMITTEE, FACULTY
 from django.utils import timezone
 from .serializers import (
     CourseSerializer,
@@ -118,6 +119,20 @@ def demo_reset(request):
     call_command("seed_demo", "--reset", stdout=StringIO())
     clock.set_simulated_date(None)
     return Response({"detail": "Demo data reset."})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([AllowAny])
+def demo_personas(request):
+    """List the seeded demo accounts in seed order."""
+    require_demo_mode()
+    usernames = [person["username"] for person in [*FACULTY, COMMITTEE]]
+    accounts = sorted(User.objects.filter(username__in=usernames), key=lambda user: usernames.index(user.username))
+    return Response([
+        {"name": user.get_full_name(), "email": user.email, "role": user.role}
+        for user in accounts
+    ])
 
 def get_current_professor(request):
     """Return the authenticated user or a DEBUG-only demo user."""

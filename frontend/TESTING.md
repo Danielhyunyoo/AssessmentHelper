@@ -2,7 +2,7 @@
 
 ## Startup smoke test
 
-- [ ] Django `/api/dashboard/` works for `faculty_alice` when running locally in `DEBUG=True`.
+- [ ] Django `/api/dashboard/` works for `professor_a` when running locally in `DEBUG=True`.
 - [ ] `npm run dev` launches `http://localhost:5173` and renders S01 + S03.
 - [ ] Network inspector shows `/api/dashboard/` and `/api/notifications/` hitting Vite proxy, not the public internet.
 - [ ] `npm run build` succeeds before PR submission.
