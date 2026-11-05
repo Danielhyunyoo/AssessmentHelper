@@ -921,6 +921,30 @@ def observations_collection(request):
     """List my records, or create a draft for an assigned pairing."""
     user = get_current_professor(request)
     if request.method == "GET":
+        template = Template.objects.filter(
+            type="observation",
+            status="published",
+        ).order_by("-version", "-template_id").first()
+
+        if template:
+            with transaction.atomic():
+                pairings = Pairing.objects.select_for_update().filter(
+                    (Q(observer=user) | Q(observee=user)),
+                    cycle=get_current_cycle(),
+                    status="confirmed",
+                    confirmed_datetime__isnull=False,
+                    confirmed_datetime__lte=clock.now(),
+                )
+
+                for pairing in pairings:
+                    Observation.objects.get_or_create(
+                        pairing=pairing,
+                        defaults={
+                            "template": template,
+                            "status": "draft",
+                        },
+                    )
+
         records = Observation.objects.filter(
             Q(pairing__observer=user) | Q(pairing__observee=user)
         ).select_related("pairing", "pairing__observer", "pairing__observee",
@@ -985,14 +1009,14 @@ def sign_observation(request, observation_id):
             observation.status = "awaiting_observee_signature"
             observation.save(update_fields=["observer_signed", "observer_signed_at", "status"])
             send_workflow_notification(observation.pairing.observee, "Observation ready to sign",
-                                       "The observer submitted the evaluation record.", f"/observations/{observation.pk}")
+                                       "The observer submitted the evaluation record.", f"/shared/observation-record/{observation.pk}")
         else:
             observation.observee_signed = True
             observation.observee_signed_at = clock.now()
             observation.status = "completed"
             observation.save(update_fields=["observee_signed", "observee_signed_at", "status"])
             send_workflow_notification(observation.pairing.observer, "Observation completed",
-                                       "Both participants have signed the observation record.", f"/observations/{observation.pk}")
+                                       "Both participants have signed the observation record.", f"/shared/observation-record/{observation.pk}")
     return Response(_observation_json(observation, user))
 
 
@@ -1155,6 +1179,62 @@ def surveys_collection(request):
         _store_survey_answers(survey, answers, submit=data["submit"])
     return Response(_survey_json(survey), status=status.HTTP_201_CREATED)
 
+@api_view(["GET"])
+def survey_template_for_pairing(request):
+    """Return the published survey template for one of the user's completed pairings."""
+    from .models import Pairing, Survey, Template
+
+    user = get_current_professor(request)
+    pairing_id = request.query_params.get("pairing_id")
+
+    if not pairing_id:
+        raise ValidationError({"pairing_id": "A pairing ID is required."})
+
+    pairing = get_object_or_404(
+        Pairing.objects.select_related(
+            "cycle",
+            "observer",
+            "observee",
+            "course",
+        ),
+        pk=pairing_id,
+        status="confirmed",
+    )
+
+    # This also verifies that the current user is the observer or observee,
+    # that the observation is fully signed, and that the survey deadline
+    # has not passed.
+    role = _assert_survey_ready(pairing, user)
+
+    existing = Survey.objects.filter(
+        pairing=pairing,
+        respondent_type=role,
+    ).first()
+
+    if existing:
+        return Response({
+            "pairing_id": pairing.pk,
+            "respondent_type": role,
+            "survey_id": existing.pk,
+            "template": _template_payload(existing.template),
+        })
+
+    template = Template.objects.filter(
+        type="survey",
+        status="published",
+    ).order_by("-version", "-template_id").first()
+
+    if template is None:
+        raise ValidationError({
+            "detail": "There is no published survey template available."
+        })
+
+    return Response({
+        "pairing_id": pairing.pk,
+        "respondent_type": role,
+        "survey_id": None,
+        "template": _template_payload(template),
+    })
 
 @api_view(["GET", "PATCH"])
 def survey_detail(request, survey_id):
@@ -1263,6 +1343,28 @@ def committee_observation_detail(request, observation_id):
     data.update(can_edit=False, can_sign=False, can_cancel=False, locked=True)
     return Response(data)
 
+@api_view(["GET"])
+def committee_survey_detail(request, survey_id):
+    """A06: read-only survey details for committee members."""
+    member = get_current_professor(request)
+    require_committee(member)
+
+    from .models import Survey
+
+    survey = get_object_or_404(
+        Survey.objects.select_related(
+            "pairing",
+            "pairing__observer",
+            "pairing__observee",
+            "pairing__course",
+            "pairing__course__department",
+            "template",
+        ),
+        pk=survey_id,
+        submitted_at__isnull=False,
+    )
+
+    return Response(_survey_json(survey))
 
 @api_view(["POST"])
 def committee_remind_record(request, pairing_id):
@@ -1282,7 +1384,7 @@ def committee_remind_record(request, pairing_id):
         raise ValidationError({"detail": "There is no outstanding signature."})
     send_workflow_notification(person, "Observation record reminder",
                                "Please complete your pending observation record or signature.",
-                               f"/observations/{record.pk}" if record else "/observations")
+                               f"/shared/observation-record/{record.pk}" if record else "/shared/current-past-observations")
     return Response({"pairing_id": pairing.pk, "reminded_user_id": person.pk, "missing": missing})
 
 
@@ -1335,7 +1437,7 @@ def committee_remind_survey(request, pairing_id, role):
         raise ValidationError({"detail": "This participant already submitted a survey."})
     person = pairing.observer if role == "observer" else pairing.observee
     send_workflow_notification(person, "Post-observation survey reminder",
-                               "Please complete your post-observation survey.", "/surveys")
+                               "Please complete your post-observation survey.", "/shared/current-past-observations")
     return Response({"pairing_id": pairing.pk, "respondent_type": role, "reminded_user_id": person.pk})
 
 
@@ -1473,7 +1575,7 @@ def committee_remind_unregistered(request):
                 message=f"Please register for the {cycle.semester} evaluation cycle by {cycle.signup_deadline}.",
                 type="registration_reminder",
                 is_urgent=False,
-                destination="/registration",
+                destination="/observee/course-selection",
             )
     return Response({"cycle_id": cycle.pk, "reminded_user_ids": ids, "sent_count": len(ids)})
 
@@ -1537,17 +1639,17 @@ def committee_dashboard(request):
 
     alerts = []
     if unregistered_count:
-        alerts.append({"code": "unregistered_faculty", "message": f"{unregistered_count} active faculty have not registered for this cycle.", "count": unregistered_count, "destination": "/committee/faculty"})
+        alerts.append({"code": "unregistered_faculty", "message": f"{unregistered_count} active faculty have not registered for this cycle.", "count": unregistered_count, "destination": "/committee/faculty-roster"})
     if no_course_count:
-        alerts.append({"code": "registered_no_course", "message": f"{no_course_count} registered faculty have not selected a course.", "count": no_course_count, "destination": "/committee/faculty"})
+        alerts.append({"code": "registered_no_course", "message": f"{no_course_count} registered faculty have not selected a course.", "count": no_course_count, "destination": "/committee/faculty-roster"})
     if awaiting_release:
-        alerts.append({"code": "unreleased_candidate_lists", "message": f"{awaiting_release} course signups are awaiting candidate-list release.", "count": awaiting_release, "destination": "/committee/matching"})
+        alerts.append({"code": "unreleased_candidate_lists", "message": f"{awaiting_release} course signups are awaiting candidate-list release.", "count": awaiting_release, "destination": "/committee/faculty-matching"})
     if released_with_zero:
         alerts.append({"code": "released_zero_candidates", "message": f"{released_with_zero} released candidate lists contain no observers.", "count": released_with_zero, "destination": "/committee/unmatched"})
     if pending_records:
         alerts.append({"code": "pending_records", "message": f"{pending_records} observation records need attention.", "count": pending_records, "destination": "/committee/pending-records"})
     if pending_surveys:
-        alerts.append({"code": "missing_surveys", "message": f"{pending_surveys} post-observation survey responses are missing.", "count": pending_surveys, "destination": "/committee/pending-surveys"})
+        alerts.append({"code": "missing_surveys", "message": f"{pending_surveys} post-observation survey responses are missing.", "count": pending_surveys, "destination": "/committee/survey-tracking"})
 
     def module(available, reason=None):
         return {"available": bool(available), "reason": None if available else reason}

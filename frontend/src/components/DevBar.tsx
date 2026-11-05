@@ -23,8 +23,8 @@ const PAGE_GROUPS: { group: string; items: [string, string][] }[] = [
       ["S02 - Profile", "/shared/profile"],
       ["S03 - Notifications", "/shared/notifications"],
       ["S04 - Current and Past Observations", "/shared/current-past-observations"],
-      ["S05 - Observation Record", "/shared/observation-record-observer"],
-      ["S06 - Post-Evaluation Survey", "/shared/post-evaluation-survey"],
+      ["S05 - Observation Record (open from S04)", "/shared/current-past-observations"],
+      ["S06 - Post-Evaluation Survey (open from S04)", "/shared/current-past-observations"],
     ],
   },
   {

@@ -132,10 +132,10 @@ export default function S01FacultyDashboard() {
 
           {canUseFacultyModules && (
             <article className="dashboard-card">
-              <Link to="/shared/post-evaluation-survey">
+              <Link to="/shared/current-past-observations">
                 <img src={post_evaluation_survey_card} alt="Post-Evaluation Survey" />
                 <h4>Post-Evaluation Survey</h4>
-                <p>Unlocks after the observation period ends ({observationEnd})</p>
+                <p>Open a completed observation to complete its post-evaluation survey.</p>
                 <span className="card-status">LOCKED UNTIL {observationEnd.toUpperCase()}</span>
               </Link>
             </article>

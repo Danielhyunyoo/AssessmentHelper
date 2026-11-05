@@ -1,218 +1,60 @@
-import { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-
-type AcademicRank =
-  | "Assistant Professor"
-  | "Associate Professor"
-  | "Full Professor"
-  | "Professor of Instruction";
-
-interface RosterMember {
-  id: string;
-  observeeName: string;
-  courseAndSection: string;
-  academicLevel: AcademicRank;
-  enrollmentStatus: "Registered" | "Ongoing Observation" | "Complete" | "Not Registered";
-  email: string;
-  department: string;
-  avatarUrl?: string;
-}
-
-interface UnregisteredMember {
-  id: string;
-  professorName: string;
-  department: string;
-  academicLevel: AcademicRank;
-  lastObservationDate: string;
-}
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { committeeApi } from "../../api/endpoints";
+import type { FacultyRow, FacultyRoster } from "../../api/types";
 
 export default function A04FacultyRoster() {
-  const navigate = useNavigate();
+  const [roster, setRoster] = useState<FacultyRoster | null>(null);
+  const [unregistered, setUnregistered] = useState<FacultyRow[]>([]);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"name" | "department" | "rank" | "status">("name");
+  const [selected, setSelected] = useState<number[]>([]);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  // Search & Filter State
-  const [searchInput, setSearchInput] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [sortBy, setSortBy] = useState<"name" | "status" | "rank">("name");
+  async function loadFaculty() {
+    try {
+      const [rosterResult, unregisteredResult] = await Promise.all([
+        committeeApi.faculty({ search, sort }),
+        committeeApi.unregistered({ search, sort }),
+      ]);
 
-  // Selection state for Unregistered Observees
-  const [selectedUnregistered, setSelectedUnregistered] = useState<string[]>([]);
-
-  // Alert Feedback Banner
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-
-  // Modal States
-  const [selectedFaculty, setSelectedFaculty] = useState<RosterMember | null>(null);
-  const [pendingRankChange, setPendingRankChange] = useState<{
-    member: RosterMember;
-    newRank: AcademicRank;
-  } | null>(null);
-
-  // Sample Data: Active Cycle Roster
-  const [facultyRoster, setFacultyRoster] = useState<RosterMember[]>([
-    {
-      id: "f1",
-      observeeName: "Professor A",
-      courseAndSection: "Not Registered",
-      academicLevel: "Assistant Professor",
-      enrollmentStatus: "Not Registered",
-      email: "professor.a@utdallas.edu",
-      department: "Computer Science",
-      avatarUrl: "https://via.placeholder.com/64?text=Prof+A",
-    },
-    {
-      id: "f2",
-      observeeName: "Professor B",
-      courseAndSection: "CS 4337.002",
-      academicLevel: "Assistant Professor",
-      enrollmentStatus: "Ongoing Observation",
-      email: "professor.b@utdallas.edu",
-      department: "Computer Science",
-      avatarUrl: "https://via.placeholder.com/64?text=Prof+B",
-    },
-    {
-      id: "f3",
-      observeeName: "Professor C",
-      courseAndSection: "CS 1200.001",
-      academicLevel: "Full Professor",
-      enrollmentStatus: "Complete",
-      email: "professor.c@utdallas.edu",
-      department: "Computer Science",
-      avatarUrl: "https://via.placeholder.com/64?text=Prof+C",
-    },
-    {
-      id: "f4",
-      observeeName: "Professor D",
-      courseAndSection: "CS 2336.006",
-      academicLevel: "Full Professor",
-      enrollmentStatus: "Registered",
-      email: "professor.d@utdallas.edu",
-      department: "Computer Science",
-      avatarUrl: "https://via.placeholder.com/64?text=Prof+D",
-    },
-    {
-      id: "f5",
-      observeeName: "Professor E",
-      courseAndSection: "CS 4349.002",
-      academicLevel: "Full Professor",
-      enrollmentStatus: "Registered",
-      email: "professor.e@utdallas.edu",
-      department: "Computer Science",
-      avatarUrl: "https://via.placeholder.com/64?text=Prof+E",
-    },
-  ]);
-
-  // Sample Data: Unregistered Faculty
-  const [unregisteredList] = useState<UnregisteredMember[]>([
-    {
-      id: "u1",
-      professorName: "Professor F",
-      department: "Computer Science",
-      academicLevel: "Assistant Professor",
-      lastObservationDate: "XX/XX/XXXX",
-    },
-    {
-      id: "u2",
-      professorName: "Professor G",
-      department: "Computer Science",
-      academicLevel: "Associate Professor",
-      lastObservationDate: "XX/XX/XXXX",
-    },
-    {
-      id: "u3",
-      professorName: "Professor H",
-      department: "Computer Science",
-      academicLevel: "Full Professor",
-      lastObservationDate: "XX/XX/XXXX",
-    },
-  ]);
-
-  const handleSearchClick = () => {
-    setSearchQuery(searchInput);
-  };
-
-  const filteredRoster = useMemo(() => {
-    let list = facultyRoster.filter(
-      (m) =>
-        m.observeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.courseAndSection.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    list.sort((a, b) => {
-      if (sortBy === "name") return a.observeeName.localeCompare(b.observeeName);
-      if (sortBy === "status") return a.enrollmentStatus.localeCompare(b.enrollmentStatus);
-      if (sortBy === "rank") return a.academicLevel.localeCompare(b.academicLevel);
-      return 0;
-    });
-
-    return list;
-  }, [facultyRoster, searchQuery, sortBy]);
-
-  const handleOpenProfileModal = (member: RosterMember) => {
-    setSelectedFaculty({ ...member });
-  };
-
-  const handleCloseProfileModal = () => {
-    setSelectedFaculty(null);
-  };
-
-  const handleStageRankChange = (newRank: AcademicRank) => {
-    if (selectedFaculty && selectedFaculty.academicLevel !== newRank) {
-      setPendingRankChange({
-        member: selectedFaculty,
-        newRank,
-      });
+      setRoster(rosterResult);
+      setUnregistered(unregisteredResult.faculty);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load faculty.");
     }
-  };
+  }
 
-  const handleConfirmRankChange = () => {
-    if (!pendingRankChange) return;
+  useEffect(() => {
+    void loadFaculty();
+  }, [search, sort]);
 
-    const { member, newRank } = pendingRankChange;
+  async function handleRankChange(userId: number, rank: string) {
+    try {
+      await committeeApi.updateRank(userId, rank);
+      await loadFaculty();
+      setMessage("Academic rank updated.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update rank.");
+    }
+  }
 
-    setFacultyRoster((prev) =>
-      prev.map((m) => (m.id === member.id ? { ...m, academicLevel: newRank } : m))
-    );
-
-    setFeedbackMessage(
-      `Successfully updated ${member.observeeName}'s academic rank to "${newRank}".`
-    );
-
-    setSelectedFaculty((prev) => (prev ? { ...prev, academicLevel: newRank } : null));
-    setPendingRankChange(null);
-
-    setTimeout(() => setFeedbackMessage(null), 5000);
-  };
-
-  const handleCancelRankChange = () => {
-    setPendingRankChange(null);
-  };
-
-  const handleSelectAll = () => {
-    setSelectedUnregistered(unregisteredList.map((u) => u.id));
-  };
-
-  const handleDeselectAll = () => {
-    setSelectedUnregistered([]);
-  };
-
-  const handleToggleUnregistered = (id: string) => {
-    setSelectedUnregistered((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleSendReminders = () => {
-    if (selectedUnregistered.length === 0) {
-      alert("Please select at least one unregistered observee to send a reminder.");
+  async function handleReminders() {
+    if (selected.length === 0) {
+      setError("Select at least one unregistered faculty member.");
       return;
     }
 
-    setFeedbackMessage(
-      `Registration reminders sent to ${selectedUnregistered.length} observee(s).`
-    );
-    setSelectedUnregistered([]);
-    setTimeout(() => setFeedbackMessage(null), 5000);
-  };
+    try {
+      await committeeApi.remindRegistration(selected);
+      setMessage("Registration reminders sent.");
+      setSelected([]);
+      await loadFaculty();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send reminders.");
+    }
+  }
 
   return (
     <div className="dashboard-container">
@@ -226,19 +68,8 @@ export default function A04FacultyRoster() {
       <h2>Faculty Registration and Communications</h2>
 
       {/* Success Banner */}
-      {feedbackMessage && (
-        <div role="status" className="yellow-banner" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-            <polygon points="12,2 22,20 2,20" fill="#64748b" />
-            <text x="12" y="17" fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle">
-              !
-            </text>
-          </svg>
-          <div>
-            <strong>Success:</strong> {feedbackMessage}
-          </div>
-        </div>
-      )}
+      {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
 
       {/* SECTION 1: FACULTY ROSTER */}
       <section className="dashboard-phase">
@@ -249,7 +80,7 @@ export default function A04FacultyRoster() {
             <em>Make use of this list to view details or contact (email) faculty members.</em>
           </li>
           <li>
-            <em>Click on a faculty member's name to view profile details or update their academic level.</em>
+            <em>Use the academic-rank dropdown to update a faculty member's rank.</em>
           </li>
         </ul>
 
@@ -261,31 +92,32 @@ export default function A04FacultyRoster() {
               <input
                 type="text"
                 placeholder="Begin typing here..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearchClick()}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
                 className="styled-text-input"
               />
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleSearchClick}
-              >
-                Search
-              </button>
             </div>
           </div>
 
           <div className="sort-control-group">
             <label>Sort By:</label>
             <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "name" | "status" | "rank")}
+              value={sort}
+              onChange={(event) =>
+                setSort(
+                  event.target.value as
+                    | "name"
+                    | "department"
+                    | "rank"
+                    | "status"
+                )
+              }
               className="styled-select-input"
             >
               <option value="name">Name</option>
-              <option value="status">Status</option>
-              <option value="rank">Academic Level</option>
+              <option value="department">Department</option>
+              <option value="rank">Academic Rank</option>
+              <option value="status">Registration Status</option>
             </select>
           </div>
         </div>
@@ -308,32 +140,51 @@ export default function A04FacultyRoster() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRoster.map((member) => (
-                  <tr key={member.id}>
+                {roster?.faculty.map((member) => (
+                  <tr key={member.user_id}>
+                    <td className="font-semibold">{member.name}</td>
+
                     <td>
-                      <button
-                        type="button"
-                        className="table-name-link"
-                        onClick={() => handleOpenProfileModal(member)}
-                      >
-                        {member.observeeName}
-                      </button>
+                      {member.course
+                        ? `${member.course.department_code} ${member.course.course_number}.${member.course.section}`
+                        : "No course selected"}
                     </td>
-                    <td>{member.courseAndSection}</td>
-                    <td>{member.academicLevel}</td>
-                    <td>{member.enrollmentStatus}</td>
-                    <td className="align-center">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenProfileModal(member)}
-                        className="table-arrow-btn"
-                        title="View Profile Details"
+
+                    <td>
+                      <select
+                        className="styled-select-input"
+                        value={member.academic_rank}
+                        onChange={(event) =>
+                          void handleRankChange(member.user_id, event.target.value)
+                        }
                       >
-                        ➔
-                      </button>
+                        <option value="">Not specified</option>
+                        <option value="Assistant Professor">Assistant Professor</option>
+                        <option value="Associate Professor">Associate Professor</option>
+                        <option value="Full Professor">Full Professor</option>
+                        <option value="Professor of Instruction">Professor of Instruction</option>
+                      </select>
+                    </td>
+
+                    <td>{member.progress_status}</td>
+
+                    <td className="align-center">
+                      {member.email ? (
+                        <a href={`mailto:${member.email}`} className="table-name-link">
+                          Email
+                        </a>
+                      ) : (
+                        "No email"
+                      )}
                     </td>
                   </tr>
                 ))}
+
+                {roster && roster.faculty.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>No faculty members found.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -349,7 +200,7 @@ export default function A04FacultyRoster() {
             <em>Faculty members below are due for evaluation in this cycle but have not yet registered a course section.</em>
           </li>
           <li>
-            <em>If selected in the next section, they will receive a reminder to register by the deadline (Oct 9).</em>
+            <em>Selected faculty members will receive a reminder to register for the current evaluation cycle.</em>
           </li>
         </ul>
 
@@ -367,28 +218,38 @@ export default function A04FacultyRoster() {
                   <th>Professor Name</th>
                   <th>Department</th>
                   <th>Academic Level</th>
-                  <th>Last Observation Date</th>
+                  <th>Email</th>
                 </tr>
               </thead>
               <tbody>
-                {unregisteredList.map((prof) => {
-                  const isSelected = selectedUnregistered.includes(prof.id);
-                  return (
-                    <tr key={prof.id}>
-                      <td className="align-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleUnregistered(prof.id)}
-                        />
-                      </td>
-                      <td className="font-semibold">{prof.professorName}</td>
-                      <td>{prof.department}</td>
-                      <td>{prof.academicLevel}</td>
-                      <td>{prof.lastObservationDate}</td>
-                    </tr>
-                  );
-                })}
+                {unregistered.map((prof) => (
+                  <tr key={prof.user_id}>
+                    <td className="align-center">
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(prof.user_id)}
+                        onChange={(event) =>
+                          setSelected((previous) =>
+                            event.target.checked
+                              ? [...previous, prof.user_id]
+                              : previous.filter((id) => id !== prof.user_id)
+                          )
+                        }
+                      />
+                    </td>
+
+                    <td className="font-semibold">{prof.name}</td>
+                    <td>{prof.department ?? "Not provided"}</td>
+                    <td>{prof.academic_rank || "Not provided"}</td>
+                    <td>{prof.email || "No email"}</td>
+                  </tr>
+                ))}
+
+                {unregistered.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>No unregistered faculty members.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -400,14 +261,14 @@ export default function A04FacultyRoster() {
             <button
               type="button"
               className="btn-select-toggle"
-              onClick={handleSelectAll}
+              onClick={() => setSelected(unregistered.map((person) => person.user_id))}
             >
               Select All
             </button>
             <button
               type="button"
               className="btn-select-toggle"
-              onClick={handleDeselectAll}
+              onClick={() => setSelected([])}
             >
               Deselect All
             </button>
@@ -416,7 +277,7 @@ export default function A04FacultyRoster() {
           <button
             type="button"
             className="btn-primary"
-            onClick={handleSendReminders}
+            onClick={() => void handleReminders()}
           >
             Send Registration Reminders
           </button>
@@ -429,128 +290,6 @@ export default function A04FacultyRoster() {
           Return to Dashboard
         </Link>
       </div>
-
-      {/* POP-UP MODAL 1: FACULTY PROFILE & DETAILS */}
-      {selectedFaculty && (
-        <div className="modal-overlay" onClick={handleCloseProfileModal}>
-          <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-bar">
-              <div className="modal-title-avatar-group">
-                {selectedFaculty.avatarUrl && (
-                  <img
-                    src={selectedFaculty.avatarUrl}
-                    alt={selectedFaculty.observeeName}
-                    className="modal-pfp"
-                  />
-                )}
-                <h3>Faculty Profile & Details</h3>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseProfileModal}
-                className="modal-close-x"
-              >
-                &times;
-              </button>
-            </div>
-
-            <div className="modal-details-list">
-              <div className="modal-detail-row">
-                <span className="detail-label">Faculty Name:</span>
-                <span className="detail-value-bold">{selectedFaculty.observeeName}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Department:</span>
-                <span>{selectedFaculty.department}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Email:</span>
-                <span>{selectedFaculty.email}</span>
-              </div>
-
-              {/* Homogeneous Rank Row */}
-              <div className="modal-detail-row align-items-center">
-                <span className="detail-label">Academic Rank:</span>
-                <select
-                  value={selectedFaculty.academicLevel}
-                  onChange={(e) => handleStageRankChange(e.target.value as AcademicRank)}
-                  className="modal-inline-select"
-                >
-                  <option value="Assistant Professor">Assistant Professor</option>
-                  <option value="Associate Professor">Associate Professor</option>
-                  <option value="Full Professor">Full Professor</option>
-                  <option value="Professor of Instruction">Professor of Instruction</option>
-                </select>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Active Course:</span>
-                <span>{selectedFaculty.courseAndSection}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Status:</span>
-                <span>{selectedFaculty.enrollmentStatus}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* POP-UP MODAL 2: CONFIRMATION POPUP WITH WARNING TRIANGLE */}
-      {pendingRankChange && (
-        <div className="modal-overlay modal-high-z" onClick={handleCancelRankChange}>
-          <div className="modal-content-card modal-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-bar">
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                  <polygon points="12,2 22,20 2,20" fill="#64748b" />
-                  <text x="12" y="17" fill="#ffffff" fontSize="11" fontWeight="bold" textAnchor="middle">
-                    !
-                  </text>
-                </svg>
-                <h3>Confirm Rank Modification</h3>
-              </div>
-              <button
-                type="button"
-                onClick={handleCancelRankChange}
-                className="modal-close-x"
-              >
-                &times;
-              </button>
-            </div>
-
-            <div className="modal-body-text">
-              <p className="confirm-main-text">
-                Are you sure you want to change <strong>{pendingRankChange.member.observeeName}</strong>'s academic rank to{" "}
-                <strong>"{pendingRankChange.newRank}"</strong>?
-              </p>
-              <p className="confirm-sub-text">
-                This will update their official record and evaluation cycle timing configuration.
-              </p>
-            </div>
-
-            <div className="modal-footer-split">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={handleCancelRankChange}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleConfirmRankChange}
-              >
-                Confirm Change
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

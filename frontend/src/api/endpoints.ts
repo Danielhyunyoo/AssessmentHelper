@@ -1,6 +1,5 @@
 import { get, patch, post, put, qs } from "./http";
-import type { Course, CycleDates, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template } from "./types";
-
+import type { Course, CycleDates, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template, CommitteePendingRecords, CommitteeCompletedRecords, CommitteeSurveyTracking, } from "./types";
 // L02-L03
 export const authApi = {
   csrf: () => get<{detail:string}>("/auth/csrf/"),
@@ -50,7 +49,9 @@ export const observationApi = {
 export const surveyApi = {
   list: () => get<Survey[]>("/surveys/"),
   detail: (id: number) => get<Survey>(`/surveys/${id}/`),
-  submit: (body: {pairing_id:number;template_id:number;score:number;pain_points?:string;improvements?:string}) => post<Survey>("/surveys/",body),
+  templateForPairing: (pairingId: number) => get<{ paiing_id: number; respondent_type: "observer" | "observee"; template: Template; }>(`/surveys/template/${qs({ pairing_id: pairingId })}`),
+  update: ( id: number, body: { responses: Record<string, number | string>; submit: boolean; } ) => patch<Survey>(`/surveys/${id}/`, body),
+  submit: (body: { pairing_id: number; template_id: number; responses?: Record<string, number | string>; score?: number; pain_points?: string; improvements?: string; submit?: boolean; }) => post<Survey>("/surveys/", body),
 };
 // A01-A08
 export const committeeApi = {
@@ -67,9 +68,12 @@ export const committeeApi = {
   carryForwards: () => get<JsonObject>("/committee/carry-forwards/"),
   carryForward: (signup_ids:number[],target_cycle_id:number,reason:string) => post<JsonObject>("/committee/carry-forwards/create/",{signup_ids,target_cycle_id,reason}),
   carriedForwardDue: (cycleId:number) => get<JsonObject>(`/committee/carry-forwards/due/${qs({cycle_id:cycleId})}`),
-  pendingRecords: () => get<JsonObject>("/committee/pending-records/"),
+  pendingRecords: () => get<CommitteePendingRecords>("/committee/pending-records/"),
+  completedRecords: () => get<{ cycle_id: number; count: number; records: { observation_id: number; pairing_id: number; cycle_id: number; observation_datetime: string | null; observee_id: number; observee_name: string; observer_id: number; observer_name: string; department: string | null; academic_rank: string; course_id: number; template_id: number; template_version: number; completed_at: string | null; status: string; }[]; }>("/committee/completed-records/"),
+  observationDetail: (id: number) => get<ObservationRecord>(`/committee/observations/${id}/`),
+  surveyDetail: (id: number) => get<Survey>(`/committee/surveys/${id}/`),
+  pendingSurveys: () => get<{ cycle_id: number; missing_count: number; completed_count: number; missing: { pairing_id: number; observation_id: number; observation_datetime: string | null; user_id: number; faculty_name: string; department: string | null; academic_rank: string; respondent_type: "observer" | "observee"; survey_deadline: string; }[]; completed: { pairing_id: number; observation_id: number; observation_datetime: string | null; user_id: number; faculty_name: string; department: string | null; academic_rank: string; respondent_type: "observer" | "observee"; survey_deadline: string; survey_id: number; submitted_at: string; }[]; }>("/committee/pending-surveys/"),
   remindRecord: (pairingId:number) => post<JsonObject>(`/committee/pending-records/${pairingId}/remind/`),
-  pendingSurveys: () => get<JsonObject>("/committee/pending-surveys/"),
   remindSurvey: (pairingId:number,role:"observer"|"observee") => post<JsonObject>(`/committee/pending-surveys/${pairingId}/${role}/remind/`),
   kpis: (cycleId?:number) => get<JsonObject>(`/committee/kpis/${qs({cycle_id:cycleId})}`),
   templates: (type?:"observation"|"survey") => get<{templates:Template[]}>(`/committee/templates/${qs({type})}`),

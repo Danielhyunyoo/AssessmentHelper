@@ -1,34 +1,138 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { observationApi } from "../../api/endpoints";
+import type { ObservationRecord } from "../../api/types";
 
 export default function S05ObservationRecord() {
-  const [ratings, setRatings] = useState<Record<string, number>>({
-    engagement: 0,
-    rigor: 0,
-    pace: 0,
-    alignment: 0,
-  });
-
-  const [comments, setComments] = useState("");
-  const [observerSig, setObserverSig] = useState("");
-  const [observeeSig, setObserveeSig] = useState("");
-
-  const handleRatingSelect = (field: string, score: number) => {
-    setRatings((prev) => ({ ...prev, [field]: score }));
-  };
+  const { observationId } = useParams();
+  const [record, setRecord] = useState<ObservationRecord | null>(null);
+  const [responses, setResponses] = useState<Record<string, string | number>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleDownload = () => {
-    alert("Downloading Observation Record as PDF...");
+  useEffect(() => {
+    async function loadRecord() {
+      if (!observationId) {
+        setError("No observation record was selected.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const result = await observationApi.detail(Number(observationId));
+
+        setRecord(result);
+        setResponses(result.responses ?? {});
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load observation record."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadRecord();
+  }, [observationId]);
+
+  const handleAnswerChange = (
+    questionId: string,
+    answer: string | number
+  ) => {
+    setResponses((previous) => ({
+      ...previous,
+      [questionId]: answer,
+    }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert("Observation Record and Evaluation Form submitted successfully!");
+  const handleSave = async () => {
+    if (!record || !record.can_edit) return;
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const updated = await observationApi.saveDraft(
+        record.observation_id,
+        responses
+      );
+
+      setRecord(updated);
+      setResponses(updated.responses ?? {});
+      setSuccess("Observation record saved.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to save record."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleSign = async () => {
+    if (!record || !record.can_sign) return;
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      if (record.can_edit) {
+        const saved = await observationApi.saveDraft(
+          record.observation_id,
+          responses
+        );
+
+        setRecord(saved);
+      }
+
+      const updated = await observationApi.sign(record.observation_id);
+
+      setRecord(updated);
+      setResponses(updated.responses ?? {});
+      setSuccess(
+        updated.locked
+          ? "Both participants have signed. This record is now locked."
+          : "Your signature has been saved."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to sign record."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <p>Loading observation record...</p>
+      </div>
+    );
+  }
+
+  if (!record) {
+    return (
+      <div className="dashboard-container">
+        <p role="alert">
+          {error || "The requested observation record could not be loaded."}
+        </p>
+        <Link to="/shared/current-past-observations">
+          Return to Observations
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
@@ -41,6 +145,9 @@ export default function S05ObservationRecord() {
 
       <h2>Observation Record</h2>
 
+      {error && <p role="alert">{error}</p>}
+      {success && <p role="status">{success}</p>}
+
       {/* Pairing Summary Box */}
       <section className="table-container theme-orange summary-card-padding">
         <h3 className="card-heading-md">Pairing Summary</h3>
@@ -49,19 +156,27 @@ export default function S05ObservationRecord() {
         <div className="pairing-grid">
           <div>
             <strong className="summary-field-label">Observer Name</strong>
-            <p className="summary-field-val">Professor B</p>
+            <p className="summary-field-val">{record.observer.name}</p>
           </div>
           <div>
             <strong className="summary-field-label">Observee Name</strong>
-            <p className="summary-field-val">Professor A</p>
+            <p className="summary-field-val">{record.observee.name}</p>
           </div>
           <div>
             <strong className="summary-field-label">Course and Section</strong>
-            <p className="summary-field-val">CS 4349 Sec 002 M/W 1:00 PM - 2:15 PM</p>
+            <p className="summary-field-val">
+              {record.course.department_code} {record.course.course_number}
+              {" "}Section {record.course.section}
+              {record.course.schedule ? ` — ${record.course.schedule}` : ""}
+            </p>
           </div>
           <div>
             <strong className="summary-field-label">Observation Date</strong>
-            <p className="summary-field-val">October 25, 2026</p>
+            <p className="summary-field-val">
+              {record.confirmed_datetime
+                ? new Date(record.confirmed_datetime).toLocaleString()
+                : "Not scheduled"}
+            </p>
           </div>
         </div>
       </section>
@@ -69,181 +184,148 @@ export default function S05ObservationRecord() {
       {/* Evaluation Form Main Container */}
       <section className="table-container theme-green summary-card-padding">
         <div className="form-header-row">
-          <h3 className="card-heading-md margin-none">Observation Record and Evaluation Form</h3>
+          <h3 className="card-heading-md margin-none">
+            {record.template.name}
+          </h3>
+
           <span className="version-pill-tag">
-            Evaluation Form V1
+            Version {record.template.version}
           </span>
         </div>
 
         <p className="form-instruction-subtext">
-          For each question, please assign a score (1 = Lowest/Worst, 5 = Highest/Best)
+          {record.template.instructions}
         </p>
 
-        <form onSubmit={handleSubmit}>
-          {/* OBSERVER SECTION */}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSave();
+          }}
+        >
           <div className="form-section-block">
-            <h4 className="section-subtitle">
-              The following sections are intended for the OBSERVER to fill in:
-            </h4>
+            <h4 className="section-subtitle">Observation Questions</h4>
 
-            {/* Q1 */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                Please rank the student's overall engagement levels.
-              </label>
-              <div className="rating-btn-row">
-                {[1, 2, 3, 4, 5].map((score) => {
-                  const isSelected = ratings.engagement === score;
-                  return (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => handleRatingSelect("engagement", score)}
-                      className={`rating-score-btn ${isSelected ? "selected" : ""}`}
-                    >
-                      {score}
-                    </button>
-                  );
-                })}
+            {record.template.questions.map((question) => (
+              <div className="question-field-wrapper" key={question.id}>
+                <label className="question-label-bold">
+                  {question.text}
+                  {question.required ? " *" : ""}
+                </label>
+
+                {question.type === "rating" ? (
+                  <div className="rating-btn-row">
+                    {Array.from(
+                      {
+                        length:
+                          (question.max ?? 5) - (question.min ?? 1) + 1,
+                      },
+                      (_, index) => (question.min ?? 1) + index
+                    ).map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        disabled={!record.can_edit}
+                        onClick={() =>
+                          setResponses((previous) => ({
+                            ...previous,
+                            [question.id]: score,
+                          }))
+                        }
+                        className={`rating-score-btn ${
+                          responses[question.id] === score ? "selected" : ""
+                        }`}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <textarea
+                    className="fixed-height-textarea"
+                    value={String(responses[question.id] ?? "")}
+                    disabled={!record.can_edit}
+                    required={question.required}
+                    onChange={(event) =>
+                      setResponses((previous) => ({
+                        ...previous,
+                        [question.id]: event.target.value,
+                      }))
+                    }
+                  />
+                )}
               </div>
-            </div>
-
-            {/* Q2 */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                Was the academic rigor appropriate for the course level?
-              </label>
-              <div className="rating-btn-row">
-                {[1, 2, 3, 4, 5].map((score) => {
-                  const isSelected = ratings.rigor === score;
-                  return (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => handleRatingSelect("rigor", score)}
-                      className={`rating-score-btn ${isSelected ? "selected" : ""}`}
-                    >
-                      {score}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Q3 */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                How good was the pace of the lecture?
-              </label>
-              <div className="rating-btn-row">
-                {[1, 2, 3, 4, 5].map((score) => {
-                  const isSelected = ratings.pace === score;
-                  return (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => handleRatingSelect("pace", score)}
-                      className={`rating-score-btn ${isSelected ? "selected" : ""}`}
-                    >
-                      {score}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Q4 */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                How well did the lecture align with the syllabus?
-              </label>
-              <div className="rating-btn-row">
-                {[1, 2, 3, 4, 5].map((score) => {
-                  const isSelected = ratings.alignment === score;
-                  return (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => handleRatingSelect("alignment", score)}
-                      className={`rating-score-btn ${isSelected ? "selected" : ""}`}
-                    >
-                      {score}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Fixed Textarea */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                Please include any additional notes, comments or concerns you may have.
-              </label>
-              <textarea
-                placeholder="Enter Text Here..."
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                className="fixed-height-textarea"
-              />
-            </div>
-
-            {/* Observer Signature */}
-            <div className="signature-wrapper">
-              <div className="signature-header">
-                <label className="question-label-bold">OBSERVER Digital Signature</label>
-                <span className="signature-timestamp">Signed by First Name Last Name on XX/XX/XXXX</span>
-              </div>
-              <input
-                type="text"
-                placeholder="Observer First and Last Names"
-                value={observerSig}
-                onChange={(e) => setObserverSig(e.target.value)}
-                className="styled-text-input full-width-input"
-              />
-            </div>
+            ))}
           </div>
 
-          {/* OBSERVEE SECTION */}
           <div className="form-section-block-sm">
-            <h4 className="section-subtitle">
-              The following sections are intended for the OBSERVEE to fill in:
-            </h4>
+            <h4 className="section-subtitle">Signatures</h4>
 
-            <div>
-              <div className="signature-header">
-                <label className="question-label-bold">OBSERVEE Digital Signature</label>
-                <span className="signature-timestamp">Signed by First Name Last Name on XX/XX/XXXX</span>
-              </div>
-              <input
-                type="text"
-                placeholder="Observee First and Last Names"
-                value={observeeSig}
-                onChange={(e) => setObserveeSig(e.target.value)}
-                className="styled-text-input full-width-input"
-              />
+            <div className="signature-wrapper">
+              <strong>Observer</strong>
+              <p>
+                {record.observer_signed
+                  ? `Signed ${record.observer_signed_at
+                      ? new Date(record.observer_signed_at).toLocaleString()
+                      : ""}`
+                  : "Awaiting observer signature"}
+              </p>
+            </div>
+
+            <div className="signature-wrapper">
+              <strong>Observee</strong>
+              <p>
+                {record.observee_signed
+                  ? `Signed ${record.observee_signed_at
+                      ? new Date(record.observee_signed_at).toLocaleString()
+                      : ""}`
+                  : "Awaiting observee signature"}
+              </p>
             </div>
 
             <p className="disclaimer-text">
-              By signing this form, I acknowledge that an in-person classroom observation occurred on [Date]. I understand that signing indicates confirmation that the visit took place, irrespective of whether I agree with the ratings provided.
+              By signing this form, you acknowledge that the classroom observation
+              occurred. Your signature is recorded using your authenticated account.
             </p>
+
+            {record.locked && (
+              <p role="status">
+                Both participants have signed. This record is locked.
+              </p>
+            )}
           </div>
 
-          {/* Submit Button */}
           <div className="submit-action-row">
-            <button type="submit" className="btn-primary">
-              Submit
-            </button>
+            {record.can_edit && (
+              <button
+                type="submit"
+                className="btn-secondary"
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Draft"}
+              </button>
+            )}
+
+            {record.can_sign && (
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={saving}
+                onClick={() => void handleSign()}
+              >
+                {saving ? "Processing..." : "Sign Observation"}
+              </button>
+            )}
           </div>
         </form>
 
         {/* Action Buttons: Print & Download */}
         <div className="external-action-row">
-          <button type="button" className="btn-primary" onClick={handlePrint}>
-            Print
-          </button>
-          <button type="button" className="btn-secondary" onClick={handleDownload}>
-            Download
-          </button>
+          <div className="external-action-row">
+            <button type="button" className="btn-primary" onClick={handlePrint}>
+              Print
+            </button>
+          </div>
         </div>
       </section>
 

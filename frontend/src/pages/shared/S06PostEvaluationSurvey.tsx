@@ -1,16 +1,189 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { observationApi, surveyApi } from "../../api/endpoints";
+import type { ObservationRecord, Survey, Template } from "../../api/types";
 
 export default function S06PostEvaluationSurvey() {
-  const [satisfactionScore, setSatisfactionScore] = useState<number>(0);
-  const [difficulties, setDifficulties] = useState("");
-  const [feedback, setFeedback] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const { surveyId } = useParams();
+  const [searchParams] = useSearchParams();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert("Post-Evaluation Survey submitted successfully!");
-  };
+  const pairingId = Number(searchParams.get("pairingId"));
+
+  const [survey, setSurvey] = useState<Survey | null>(null);
+  const [record, setRecord] = useState<ObservationRecord | null>(null);
+  const [template, setTemplate] = useState<Template | null>(null);
+  const [responses, setResponses] = useState<Record<string, string | number>>({});
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  function normalizeSurveyTemplate(
+    value: NonNullable<Survey["template"]>
+  ): Template {
+    return {
+      template_id: value.id,
+      name: value.name,
+      type: "survey",
+      version: value.version,
+      status: "published",
+      instructions: value.instructions,
+      questions: value.questions,
+    };
+  }
+
+  useEffect(() => {
+    async function loadSurvey() {
+      try {
+        setLoading(true);
+        setError("");
+
+        if (surveyId) {
+          const result = await surveyApi.detail(Number(surveyId));
+          setSurvey(result);
+          setTemplate(
+            result.template
+              ? normalizeSurveyTemplate(result.template)
+              : null
+          );
+          setResponses(result.responses ?? {});
+          return;
+        }
+
+        if (!Number.isInteger(pairingId) || pairingId <= 0) {
+          setError(
+            "Open the survey from a completed observation record to select its pairing."
+          );
+          return;
+        }
+
+        const [surveys, records] = await Promise.all([
+          surveyApi.list(),
+          observationApi.list(),
+        ]);
+
+        const existingSurvey = surveys.find(
+          (item) => item.pairing_id === pairingId
+        );
+
+        if (existingSurvey) {
+          setSurvey(existingSurvey);
+
+          setTemplate(
+            existingSurvey.template
+              ? normalizeSurveyTemplate(existingSurvey.template)
+              : null
+          );
+
+          setResponses(existingSurvey.responses ?? {});
+        } else {
+          const matchingRecord = records.find(
+            (item) => item.pairing_id === pairingId
+          );
+
+          if (!matchingRecord || matchingRecord.status !== "completed") {
+            setError(
+              "A completed, fully signed observation record is required before completing this survey."
+            );
+            return;
+          }
+
+          setRecord(matchingRecord);
+
+          const result = await surveyApi.templateForPairing(pairingId);
+          setTemplate(result.template);
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Unable to load survey."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadSurvey();
+  }, [surveyId, pairingId]);
+
+  async function saveSurvey(submit: boolean) {
+    if (!template) {
+      setError("No published survey template is available.");
+      return;
+    }
+
+    const activePairingId = survey?.pairing_id ?? record?.pairing_id;
+
+    if (!activePairingId) {
+      setError("No observation pairing was selected.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      let result: Survey;
+
+      if (survey) {
+        result = await surveyApi.update(survey.survey_id, {
+          responses,
+          submit,
+        });
+      } else {
+        result = await surveyApi.submit({
+          pairing_id: activePairingId,
+          template_id: template.template_id,
+          responses,
+          submit,
+        });
+      }
+
+      setSurvey(result);
+      setTemplate(
+        result.template
+          ? normalizeSurveyTemplate(result.template)
+          : null
+      );
+      setResponses(result.responses ?? {});
+
+      setMessage(
+        submit ? "Survey submitted successfully." : "Survey draft saved."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to save survey."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const displayObserver = survey?.observer ?? record?.observer;
+  const displayObservee = survey?.observee ?? record?.observee;
+  const displayCourse = survey?.course ?? record?.course;
+  const displayDate = survey?.observation_datetime ?? record?.confirmed_datetime;
+  const canEdit = survey ? survey.can_edit : Boolean(record && template);
+
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <p>Loading survey...</p>
+      </div>
+    );
+  }
+
+  if (error && !template) {
+    return (
+      <div className="dashboard-container">
+        <p role="alert">{error}</p>
+        <Link to="/shared/current-past-observations">
+          Return to Observations
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
@@ -22,6 +195,8 @@ export default function S06PostEvaluationSurvey() {
       </div>
 
       <h2>Post-Evaluation Survey</h2>
+      {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
 
       {/* Pairing Summary Box */}
       <section className="table-container theme-orange summary-card-padding">
@@ -31,19 +206,29 @@ export default function S06PostEvaluationSurvey() {
         <div className="pairing-grid">
           <div>
             <strong className="summary-field-label">Observer Name</strong>
-            <p className="summary-field-val">Professor B</p>
+            <p className="summary-field-val">
+              {displayObserver?.name ?? "Not available"}
+            </p>
           </div>
           <div>
             <strong className="summary-field-label">Observee Name</strong>
-            <p className="summary-field-val">Professor A</p>
+            <p className="summary-field-val">
+              {displayObservee?.name ?? "Not available"}
+            </p>
           </div>
           <div>
             <strong className="summary-field-label">Course and Section</strong>
-            <p className="summary-field-val">CS 4349 Sec 002 M/W 1:00 PM - 2:15 PM</p>
+            <p className="summary-field-val">
+              {displayCourse
+                ? `${displayCourse.department_code} ${displayCourse.course_number}.${displayCourse.section}`
+                : "Not available"}
+            </p>
           </div>
           <div>
             <strong className="summary-field-label">Observation Date</strong>
-            <p className="summary-field-val">October 25, 2026</p>
+            <p className="summary-field-val">
+              {displayDate ? new Date(displayDate).toLocaleString() : "Not available"}
+            </p>
           </div>
         </div>
       </section>
@@ -51,96 +236,107 @@ export default function S06PostEvaluationSurvey() {
       {/* Survey Main Container */}
       <section className="table-container theme-green summary-card-padding">
         <div className="form-header-row">
-          <h3 className="card-heading-md margin-none">Post-Evaluation Cycle Process Survey</h3>
+          <h3 className="card-heading-md margin-none">
+            {template?.name ?? "Post-Evaluation Survey"}
+          </h3>
+
           <span className="version-pill-tag">
-            Survey Form V1
+            {template ? `Version ${template.version}` : "No template"}
           </span>
         </div>
 
         <p className="form-instruction-subtext">
-          For each question, please assign a score (1 = Unsatisfactory, 5 = Very Satisfactory)
+          {template?.instructions}
         </p>
 
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void saveSurvey(true);
+          }}
+        >
           <div className="form-section-block-sm">
             <h4 className="section-subtitle">
-              Overall Process Evaluation
+              Post-Evaluation Survey Questions
             </h4>
 
-            {/* Q1 */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                How satisfied are you with the evaluation process?
-              </label>
-              <div className="rating-btn-row">
-                {[1, 2, 3, 4, 5].map((score) => {
-                  const isSelected = satisfactionScore === score;
-                  return (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => setSatisfactionScore(score)}
-                      className={`rating-score-btn ${isSelected ? "selected" : ""}`}
-                    >
-                      {score}
-                    </button>
-                  );
-                })}
+            {template?.questions.map((question) => (
+              <div className="question-field-wrapper" key={question.id}>
+                <label className="question-label-bold">
+                  {question.text}
+                  {question.required ? " *" : ""}
+                </label>
+
+                {question.type === "rating" ? (
+                  <div className="rating-btn-row">
+                    {Array.from(
+                      {
+                        length:
+                          (question.max ?? 5) - (question.min ?? 1) + 1,
+                      },
+                      (_, index) => (question.min ?? 1) + index
+                    ).map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() =>
+                          setResponses((previous) => ({
+                            ...previous,
+                            [question.id]: score,
+                          }))
+                        }
+                        className={`rating-score-btn ${
+                          responses[question.id] === score ? "selected" : ""
+                        }`}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <textarea
+                    className="fixed-height-textarea"
+                    value={String(responses[question.id] ?? "")}
+                    disabled={!canEdit}
+                    required={question.required}
+                    onChange={(event) =>
+                      setResponses((previous) => ({
+                        ...previous,
+                        [question.id]: event.target.value,
+                      }))
+                    }
+                  />
+                )}
               </div>
-            </div>
-
-            {/* Fixed Textarea 1 */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                Please list any difficulties you ran into throughout this cycle (re: scheduling, communication, or the observation visit, etc.).
-              </label>
-              <textarea
-                placeholder="Enter Text Here..."
-                value={difficulties}
-                onChange={(e) => setDifficulties(e.target.value)}
-                className="fixed-height-textarea"
-              />
-            </div>
-
-            {/* Fixed Textarea 2 */}
-            <div className="question-field-wrapper">
-              <label className="question-label-bold">
-                Please provide any feedback or suggestions on how the Assessment Committee can improve this workflow.
-              </label>
-              <textarea
-                placeholder="Enter Text Here..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                className="fixed-height-textarea"
-              />
-            </div>
-
-            {/* File Upload */}
-            <div className="question-field-wrapper">
-              <label className="file-upload-label">
-                OPTIONAL Supporting Documentation / Statement Upload
-              </label>
-              <p className="file-upload-subtext">
-                Upload documentation or statements regarding any difficulties during the observation cycle.
-              </p>
-              <input
-                type="file"
-                onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])}
-                className="file-input-field"
-              />
-              {selectedFile && (
-                <span className="file-selected-tag">
-                  Selected: {selectedFile.name}
-                </span>
-              )}
-            </div>
+            ))}
           </div>
 
-          {/* Submit Button */}
           <div className="submit-action-row">
-            <button type="submit" className="btn-primary">
-              Submit Survey
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={saving}
+                  onClick={() => void saveSurvey(false)}
+                >
+                  Save Draft
+                </button>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={saving}
+                >
+                  {saving ? "Submitting..." : "Submit Survey"}
+                </button>
+              </>
+            )}
+
+            {!canEdit && (
+              <p>This survey has already been submitted and cannot be edited.</p>
+            )}
           </div>
         </form>
       </section>

@@ -15,7 +15,7 @@ User = get_user_model()
 FALL_2026 = {
     "start_date": date(2026, 8, 24),
     "end_date": date(2026, 12, 18),
-    "signup_deadline": date(2026, 10, 30),
+    "signup_deadline": date(2026, 11, 30),
     "observation_deadline": date(2026, 11, 30),
     "survey_deadline": date(2026, 12, 10),
     "status": "active",
