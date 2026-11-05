@@ -195,7 +195,7 @@ export default function Header() {
         )}
         {/* Brand Header */}
         <div id="logo">
-          <Logo src={logo} alt="UTD Logo" className="header-logo" />
+          <Logo alt="UTD Logo" className="header-logo" />
           <h1>UTD Assessment Helper</h1>
         </div>
 

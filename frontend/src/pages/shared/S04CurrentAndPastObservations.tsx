@@ -18,7 +18,7 @@ function formatReminderDate(value?: string) {
   });
 }
 
-function getSemester(value?: string) {
+function getSemester(value?: string | null) {
   if (!value) return "Date unavailable";
 
   const date = new Date(value);
@@ -32,7 +32,7 @@ function getSemester(value?: string) {
   return `Fall ${year}`;
 }
 
-function formatObservationDate(value?: string) {
+function formatObservationDate(value?: string | null) {
   if (!value) return "Date not available";
 
   return new Date(value).toLocaleString("en-US", {
