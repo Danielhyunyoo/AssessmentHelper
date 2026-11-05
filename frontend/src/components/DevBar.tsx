@@ -67,11 +67,6 @@ async function setToday(date: string) {
   window.location.reload();
 }
 
-async function resetData() {
-  await demoApi.reset();
-  window.location.assign("/");
-}
-
 function savedOpen() {
   try {
     return localStorage.getItem("devBarOpen") !== "false";
@@ -89,6 +84,21 @@ export default function DevBar() {
   const [today, setTodayValue] = useState("");
   const [, setSimulated] = useState(false);
   const [cycle, setCycle] = useState<RegistrationStatus | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  async function resetData() {
+    setResetting(true);
+    setResetError("");
+    try {
+      await demoApi.reset();
+      window.location.assign("/");
+    } catch (err) {
+      const message = err instanceof Error && err.message.length < 200 ? err.message : "";
+      setResetError(message || "Reset failed. Check that the backend and the database are running.");
+      setResetting(false);
+    }
+  }
 
   useEffect(() => {
     authApi.session().then((result) => setUser(result.professor?.email ?? "")).catch(() => {});
@@ -221,9 +231,10 @@ export default function DevBar() {
             </div>
           )}
 
-          <button type="button" className="dev-btn-sub" onClick={() => void resetData()}>
-            Reset Data
+          <button type="button" className="dev-btn-sub" onClick={() => void resetData()} disabled={resetting}>
+            {resetting ? "Resetting..." : "Reset Data"}
           </button>
+          {resetError && <p className="dev-footer-note" role="alert">{resetError}</p>}
           
           <p className="dev-footer-note">
             This widget is for demo purposes only.

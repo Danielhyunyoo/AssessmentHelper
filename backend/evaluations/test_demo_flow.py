@@ -159,6 +159,26 @@ class DemoDateTests(APITestCase):
         self.assertFalse(Signup.objects.filter(user=professor_a).exists())
         self.assertIsNone(self.client.get("/api/demo/date/").data["simulated_date"])
 
+    def test_reset_rebuilds_an_empty_database(self):
+        call_command("seed_demo", "--reset", stdout=StringIO())
+        Course.objects.all().delete()
+        Cycle.objects.all().delete()
+        User.objects.all().delete()
+        self.assertFalse(self.client.get("/api/demo/personas/").data)
+
+        response = self.client.post("/api/demo/reset/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(self.client.get("/api/demo/personas/").data), 9)
+        self.assertTrue(Cycle.objects.filter(status="active").exists())
+
+    def test_reset_works_with_a_stale_session_cookie(self):
+        self.client.cookies["sessionid"] = "no-such-session"
+
+        response = self.client.post("/api/demo/reset/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     @override_settings(DEBUG=False)
     def test_demo_date_is_hidden_outside_demo_mode(self):
         self.assertEqual(self.client.get("/api/demo/date/").status_code, status.HTTP_404_NOT_FOUND)

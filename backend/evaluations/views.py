@@ -18,6 +18,8 @@ from . import clock
 from .evaluation_status import evaluation_status_for
 from .management.commands.seed_demo import COMMITTEE, FACULTY
 from django.utils import timezone
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from .serializers import (
     CourseSerializer,
     CourseSelectionSerializer,
@@ -111,11 +113,14 @@ def demo_date(request):
 
 
 @api_view(["POST"])
-@authentication_classes([SessionAuthentication])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def demo_reset(request):
-    """Reset the demo data and the simulated date."""
+    """Bring the database up to date, then reset the demo data and the simulated date."""
     require_demo_mode()
+    executor = MigrationExecutor(connection)
+    if executor.migration_plan(executor.loader.graph.leaf_nodes()):
+        call_command("migrate", interactive=False, stdout=StringIO())
     call_command("seed_demo", "--reset", stdout=StringIO())
     clock.set_simulated_date(None)
     return Response({"detail": "Demo data reset."})
