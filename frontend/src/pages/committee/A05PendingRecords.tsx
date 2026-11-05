@@ -95,11 +95,11 @@ export default function A05PendingObservationRecords() {
             <table className="custom-data-table">
               <thead>
                 <tr>
-                  <th className="col-checkbox">Select</th>
-                  <th>Candidate Name</th>
-                  <th>Department</th>
-                  <th>Academic Level</th>
-                  <th className="align-center">Action</th>
+                  <th scope="col">Faculty Member</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Academic Rank</th>
+                  <th scope="col">Outstanding Item</th>
+                  <th className="align-center" scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,8 +113,8 @@ export default function A05PendingObservationRecords() {
 
                     <td>
                       {record.missing === "observer_submission"
-                        ? "Observer submission"
-                        : "Observee signature"}
+                        ? "Observer needs to complete form"
+                        : "Observee needs to sign"}
                     </td>
 
                     <td className="align-center">

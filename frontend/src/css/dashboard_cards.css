@@ -561,3 +561,41 @@ html.dark-mode .slot-select-input {
   border-color: #52525b;
   color: #f4f4f5;
 }
+
+/* A03 - Carry-forward form */
+.unmatched-transfer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 550px;
+  margin: 24px 0;
+}
+
+.unmatched-transfer-details .form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.unmatched-transfer-details label {
+  display: block;
+  font-weight: 600;
+}
+
+.unmatched-transfer-details select,
+.unmatched-transfer-details textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.unmatched-transfer-details textarea {
+  min-height: 100px;
+  resize: vertical;
+}

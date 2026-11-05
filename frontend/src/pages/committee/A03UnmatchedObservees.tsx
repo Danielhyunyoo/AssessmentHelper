@@ -1,78 +1,153 @@
 // src/pages/committee/A03UnmatchedObservees.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { committeeApi } from "../../api/endpoints";
 
 interface UnmatchedFaculty {
-  id: string;
+  signup_id: number;
+  faculty_id: number;
   name: string;
-  department: string;
-  academicLevel: string;
-  courseSection: string;
+  department: string | null;
+  academic_rank: string;
+  course_id: number;
+  course: string;
+  eligible_observer_count: number;
+  reason: string;
+  already_carried_forward: boolean;
 }
 
-const mockUnmatchedFaculty: UnmatchedFaculty[] = [
-  {
-    id: "1",
-    name: "Last name, First name",
-    department: "Computer Science",
-    academicLevel: "Professor",
-    courseSection: "CS 4337.007",
-  },
-  {
-    id: "2",
-    name: "Last name, First name",
-    department: "Computer Science",
-    academicLevel: "Professor",
-    courseSection: "CS 4337.007",
-  },
-  {
-    id: "3",
-    name: "Last name, First name",
-    department: "Computer Science",
-    academicLevel: "Professor",
-    courseSection: "CS 4337.007",
-  },
-  {
-    id: "4",
-    name: "Last name, First name",
-    department: "Computer Science",
-    academicLevel: "Professor",
-    courseSection: "CS 4337.007",
-  },
-  {
-    id: "5",
-    name: "Last name, First name",
-    department: "Computer Science",
-    academicLevel: "Professor",
-    courseSection: "CS 4337.007",
-  },
-];
+interface EvaluationCycle {
+  cycle_id: number;
+  semester: string;
+  start_date: string;
+  status: string;
+}
+
+interface UnmatchedResponse {
+  cycle_id: number;
+  unmatched: UnmatchedFaculty[];
+  next_cycles: EvaluationCycle[];
+  scope_note: string;
+  carry_forward_note: string;
+}
 
 export default function A03UnmatchedObservees() {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [data, setData] = useState<UnmatchedResponse | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [targetCycleId, setTargetCycleId] = useState("");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleToggleSelect = (id: string) => {
+  const loadUnmatched = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await committeeApi.unmatched();
+      const response = result as unknown as UnmatchedResponse;
+
+      setData(response);
+
+      const eligibleIds = response.unmatched
+        .filter((item) => !item.already_carried_forward)
+        .map((item) => item.signup_id);
+
+      setSelectedIds((previous) =>
+        previous.filter((id) => eligibleIds.includes(id))
+      );
+
+      if (response.next_cycles.length > 0) {
+        setTargetCycleId((previous) => {
+          const stillAvailable = response.next_cycles.some(
+            (cycle) => String(cycle.cycle_id) === previous
+          );
+
+          return stillAvailable
+            ? previous
+            : String(response.next_cycles[0].cycle_id);
+        });
+      } else {
+        setTargetCycleId("");
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to load unmatched faculty."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadUnmatched();
+  }, []);
+
+  const eligibleFaculty =
+    data?.unmatched.filter((item) => !item.already_carried_forward) ?? [];
+
+  const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
   const handleSelectAll = () => {
-    setSelectedIds(mockUnmatchedFaculty.map((f) => f.id));
+    setSelectedIds(eligibleFaculty.map((f) => f.signup_id));
   };
 
   const handleDeselectAll = () => {
     setSelectedIds([]);
   };
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
+    setError("");
+    setMessage("");
+
     if (selectedIds.length === 0) {
-      alert("Please select at least one faculty member to transfer.");
+      setError("Please select at least one faculty member.");
       return;
     }
-    alert(
-      `Transferred ${selectedIds.length} faculty member(s) to the next evaluation cycle.`
-    );
+
+    if (!targetCycleId) {
+      setError("Please select a target evaluation cycle.");
+      return;
+    }
+
+    if (!reason.trim()) {
+      setError("Please enter a reason for the carry-forward.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const result = await committeeApi.carryForward(
+        selectedIds,
+        Number(targetCycleId),
+        reason.trim()
+      );
+
+      const count =
+        typeof result.count === "number" ? result.count : selectedIds.length;
+
+      setMessage(
+        `Successfully carried forward ${count} faculty member(s).`
+      );
+
+      setSelectedIds([]);
+      setReason("");
+
+      await loadUnmatched();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to carry faculty forward."
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -85,6 +160,10 @@ export default function A03UnmatchedObservees() {
       </div>
 
       <h1 className="unmatched-page-title">View Unmatched Observees</h1>
+
+      {loading && <p>Loading unmatched faculty...</p>}
+      {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
 
       {/* Yellow Banner with Coded Grey Triangle Icon */}
       <div className="yellow-banner unmatched-alert-margin">
@@ -112,26 +191,72 @@ export default function A03UnmatchedObservees() {
               </tr>
             </thead>
             <tbody>
-              {mockUnmatchedFaculty.map((item) => {
-                const isSelected = selectedIds.includes(item.id);
+              {data?.unmatched.map((item) => {
+                const isSelected = selectedIds.includes(item.signup_id);
+
                 return (
-                  <tr key={item.id}>
+                  <tr key={item.signup_id}>
                     <td className="unmatched-checkbox-cell">
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => handleToggleSelect(item.id)}
+                        disabled={item.already_carried_forward}
+                        onChange={() => handleToggleSelect(item.signup_id)}
                       />
                     </td>
                     <td>{item.name}</td>
-                    <td>{item.department}</td>
-                    <td>{item.academicLevel}</td>
-                    <td>{item.courseSection}</td>
+                    <td>{item.department ?? "Not provided"}</td>
+                    <td>{item.academic_rank || "Not provided"}</td>
+                    <td>{item.course}</td>
                   </tr>
                 );
               })}
+
+              {data?.unmatched.length === 0 && (
+                <tr>
+                  <td colSpan={5}>
+                    No unmatched observees in the current evaluation cycle.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="unmatched-transfer-details">
+        <div className="form-group">
+          <label htmlFor="target-cycle">Target Evaluation Cycle</label>
+          <select
+            id="target-cycle"
+            value={targetCycleId}
+            onChange={(event) => setTargetCycleId(event.target.value)}
+            disabled={!data?.next_cycles.length}
+          >
+            {!data?.next_cycles.length && (
+              <option value="">No later cycles available</option>
+            )}
+
+            {data?.next_cycles.map((cycle) => (
+              <option key={cycle.cycle_id} value={cycle.cycle_id}>
+                {cycle.semester}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="carry-forward-reason">
+            Reason for Carry-Forward
+          </label>
+          <textarea
+            id="carry-forward-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Enter the reason for carrying these faculty members forward..."
+            rows={3}
+            maxLength={2000}
+          />
         </div>
       </div>
 
@@ -142,6 +267,7 @@ export default function A03UnmatchedObservees() {
             type="button"
             onClick={handleSelectAll}
             className="btn-secondary"
+            disabled={eligibleFaculty.length === 0}
           >
             Select All
           </button>
@@ -149,6 +275,7 @@ export default function A03UnmatchedObservees() {
             type="button"
             onClick={handleDeselectAll}
             className="btn-secondary"
+            disabled={selectedIds.length === 0}
           >
             Deselect All
           </button>
@@ -156,12 +283,24 @@ export default function A03UnmatchedObservees() {
 
         <button
           type="button"
-          onClick={handleTransfer}
+          onClick={() => void handleTransfer()}
           className="btn-primary"
+          disabled={
+            submitting ||
+            selectedIds.length === 0 ||
+            !targetCycleId ||
+            !reason.trim()
+          }
         >
-          Transfer Professors to Next Evaluation Cycle
+          {submitting ? "Processing..." : "Transfer Professors to Next Evaluation Cycle"}
         </button>
       </div>
+
+      {data?.carry_forward_note && (
+        <p className="table-instruction">
+          {data.carry_forward_note}
+        </p>
+      )}
 
       {/* Bottom Center Return Action */}
       <div className="dashboard-center-action">
