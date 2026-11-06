@@ -233,7 +233,7 @@ export default function A08FormEditor() {
                 key={template.template_id}
                 value={template.template_id}
               >
-                {template.name} — Version {template.version} ({template.status})
+                {template.name}, Version {template.version} ({template.status})
               </option>
             ))}
           </select>

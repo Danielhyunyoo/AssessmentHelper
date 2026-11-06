@@ -167,7 +167,7 @@ export default function S05ObservationRecord() {
             <p className="summary-field-val">
               {record.course.department_code} {record.course.course_number}
               {" "}Section {record.course.section}
-              {record.course.schedule ? ` — ${record.course.schedule}` : ""}
+              {record.course.schedule ? `, ${record.course.schedule}` : ""}
             </p>
           </div>
           <div>
