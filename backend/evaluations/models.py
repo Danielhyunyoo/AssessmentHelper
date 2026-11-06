@@ -256,6 +256,8 @@ class Invitation(models.Model):
 
     expires_at = models.DateTimeField(null=True, blank=True)
 
+    reminded_at = models.DateTimeField(null=True, blank=True)
+
     responded_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
@@ -355,6 +357,10 @@ class Survey(models.Model):
         max_length=255,
         blank=True
     )
+
+    # Dynamic A08 survey answers keyed by immutable published-template question IDs.
+    # Existing fixed fields remain for compatibility with older clients/records.
+    responses = models.JSONField(default=dict, blank=True)
 
     score = models.IntegerField(
         null=True,

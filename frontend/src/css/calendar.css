@@ -1,26 +1,42 @@
+
 /* ==========================================
-   CALENDAR COMPONENT STYLES
+   CALENDAR COMPONENT
    ========================================== */
+
 .calendar-container {
-  width: 300px;
+  width: 100%;
+  max-width: 320px;
+  min-width: 280px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 1rem;
   background-color: #ffffff;
+  color: #111827;
+  box-sizing: border-box;
 }
 
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
+.calendar-selects {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .calendar-selects select {
-  padding: 0.25rem 0.5rem;
+  min-width: 0;
+  padding: 0.35rem;
   border-radius: 6px;
   border: 1px solid #d1d5db;
-  margin: 0 0.25rem;
+  background-color: #ffffff;
+  color: #111827;
+  font-size: 0.85rem;
 }
 
 .nav-btn {
@@ -29,33 +45,49 @@
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0.25rem 0.5rem;
+  color: inherit;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  text-align: center;
 }
 
 .calendar-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
   font-size: 0.8rem;
   color: #6b7280;
   margin-bottom: 0.5rem;
 }
 
+.weekday-label {
+  font-weight: 600;
+  padding: 0.35rem 0;
+}
+
 .calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
   gap: 0.25rem;
 }
 
 .calendar-day {
+  width: 100%;
+  min-width: 0;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   border: none;
   background-color: #f3f4f6;
+  color: #111827;
   border-radius: 6px;
   font-size: 0.875rem;
   cursor: pointer;
+}
+
+.calendar-day:hover:not(:disabled) {
+  background-color: #dbeafe;
 }
 
 .calendar-day.selected {
@@ -72,12 +104,20 @@
 
 .calendar-day.empty {
   background-color: transparent;
+  pointer-events: none;
 }
 
-/* Calendar Dark Mode Overrides (Colors Only) */
+/* Dark mode */
 html.dark-mode .calendar-container {
-  background-color: #121212;
-  border-color: #27272a;
+  background-color: #18181b;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+
+html.dark-mode .calendar-selects select {
+  background-color: #27272a;
+  border-color: #52525b;
+  color: #f4f4f5;
 }
 
 html.dark-mode .calendar-weekdays {
@@ -85,12 +125,12 @@ html.dark-mode .calendar-weekdays {
 }
 
 html.dark-mode .calendar-day {
-  background-color: #18181b;
+  background-color: #27272a;
   color: #f4f4f5;
 }
 
 html.dark-mode .calendar-day.selected {
-  background-color: #3f3f46;
+  background-color: #52525b;
   color: #ffffff;
 }
 
@@ -98,4 +138,15 @@ html.dark-mode .calendar-day.disabled,
 html.dark-mode .calendar-day.empty {
   background-color: transparent;
   color: #52525b;
+}
+
+html.dark-mode .calendar-day:hover:not(:disabled) {
+  background-color: #3f3f46;
+}
+
+@media (max-width: 600px) {
+  .calendar-container {
+    max-width: 100%;
+    min-width: 0;
+  }
 }

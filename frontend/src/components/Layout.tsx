@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Footer from "./Footer";
 import DevBar from "./DevBar";
-import NightmodeToggle from "./NightmodeToggle"
+import NightModeToggle from "./NightModeToggle"
 
 export default function Layout() {
 
@@ -15,7 +15,7 @@ export default function Layout() {
       </main>
       <Footer />
       <DevBar />
-      <NightmodeToggle />
+      <NightModeToggle />
     </>
   );
 }

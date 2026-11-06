@@ -462,3 +462,140 @@ html.dark-mode .dashboard-notif-item {
 html.dark-mode .dashboard-notif-item:hover {
   background-color: #27272a;
 }
+
+
+/* ==========================================
+   A02 FACULTY MATCHING
+   ========================================== */
+
+.pairing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.approved-observee-card,
+.manual-observee-card {
+  min-width: 0;
+  padding: 1.25rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.approved-observee-card h4,
+.manual-observee-card h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.observer-checkbox-list,
+.observer-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.checkbox-row-label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.checkbox-row-label input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.checkbox-row-label input:disabled {
+  cursor: not-allowed;
+}
+
+.slot-select-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+html.dark-mode .approved-observee-card,
+html.dark-mode .manual-observee-card {
+  background-color: #18181b;
+  border-color: #3f3f46;
+}
+
+html.dark-mode .approved-observee-card h4,
+html.dark-mode .manual-observee-card h4 {
+  color: #f4f4f5;
+}
+
+html.dark-mode .checkbox-row-label {
+  background-color: #27272a;
+  border-color: #3f3f46;
+  color: #e4e4e7;
+}
+
+html.dark-mode .slot-select-input {
+  background-color: #27272a;
+  border-color: #52525b;
+  color: #f4f4f5;
+}
+
+/* A03 - Carry-forward form */
+.unmatched-transfer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 550px;
+  margin: 24px 0;
+}
+
+.unmatched-transfer-details .form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.unmatched-transfer-details label {
+  display: block;
+  font-weight: 600;
+}
+
+.unmatched-transfer-details select,
+.unmatched-transfer-details textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.unmatched-transfer-details textarea {
+  min-height: 100px;
+  resize: vertical;
+}

@@ -30,7 +30,7 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:5173`. The React starter fetches the dashboard and notifications for `faculty_alice` by default. To switch the demo user, use the dropdown and Reload. `python manage.py seed_demo` creates the demo accounts `faculty_alice`, `faculty_bob`, `faculty_carol`, `faculty_dave` and `committee_demo`. They are example local database records, **not** production users. `python manage.py seed_demo --reset` returns them to their starting state.
+Open `http://localhost:5173`. To switch the demo user, use the Demo tools panel. `python manage.py seed_demo` creates the demo accounts Professor A to Professor H and the Assessment Committee. Sign in with `professora@utdallas.edu` (or `professorb@`, and so on) or `committee@utdallas.edu`, and the password `demo-password`. They are example local database records, **not** production users. `python manage.py seed_demo --reset` returns them to their starting state.
 
 ## Network and CORS
 

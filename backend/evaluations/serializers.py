@@ -161,10 +161,23 @@ class ObservationCancelSerializer(serializers.Serializer):
 
 # E04/O04: one survey response per pairing/participant role.
 class SurveySubmitSerializer(serializers.Serializer):
+    # Old POSTs (score, pain_points, improvements) remain valid. New clients send
+    # responses keyed by question ID, plus submit=False for an editable draft.
     template_id = serializers.IntegerField(min_value=1)
-    score = serializers.IntegerField(min_value=1, max_value=5)
+    pairing_id = serializers.IntegerField(min_value=1, required=False)
+    responses = serializers.DictField(child=serializers.JSONField(), required=False)
+    score = serializers.IntegerField(min_value=1, max_value=5, required=False)
     pain_points = serializers.CharField(required=False, allow_blank=True, max_length=10000)
     improvements = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    submit = serializers.BooleanField(required=False, default=True)
+
+
+class SurveyUpdateSerializer(serializers.Serializer):
+    responses = serializers.DictField(child=serializers.JSONField(), required=False)
+    score = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    pain_points = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    improvements = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    submit = serializers.BooleanField(required=False, default=False)
 
 
 # A04 committee operations

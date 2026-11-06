@@ -81,7 +81,7 @@ Routes below were extracted from the latest available `form_management_update/ur
 
 - `GET /api/me/`: `{ professor, evaluation_cycle, evaluation_status, evaluation_status_details, registration_status, selected_course }`.
 - `GET /api/me/courses/`: array of courses with IDs, department, instructor, number, level, section and schedule. Course title/classroom should **not** be assumed present.
-- `GET /api/registration/status/`: `{ cycle_id, cycle_name, signup_deadline, observation_deadline, survey_deadline, is_registered, has_selected_course, selected_course_id }`.
+- `GET /api/registration/status/`: `{ cycle_id, cycle_name, signup_deadline, observation_deadline, survey_deadline, is_registered, has_selected_course, selected_course_id, today }`.
 - `GET /api/dashboard/`: `{cycle, evaluation_status, evaluation_status_reason, is_registered, has_selected_course, selected_course, unread_notifications, incoming_requests, modules}`.
 - `GET /api/notifications/`: `{ unread_count, notifications:[{notification_id,title,message,type,is_urgent,is_read,created_at,destination}] }`.
 - `GET /api/matches/`: `{released,candidates,warning?}` with `fewer_than_five` for released lists.

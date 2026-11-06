@@ -50,6 +50,12 @@ function firstClassDay(fromIsoDate: string, days: string[]): Date {
   return date;
 }
 
+function nextDay(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  return localDateString(date.toISOString());
+}
+
 function localDateString(value: string): string {
   const date = new Date(value);
 
@@ -150,17 +156,12 @@ export default function E01CourseSelection() {
     void loadPage();
   }, []);
 
-  const today = new Date();
-  const todayIsoDate = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
+  const tomorrowIsoDate = registration ? nextDay(registration.today) : "";
 
   const earliestAllowedDate =
-    registration?.start_date && registration.start_date > todayIsoDate
+    registration?.start_date && registration.start_date > tomorrowIsoDate
       ? registration.start_date
-      : todayIsoDate;
+      : tomorrowIsoDate;
 
   const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
   const allowedDays = confirmedCourse ? parseAllowedDays(confirmedCourse.schedule) : ["Mon", "Wed", "Thu"];

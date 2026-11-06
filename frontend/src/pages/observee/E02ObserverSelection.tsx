@@ -14,18 +14,40 @@ interface CandidateRow {
 }
 
 interface ResponseRecord {
-  id: string;
+  id: number;
+  observerId: number;
   observerName: string;
-  proposedDateTime: string;
-  responseStatus: "CONFIRMED" | "ACCEPTED" | "NOT SELECTED" | "PENDING" | "DECLINED" | "CANCELLED";
+  status: string;
+  date: string;
+  expiresAt: string | null;
 }
 
-function rowStatus(invitationStatus: string, dateStatus: string): ResponseRecord["responseStatus"] {
-  if (invitationStatus === "declined") return "DECLINED";
-  if (invitationStatus === "expired" || invitationStatus === "closed") return "CANCELLED";
-  if (dateStatus === "accepted") return invitationStatus === "confirmed" ? "CONFIRMED" : "ACCEPTED";
-  if (invitationStatus === "accepted" || invitationStatus === "confirmed") return "NOT SELECTED";
-  return "PENDING";
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Awaiting response",
+  accepted: "Accepted",
+  confirmed: "Confirmed",
+  declined: "Declined",
+  expired: "Expired",
+  closed: "Closed",
+  rejected: "Rejected",
+};
+
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function toResponseRows(invitations: Invitation[], names: Record<number, string>): ResponseRecord[] {
+  return invitations.map((invitation) => {
+    const chosen = invitation.proposed_dates.find((date) => date.status === "accepted");
+    return {
+      id: invitation.invitation_id,
+      observerId: invitation.recipient_id,
+      observerName: names[invitation.recipient_id] || `Observer #${invitation.recipient_id}`,
+      status: invitation.status,
+      date: chosen ? formatDateTime(chosen.datetime) : "",
+      expiresAt: invitation.status === "pending" ? invitation.expires_at : null,
+    };
+  });
 }
 
 function localDateString(value: string): string {
@@ -56,6 +78,7 @@ export default function E02ObserverSelection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [messageArea, setMessageArea] = useState<"page" | "invite" | "responses">("page");
 
   useEffect(() => {
     let cancelled = false;
@@ -106,19 +129,10 @@ export default function E02ObserverSelection() {
         setCycleStartDate(registration.start_date);
 
         setResponseData(
-          invitations.flatMap((invitation) => {
-            const candidate = matches.candidates.find(
-              (item) => item.id === invitation.recipient_id
-            );
-
-            return invitation.proposed_dates.map((date) => ({
-              id: String(invitation.invitation_id),
-              observerName:
-                candidate?.name || `Observer #${invitation.recipient_id}`,
-              proposedDateTime: new Date(date.datetime).toLocaleString(),
-              responseStatus: rowStatus(invitation.status, date.status),
-            }));
-          })
+          toResponseRows(
+            invitations,
+            Object.fromEntries((matches.candidates ?? []).map((candidate) => [candidate.id, candidate.name]))
+          )
         );
       } catch (err) {
         if (!cancelled) {
@@ -143,6 +157,7 @@ export default function E02ObserverSelection() {
   const handleSendInvitations = async () => {
     setError("");
     setSuccess("");
+    setMessageArea("invite");
 
     if (selectedCandidates.length === 0) {
       setError("Select at least one observer first.");
@@ -191,22 +206,9 @@ export default function E02ObserverSelection() {
 
       const invitations = await matchingApi.sentInvitations();
 
-      setResponseData(
-        invitations.flatMap((invitation) =>
-          invitation.proposed_dates.map((date) => ({
-            id: String(invitation.invitation_id),
-            observerName:
-              candidateData.find(
-                (candidate) =>
-                  candidate.id === String(invitation.recipient_id)
-              )?.observerName || `Observer #${invitation.recipient_id}`,
-            proposedDateTime: new Date(date.datetime).toLocaleString(),
-            responseStatus: rowStatus(invitation.status, date.status),
-          }))
-        )
-      );
-
-      setSuccess("Invitation requests were sent successfully.");
+      setResponseData(toResponseRows(invitations, observerNames));
+      setSuccess(`Sent ${selectedCandidates.length} invitation(s). Their responses appear below.`);
+      setSelectedCandidates([]);
     } catch (err) {
       setError(
         err instanceof Error
@@ -240,17 +242,45 @@ export default function E02ObserverSelection() {
   };
 
   // Columns for Table 1: Matched Observer Candidates
+  const openInvitationStatus: Record<number, string> = Object.fromEntries(
+    responseData
+      .filter((row) => ["pending", "accepted", "confirmed"].includes(row.status))
+      .map((row) => [row.observerId, row.status])
+  );
+  const isFinalized = responseData.some((row) => row.status === "confirmed");
+  const invitableIds = candidateData
+    .map((candidate) => candidate.id)
+    .filter((id) => !openInvitationStatus[Number(id)]);
+
+  const messages = (
+    <>
+      {error && <div role="alert" className="yellow-banner">{error}</div>}
+      {success && <div role="status" className="yellow-banner">{success}</div>}
+    </>
+  );
+
   const candidateColumns: Column<CandidateRow>[] = [
     {
       header: "Select",
       width: "60px",
-      render: (row) => (
-        <input
-          type="checkbox"
-          checked={selectedCandidates.includes(row.id)}
-          onChange={() => handleCheckboxToggle(row.id)}
-        />
-      ),
+      render: (row) => {
+        const status = openInvitationStatus[Number(row.id)];
+        if (status) {
+          return (
+            <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+              {status === "confirmed" ? "Confirmed" : "Invited"}
+            </span>
+          );
+        }
+        return (
+          <input
+            type="checkbox"
+            checked={selectedCandidates.includes(row.id)}
+            onChange={() => handleCheckboxToggle(row.id)}
+            disabled={isFinalized}
+          />
+        );
+      },
     },
     { header: "Observer Name", accessor: "observerName" },
     { header: "Department", accessor: "department" },
@@ -297,60 +327,90 @@ export default function E02ObserverSelection() {
     },
   ];
 
-  // Columns for Table 2: Pending and Confirmed Responses
+  const observerNames = Object.fromEntries(
+    candidateData.map((candidate) => [Number(candidate.id), candidate.observerName])
+  );
+
   const responseColumns: Column<ResponseRecord>[] = [
+    { header: "Observer", accessor: "observerName" },
     {
-      header: "",
-      width: "40px",
-      render: () => <span style={{ color: "#94a3b8" }}>-</span>,
+      header: "Response",
+      render: (row) => (
+        <span>
+          {STATUS_LABELS[row.status] ?? row.status}
+          {row.expiresAt && (
+            <span style={{ color: "#64748b", fontSize: "0.85rem" }}> (expires {formatDateTime(row.expiresAt)})</span>
+          )}
+        </span>
+      ),
     },
-    { header: "Observer Name", accessor: "observerName" },
-    { header: "Proposed Date and Time", accessor: "proposedDateTime" },
-    { header: "Observer Response", accessor: "responseStatus" },
+    { header: "Date", accessor: "date" },
     {
       header: "Actions",
-      render: (row) => {
-        if (row.responseStatus === "PENDING") {
-          return <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#64748b" }}>AWAITING RESPONSE</span>;
-        }
-        if (row.responseStatus === "CONFIRMED") {
-          return (
-            <span style={{ backgroundColor: "#dcfce7", color: "#166534", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
-              CONFIRMED
-            </span>
-          );
-        }
-        if (row.responseStatus === "ACCEPTED") {
-          const invitationId = Number(row.id);
-
-          return (
+      render: (row) =>
+        row.status === "accepted" ? (
+          <span style={{ display: "flex", gap: "0.5rem" }}>
             <button
               type="button"
               className="secondary-btn"
-              onClick={() => setSelectedInvitationId(invitationId)}
-              style={{
-                fontWeight: selectedInvitationId === invitationId ? "700" : "400",
-              }}
+              onClick={() => setSelectedInvitationId(row.id)}
+              style={{ fontWeight: selectedInvitationId === row.id ? "700" : "400" }}
             >
-              {selectedInvitationId === invitationId ? "Selected" : "Select Observer"}
+              {selectedInvitationId === row.id ? "Selected" : "Select"}
             </button>
-          );
-        }
-        if (row.responseStatus === "DECLINED" || row.responseStatus === "CANCELLED") {
-          return (
-            <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
-              DECLINED
-            </span>
-          );
-        }
-        return <span>-</span>;
-      },
+            <button type="button" className="secondary-btn" onClick={() => void handleReject(row.id)} disabled={saving}>
+              Reject
+            </button>
+          </span>
+        ) : null,
     },
   ];
+
+  const statusCounts = Object.entries(
+    responseData.reduce<Record<string, number>>((counts, row) => {
+      counts[row.status] = (counts[row.status] ?? 0) + 1;
+      return counts;
+    }, {})
+  );
+
+  const reloadResponses = async () => {
+    const invitations = await matchingApi.sentInvitations();
+
+    setResponseData(toResponseRows(invitations, observerNames));
+  };
+
+  const runAction = async (action: () => Promise<unknown>, message: string) => {
+    setError("");
+    setSuccess("");
+    setMessageArea("responses");
+    setSaving(true);
+
+    try {
+      await action();
+      setSelectedInvitationId(null);
+      setSuccess(message);
+      await reloadResponses();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update the invitation.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReject = (invitationId: number) =>
+    runAction(() => matchingApi.reject(invitationId), "Response rejected. You can invite this observer again.");
+
+  const handleRejectAll = () =>
+    runAction(() => matchingApi.rejectAll(), "All open invitations were withdrawn.");
+
+  const hasOpenInvitations = responseData.some(
+    (row) => row.status === "pending" || row.status === "accepted"
+  );
 
   const handleConfirmPairing = async () => {
     setError("");
     setSuccess("");
+    setMessageArea("responses");
 
     if (selectedInvitationId === null) {
       setError("Please select an observer who has accepted an invitation.");
@@ -362,25 +422,13 @@ export default function E02ObserverSelection() {
     try {
       await matchingApi.confirmPairing(selectedInvitationId);
 
-      setSuccess("Observer and observation date confirmed successfully.");
+      setSuccess("Observer and observation date confirmed.");
+      setSelectedInvitationId(null);
 
       // Reload the page's invitation and response data.
       const invitations = await matchingApi.sentInvitations();
 
-      setResponseData(
-        invitations.flatMap((invitation) =>
-          invitation.proposed_dates.map((date) => ({
-            id: String(invitation.invitation_id),
-            observerName:
-              candidateData.find(
-                (candidate) =>
-                  candidate.id === String(invitation.recipient_id)
-              )?.observerName || `Observer #${invitation.recipient_id}`,
-            proposedDateTime: new Date(date.datetime).toLocaleString(),
-            responseStatus: rowStatus(invitation.status, date.status),
-          }))
-        )
-      );
+      setResponseData(toResponseRows(invitations, observerNames));
     } catch (err) {
       setError(
         err instanceof Error
@@ -404,8 +452,7 @@ export default function E02ObserverSelection() {
       <h2>Observer Selection</h2>
 
       {loading && <p>Loading matched observers and invitations...</p>}
-      {error && <div role="alert" className="yellow-banner">{error}</div>}
-      {success && <div role="status" className="yellow-banner">{success}</div>}
+      {messageArea === "page" && messages}
 
       {/* Top Section: Registered Course Info & Calendar Widget */}
       <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
@@ -471,7 +518,7 @@ export default function E02ObserverSelection() {
 
         <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
+            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(invitableIds)} disabled={isFinalized}>
               Select All
             </button>
             <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates([])}>
@@ -483,11 +530,13 @@ export default function E02ObserverSelection() {
             type="button"
             className="btn-primary"
             onClick={() => void handleSendInvitations()}
-            disabled={saving || loading}
+            disabled={saving || loading || isFinalized || selectedCandidates.length === 0}
           >
             {saving ? "Sending..." : "Send Invitation Requests"}
           </button>
         </div>
+
+        {messageArea === "invite" && messages}
       </section>
 
       {/* Section 3: Pending and Confirmed Observer Responses */}
@@ -498,6 +547,13 @@ export default function E02ObserverSelection() {
           <strong>IMPORTANT:</strong> Accepting an Observer will lock in your choice and automatically decline remaining candidates.
         </div>
 
+        {responseData.length > 0 && (
+          <p style={{ margin: "0.75rem 0" }}>
+            <strong>{responseData.length} invited</strong>
+            {statusCounts.map(([status, count]) => ` · ${count} ${(STATUS_LABELS[status] ?? status).toLowerCase()}`)}
+          </p>
+        )}
+
         <DataTable
           themeColor="green"
           instructionText="Review responses from invited observers."
@@ -506,18 +562,25 @@ export default function E02ObserverSelection() {
         />
 
         <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button type="button" className="btn-secondary">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => void handleRejectAll()}
+            disabled={saving || !hasOpenInvitations}
+          >
             Reject All
           </button>
           <button
             type="button"
             className="btn-primary"
             onClick={() => void handleConfirmPairing()}
-            disabled={saving || selectedInvitationId === null}
+            disabled={saving || isFinalized || selectedInvitationId === null}
           >
-            {saving ? "Confirming..." : "Confirm and Lock Changes"}
+            {saving ? "Confirming..." : isFinalized ? "Observer Confirmed" : "Confirm and Lock Changes"}
           </button>
         </div>
+
+        {messageArea === "responses" && messages}
 
         <div className="dashboard-center-action">
           <Link to="/shared/faculty-dashboard" className="btn-secondary">

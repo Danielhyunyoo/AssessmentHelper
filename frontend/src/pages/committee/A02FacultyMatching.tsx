@@ -4,6 +4,11 @@ import { committeeApi, demoApi } from "../../api/endpoints";
 import type { FacultyRow } from "../../api/types";
 import { Link } from "react-router-dom";
 
+function formatDay(isoDate: string): string {
+  const date = isoDate.length === 10 ? new Date(`${isoDate}T00:00:00`) : new Date(isoDate);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export default function A02FacultyMatching() {
   const [observeeList, setObserveeList] = useState<FacultyRow[]>([]);
   const [candidateOptions, setCandidateOptions] = useState<
@@ -24,7 +29,7 @@ export default function A02FacultyMatching() {
   const [savingDates, setSavingDates] = useState(false);
   const [displayStartDate, setDisplayStartDate] = useState<string>("Sep 13, 2026");
   const [displayEndDate, setDisplayEndDate] = useState<string>("Oct 9, 2026 at 11:59 PM");
-  const [sendingNotifications, setSendingNotifications] = useState(false);
+  const [releasedAt, setReleasedAt] = useState<Record<number, string>>({});
 
   // Demo Sandbox State (similar to S04 pattern)
   const [showManualMatching, setShowManualMatching] = useState<boolean>(false);
@@ -142,6 +147,7 @@ export default function A02FacultyMatching() {
               academic_level: string;
             }[];
             releasedObserverIds: number[];
+            releasedAt: string | null;
           }
         ][] = await Promise.all(
           eligibleObservees.map(async (faculty) => {
@@ -166,14 +172,17 @@ export default function A02FacultyMatching() {
                   )
                 : [];
 
+              const releasedAt =
+                typeof result.matches_released_at === "string" ? result.matches_released_at : null;
+
               return [
                 signupId,
-                { candidates, releasedObserverIds },
+                { candidates, releasedObserverIds, releasedAt },
               ];
             } catch {
               return [
                 signupId,
-                { candidates: [], releasedObserverIds: [] },
+                { candidates: [], releasedObserverIds: [], releasedAt: null },
               ];
             }
           })
@@ -192,12 +201,20 @@ export default function A02FacultyMatching() {
 
         setSelectedObservers(
           Object.fromEntries(
+            poolResults.map(([signupId, result]) => [
+              signupId,
+              result.releasedAt
+                ? result.releasedObserverIds
+                : result.candidates.slice(0, 5).map((candidate) => candidate.id),
+            ])
+          )
+        );
+
+        setReleasedAt(
+          Object.fromEntries(
             poolResults
-              .filter(([, result]) => result.releasedObserverIds.length > 0)
-              .map(([signupId, result]) => [
-                signupId,
-                result.releasedObserverIds,
-              ])
+              .filter(([, result]) => result.releasedAt)
+              .map(([signupId, result]) => [signupId, result.releasedAt!])
           )
         );
 
@@ -238,7 +255,7 @@ export default function A02FacultyMatching() {
     });
   };
 
-  const handleConfirmMatches = async (signupId: number) => {
+  const handleConfirmMatches = async (signupId: number, observeeName: string) => {
     const observerIds = (selectedObservers[signupId] ?? []).filter(Boolean);
 
     if (observerIds.length === 0) {
@@ -257,7 +274,8 @@ export default function A02FacultyMatching() {
 
     try {
       await committeeApi.releaseCandidates(signupId, observerIds);
-      setMatchSuccess(`Candidate list released for signup #${signupId}.`);
+      setReleasedAt((previous) => ({ ...previous, [signupId]: currentToday || new Date().toISOString() }));
+      setMatchSuccess(`Released ${observerIds.length} observer(s) to ${observeeName}. They have been notified.`);
     } catch (err) {
       setMatchError(
         err instanceof Error
@@ -266,72 +284,6 @@ export default function A02FacultyMatching() {
       );
     } finally {
       setSavingSignupId(null);
-    }
-  };
-
-  const handleSendNotifications = async () => {
-    const selectedEntries = observeeList
-      .filter((person) => person.signup_id != null)
-      .map((person) => ({
-        person,
-        signupId: person.signup_id!,
-        observerIds: (selectedObservers[person.signup_id!] ?? []).filter(Boolean),
-      }))
-      .filter((entry) => entry.observerIds.length > 0);
-
-    if (selectedEntries.length === 0) {
-      setMatchError("Select at least one observer before sending notifications.");
-      setMatchSuccess("");
-      return;
-    }
-
-    const invalidEntry = selectedEntries.find(
-      (entry) => entry.observerIds.length > 5
-    );
-
-    if (invalidEntry) {
-      setMatchError("You can select at most five observers per observee.");
-      setMatchSuccess("");
-      return;
-    }
-
-    setSendingNotifications(true);
-    setMatchError("");
-    setMatchSuccess("");
-
-    let succeeded = 0;
-    const failures: string[] = [];
-
-    try {
-      for (const entry of selectedEntries) {
-        try {
-          await committeeApi.releaseCandidates(
-            entry.signupId,
-            entry.observerIds
-          );
-          succeeded++;
-        } catch (err) {
-          failures.push(
-            `${entry.person.name}: ${
-              err instanceof Error ? err.message : "Request failed"
-            }`
-          );
-        }
-      }
-
-      if (failures.length > 0) {
-        setMatchError(
-          `${succeeded} observee(s) notified successfully. ${failures.length} failed: ${failures.join("; ")}`
-        );
-      }
-
-      if (succeeded > 0) {
-        setMatchSuccess(
-          `Successfully released candidate lists and triggered notifications for ${succeeded} observee(s).`
-        );
-      }
-    } finally {
-      setSendingNotifications(false);
     }
   };
 
@@ -400,7 +352,7 @@ export default function A02FacultyMatching() {
 
         <div className="table-container theme-blue summary-card-padding">
           <p className="section-intro-text">
-            Review the following completed matched lists. Select each Observee you'd like to notify about their successful matches:
+            Each observee's suggested observers are pre-selected. Adjust the list if needed, then release it to notify the observee.
           </p>
 
           <div className="pairing-grid">
@@ -411,113 +363,76 @@ export default function A02FacultyMatching() {
 
               const candidates = candidateOptions[signupId] ?? [];
               const selectedIds = selectedObservers[signupId] ?? [];
+              const released = releasedAt[signupId];
 
               return (
                 <div key={signupId} className="approved-observee-card">
-                  <h4>Observee Name</h4>
-                  <p className="font-slate">
-                    {person.name}
+                  <h4>{person.name}</h4>
+                  <p className="font-slate font-sm">
+                    {person.academic_rank}
+                    {person.course &&
+                      ` · ${person.course.department_code} ${person.course.course_number}.${person.course.section} ${person.course.title}`}
                   </p>
 
-                  <strong className="block-label">
-                    List of Eligible Observers
-                  </strong>
-
-                  {candidates.length === 0 ? (
-                    <p className="font-sm">
-                      No eligible candidates were returned.
+                  {released ? (
+                    <p className="released-summary">
+                      <strong>Released {formatDay(released)}:</strong>{" "}
+                      {candidates
+                        .filter((candidate) => selectedIds.includes(candidate.id))
+                        .map((candidate) => candidate.name)
+                        .join(", ")}
                     </p>
+                  ) : candidates.length === 0 ? (
+                    <p className="font-sm">No eligible candidates were returned.</p>
                   ) : (
-                    <div className="observer-checkbox-list">
-                      {candidates.map((candidate) => (
-                        <label key={candidate.id} className="checkbox-row-label">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(candidate.id)}
-                            onChange={(event) => {
-                              const updated = event.target.checked
-                                ? [...selectedIds, candidate.id]
-                                : selectedIds.filter((id) => id !== candidate.id);
+                    <>
+                      <strong className="block-label">Suggested observers (up to 5)</strong>
+                      <div className="observer-checkbox-list">
+                        {candidates.map((candidate) => (
+                          <label key={candidate.id} className="checkbox-row-label">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(candidate.id)}
+                              onChange={(event) => {
+                                const updated = event.target.checked
+                                  ? [...selectedIds, candidate.id]
+                                  : selectedIds.filter((id) => id !== candidate.id);
 
-                              setSelectedObservers((previous) => ({
-                                ...previous,
-                                [signupId]: updated,
-                              }));
-                            }}
-                            disabled={
-                              savingSignupId === signupId ||
-                              (!selectedIds.includes(candidate.id) &&
-                                selectedIds.length >= 5)
-                            }
-                          />
-                          <span>
-                            {candidate.name} ({candidate.academic_level})
-                          </span>
-                        </label>
-                      ))}
-                    </div>
+                                setSelectedObservers((previous) => ({
+                                  ...previous,
+                                  [signupId]: updated,
+                                }));
+                              }}
+                              disabled={
+                                savingSignupId === signupId ||
+                                (!selectedIds.includes(candidate.id) && selectedIds.length >= 5)
+                              }
+                            />
+                            <span>
+                              {candidate.name} <span className="font-slate">({candidate.academic_level})</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-primary btn-block button-margin-top"
+                        onClick={() => void handleConfirmMatches(signupId, person.name)}
+                        disabled={savingSignupId === signupId || selectedIds.length === 0}
+                      >
+                        {savingSignupId === signupId
+                          ? "Releasing..."
+                          : `Release ${selectedIds.length} observer(s) to ${person.name}`}
+                      </button>
+                    </>
                   )}
-
-                  <button
-                    type="button"
-                    className="btn-primary btn-block button-margin-top"
-                    onClick={() => void handleConfirmMatches(signupId)}
-                    disabled={
-                      savingSignupId === signupId || selectedIds.length === 0
-                    }
-                  >
-                    {savingSignupId === signupId
-                      ? "Saving..."
-                      : `Approve ${selectedIds.length} Candidate(s)`}
-                  </button>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Action Controls Bar */}
-        <div className="action-controls-bar">
-          <div className="button-group-left">
-            <button
-              type="button"
-              className="btn-select-toggle"
-              onClick={() => {
-                const allSelected: Record<number, number[]> = {};
-
-                observeeList.forEach((person) => {
-                  if (person.signup_id == null) return;
-
-                  const candidates = candidateOptions[person.signup_id] ?? [];
-                  allSelected[person.signup_id] = candidates
-                    .slice(0, 5)
-                    .map((candidate) => candidate.id);
-                });
-
-                setSelectedObservers(allSelected);
-              }}
-            >
-              Select All
-            </button>
-
-            <button
-              type="button"
-              className="btn-select-toggle"
-              onClick={() => setSelectedObservers({})}
-            >
-              Deselect All
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void handleSendNotifications()}
-            disabled={sendingNotifications}
-          >
-            {sendingNotifications ? "Sending..." : "Release Selected Lists & Notify"}
-          </button>
-        </div>
       </section>
 
       {/* S04-style Demo Toggle Box placed strictly under the automatic matching section */}
@@ -592,7 +507,7 @@ export default function A02FacultyMatching() {
                     <button
                       type="button"
                       className="btn-secondary btn-block button-margin-top"
-                      onClick={() => void handleConfirmMatches(signupId)}
+                      onClick={() => void handleConfirmMatches(signupId, observee.name)}
                       disabled={savingSignupId === signupId}
                     >
                       {savingSignupId === signupId ? "Saving..." : "Confirm Matches"}

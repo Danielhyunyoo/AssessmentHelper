@@ -9,6 +9,7 @@ urlpatterns = [
     path("auth/session/", views.session_user, name="auth-session"),
     path("demo/date/", views.demo_date, name="demo-date"),
     path("demo/reset/", views.demo_reset, name="demo-reset"),
+    path("demo/personas/", views.demo_personas, name="demo-personas"),
     path("me/", views.my_professor, name="my-professor"),
     path("me/courses/", views.my_courses, name="my-courses"),
     path("signups/", views.create_signup, name="create-signup"),
@@ -35,7 +36,10 @@ urlpatterns += [
     path("invitations/", views.my_sent_invitations, name="sent-invitations"),
     path("invitations/send/", views.send_invitation, name="send-invitation"),
     path("invitations/received/", views.my_received_invitations, name="received-invitations"),
+    path("invitations/reject-all/", views.reject_all_invitations, name="invitations-reject-all"),
+    path("invitations/<int:invitation_id>/reject/", views.reject_invitation, name="invitation-reject"),
     path("invitations/<int:invitation_id>/respond/", views.respond_to_invitation, name="respond-invitation"),
+    path("pairings/scheduled/", views.my_scheduled_visits, name="scheduled-visits"),
     path("pairings/confirm/", views.confirm_pairing, name="confirm-pairing"),
 ]
 
@@ -49,11 +53,15 @@ urlpatterns += [
 
 urlpatterns += [
     path("surveys/", views.surveys_collection, name="surveys-collection"),
+    path("surveys/template/", views.survey_template_for_pairing, name="survey-template-for-pairing"),
     path("surveys/<int:survey_id>/", views.survey_detail, name="survey-detail"),
 ]
 
 urlpatterns += [
     path("committee/pending-records/", views.committee_pending_records, name="committee-pending-records"),
+    path("committee/completed-records/", views.committee_completed_records, name="committee-completed-records"),
+    path("committee/observations/<int:observation_id>/", views.committee_observation_detail, name="committee-observation-detail"),
+    path("committee/surveys/<int:survey_id>/", views.committee_survey_detail, name="committee-survey-detail"),
     path("committee/pending-records/<int:pairing_id>/remind/", views.committee_remind_record, name="committee-remind-record"),
     path("committee/pending-surveys/", views.committee_pending_surveys, name="committee-pending-surveys"),
     path("committee/pending-surveys/<int:pairing_id>/<str:role>/remind/", views.committee_remind_survey, name="committee-remind-survey"),
