@@ -15,6 +15,7 @@ interface CandidateRow {
 
 interface ResponseRecord {
   id: number;
+  observerId: number;
   observerName: string;
   status: string;
   date: string;
@@ -40,6 +41,7 @@ function toResponseRows(invitations: Invitation[], names: Record<number, string>
     const chosen = invitation.proposed_dates.find((date) => date.status === "accepted");
     return {
       id: invitation.invitation_id,
+      observerId: invitation.recipient_id,
       observerName: names[invitation.recipient_id] || `Observer #${invitation.recipient_id}`,
       status: invitation.status,
       date: chosen ? formatDateTime(chosen.datetime) : "",
@@ -76,6 +78,7 @@ export default function E02ObserverSelection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [messageArea, setMessageArea] = useState<"page" | "invite" | "responses">("page");
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +157,7 @@ export default function E02ObserverSelection() {
   const handleSendInvitations = async () => {
     setError("");
     setSuccess("");
+    setMessageArea("invite");
 
     if (selectedCandidates.length === 0) {
       setError("Select at least one observer first.");
@@ -203,8 +207,8 @@ export default function E02ObserverSelection() {
       const invitations = await matchingApi.sentInvitations();
 
       setResponseData(toResponseRows(invitations, observerNames));
-
-      setSuccess("Invitation requests were sent successfully.");
+      setSuccess(`Sent ${selectedCandidates.length} invitation(s). Their responses appear below.`);
+      setSelectedCandidates([]);
     } catch (err) {
       setError(
         err instanceof Error
@@ -238,17 +242,45 @@ export default function E02ObserverSelection() {
   };
 
   // Columns for Table 1: Matched Observer Candidates
+  const openInvitationStatus: Record<number, string> = Object.fromEntries(
+    responseData
+      .filter((row) => ["pending", "accepted", "confirmed"].includes(row.status))
+      .map((row) => [row.observerId, row.status])
+  );
+  const isFinalized = responseData.some((row) => row.status === "confirmed");
+  const invitableIds = candidateData
+    .map((candidate) => candidate.id)
+    .filter((id) => !openInvitationStatus[Number(id)]);
+
+  const messages = (
+    <>
+      {error && <div role="alert" className="yellow-banner">{error}</div>}
+      {success && <div role="status" className="yellow-banner">{success}</div>}
+    </>
+  );
+
   const candidateColumns: Column<CandidateRow>[] = [
     {
       header: "Select",
       width: "60px",
-      render: (row) => (
-        <input
-          type="checkbox"
-          checked={selectedCandidates.includes(row.id)}
-          onChange={() => handleCheckboxToggle(row.id)}
-        />
-      ),
+      render: (row) => {
+        const status = openInvitationStatus[Number(row.id)];
+        if (status) {
+          return (
+            <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+              {status === "confirmed" ? "Confirmed" : "Invited"}
+            </span>
+          );
+        }
+        return (
+          <input
+            type="checkbox"
+            checked={selectedCandidates.includes(row.id)}
+            onChange={() => handleCheckboxToggle(row.id)}
+            disabled={isFinalized}
+          />
+        );
+      },
     },
     { header: "Observer Name", accessor: "observerName" },
     { header: "Department", accessor: "department" },
@@ -350,6 +382,7 @@ export default function E02ObserverSelection() {
   const runAction = async (action: () => Promise<unknown>, message: string) => {
     setError("");
     setSuccess("");
+    setMessageArea("responses");
     setSaving(true);
 
     try {
@@ -377,6 +410,7 @@ export default function E02ObserverSelection() {
   const handleConfirmPairing = async () => {
     setError("");
     setSuccess("");
+    setMessageArea("responses");
 
     if (selectedInvitationId === null) {
       setError("Please select an observer who has accepted an invitation.");
@@ -388,7 +422,8 @@ export default function E02ObserverSelection() {
     try {
       await matchingApi.confirmPairing(selectedInvitationId);
 
-      setSuccess("Observer and observation date confirmed successfully.");
+      setSuccess("Observer and observation date confirmed.");
+      setSelectedInvitationId(null);
 
       // Reload the page's invitation and response data.
       const invitations = await matchingApi.sentInvitations();
@@ -417,8 +452,7 @@ export default function E02ObserverSelection() {
       <h2>Observer Selection</h2>
 
       {loading && <p>Loading matched observers and invitations...</p>}
-      {error && <div role="alert" className="yellow-banner">{error}</div>}
-      {success && <div role="status" className="yellow-banner">{success}</div>}
+      {messageArea === "page" && messages}
 
       {/* Top Section: Registered Course Info & Calendar Widget */}
       <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
@@ -484,7 +518,7 @@ export default function E02ObserverSelection() {
 
         <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
+            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(invitableIds)} disabled={isFinalized}>
               Select All
             </button>
             <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates([])}>
@@ -496,11 +530,13 @@ export default function E02ObserverSelection() {
             type="button"
             className="btn-primary"
             onClick={() => void handleSendInvitations()}
-            disabled={saving || loading}
+            disabled={saving || loading || isFinalized || selectedCandidates.length === 0}
           >
             {saving ? "Sending..." : "Send Invitation Requests"}
           </button>
         </div>
+
+        {messageArea === "invite" && messages}
       </section>
 
       {/* Section 3: Pending and Confirmed Observer Responses */}
@@ -538,11 +574,13 @@ export default function E02ObserverSelection() {
             type="button"
             className="btn-primary"
             onClick={() => void handleConfirmPairing()}
-            disabled={saving || selectedInvitationId === null}
+            disabled={saving || isFinalized || selectedInvitationId === null}
           >
-            {saving ? "Confirming..." : "Confirm and Lock Changes"}
+            {saving ? "Confirming..." : isFinalized ? "Observer Confirmed" : "Confirm and Lock Changes"}
           </button>
         </div>
+
+        {messageArea === "responses" && messages}
 
         <div className="dashboard-center-action">
           <Link to="/shared/faculty-dashboard" className="btn-secondary">
