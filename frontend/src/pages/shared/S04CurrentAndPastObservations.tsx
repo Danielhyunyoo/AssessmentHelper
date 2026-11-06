@@ -5,6 +5,7 @@ import type {
   ObservationRecord,
   Professor,
   RegistrationStatus,
+  ScheduledVisit,
 } from "../../api/types";
 import { Link } from "react-router-dom";
 
@@ -48,6 +49,7 @@ function formatObservationDate(value?: string | null) {
 export default function S04CurrentAndPastObservations() {
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [liveRecords, setLiveRecords] = useState<ObservationRecord[]>([]);
+  const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
   const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveError, setLiveError] = useState("");
@@ -72,6 +74,7 @@ export default function S04CurrentAndPastObservations() {
 
         setCurrentUser(session.professor);
         setLiveRecords(records);
+        setScheduledVisits(await observationApi.scheduled());
         setRegistration(registrationData);
       } catch (err) {
         if (!cancelled) {
@@ -206,12 +209,49 @@ export default function S04CurrentAndPastObservations() {
 
           <div className="table-container accordion-wrapper">
             <div className="accordion-content">
-              {currentRecords.length === 0 ? (
+              {currentRecords.length === 0 && scheduledVisits.length === 0 ? (
                 <div className="observation-empty-state">
                   No current observations.
                 </div>
               ) : (
                 <div className="observation-cards-container">
+                  {scheduledVisits.map((visit) => {
+                    const isObserver = visit.observer.id === currentUser?.id;
+
+                    return (
+                      <article className="observation-card-history" key={`visit-${visit.pairing_id}`}>
+                        <div className="observation-card-header">
+                          <strong className="observation-card-title">
+                            {formatObservationDate(visit.confirmed_datetime)}
+                          </strong>
+                          <span className={`pill-badge ${isObserver ? "pill-observer" : "pill-observee"}`}>
+                            {isObserver ? "Observer" : "Observee"}
+                          </span>
+                        </div>
+
+                        <p className="observation-card-text">
+                          <strong>{isObserver ? "Observee:" : "Observer:"}</strong>{" "}
+                          {isObserver ? visit.observee.name : visit.observer.name}
+                        </p>
+
+                        <p className="observation-card-text">
+                          <strong>Course:</strong> {visit.course.department_code} {visit.course.course_number}
+                        </p>
+
+                        <p className="observation-card-text">
+                          <strong>Section:</strong> {visit.course.section}
+                        </p>
+
+                        <p className="observation-card-subtext">
+                          <strong>Status:</strong> Scheduled
+                        </p>
+
+                        <p className="observation-card-subtext">
+                          The observation record opens after the visit.
+                        </p>
+                      </article>
+                    );
+                  })}
                   {currentRecords.map((record) => {
                     const isObserver =
                       record.observer.id === currentUser?.id;

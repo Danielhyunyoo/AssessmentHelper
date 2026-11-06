@@ -218,6 +218,22 @@ class InvitationTests(APITestCase):
         self.assertEqual(Invitation.objects.get(pk=d).status, "declined")
         self.assertIn("Invitation withdrawn", self.titles(self.professor_c))
 
+    def test_both_participants_see_the_visit_until_it_happens(self):
+        b = self.invite(self.professor_b).data["invitation_id"]
+        self.accept(self.professor_b, b)
+        self.confirm(b)
+
+        seen = []
+        for user in (self.professor_a, self.professor_b, self.professor_c):
+            self.as_user(user)
+            seen.append(len(self.client.get("/api/pairings/scheduled/").data))
+        self.jump(7)
+        self.as_user(self.professor_b)
+        after = self.client.get("/api/pairings/scheduled/").data
+
+        self.assertEqual(seen, [1, 1, 0])
+        self.assertEqual(after, [])
+
     def test_process_invitations_command_expires_overdue_invitations(self):
         b = self.invite(self.professor_b).data["invitation_id"]
         Invitation.objects.filter(pk=b).update(expires_at=timezone.now() - timedelta(minutes=1))

@@ -1,5 +1,5 @@
 import { get, patch, post, put, qs } from "./http";
-import type { Course, CommitteeCompletedRecords, CommitteePendingRecords, CommitteeSurveyTracking, CycleDates, DemoPersona, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template } from "./types";
+import type { Course, CommitteeCompletedRecords, CommitteePendingRecords, CommitteeSurveyTracking, CycleDates, DemoPersona, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, ScheduledVisit, Signup, SignupAvailability, Survey, Template } from "./types";
 // L02-L03
 export const authApi = {
   csrf: () => get<{detail:string}>("/auth/csrf/"),
@@ -43,6 +43,7 @@ export const matchingApi = {
 // E03-E05, O03-O04
 export const observationApi = {
   list: () => get<ObservationRecord[]>("/observations/"),
+  scheduled: () => get<ScheduledVisit[]>("/pairings/scheduled/"),
   create: (pairing_id: number, template_id: number) => post<ObservationRecord>("/observations/", {pairing_id,template_id}),
   detail: (id: number) => get<ObservationRecord>(`/observations/${id}/`),
   saveDraft: (id: number, responses: Record<string,number|string>) => patch<ObservationRecord>(`/observations/${id}/`, {responses}),

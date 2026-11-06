@@ -867,6 +867,29 @@ def reject_all_invitations(request):
     return Response({"rejected_ids": [inv.pk for inv in rejected]})
 
 
+@api_view(["GET"])
+def my_scheduled_visits(request):
+    """Confirmed visits that have not happened yet, for either participant."""
+    user = get_current_professor(request)
+    pairings = (
+        Pairing.objects
+        .filter(Q(observer=user) | Q(observee=user), cycle=get_current_cycle(), status="confirmed",
+                confirmed_datetime__gt=clock.now(), observations__isnull=True)
+        .select_related("observer", "observee", "course", "course__department")
+        .order_by("confirmed_datetime")
+    )
+    return Response([
+        {
+            "pairing_id": pairing.pk,
+            "observer": {"id": pairing.observer_id, "name": display_name(pairing.observer)},
+            "observee": {"id": pairing.observee_id, "name": display_name(pairing.observee)},
+            "course": CourseSerializer(pairing.course).data,
+            "confirmed_datetime": pairing.confirmed_datetime,
+        }
+        for pairing in pairings
+    ])
+
+
 @api_view(["POST"])
 def confirm_pairing(request):
     process_invitation_deadlines()
