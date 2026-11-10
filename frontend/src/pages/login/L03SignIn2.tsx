@@ -152,7 +152,7 @@ export default function L03SignIn2() {
               You were not registered for an observation visit during this active cycle. You can still access your historical records.
             </p>
 
-            <Link to="/observee/current-past-observations" className="btn-secondary btn-block">
+            <Link to="/shared/current-past-observations" className="btn-secondary btn-block">
               View Previous Observation Records
             </Link>
           </>
@@ -177,7 +177,7 @@ export default function L03SignIn2() {
               <p style={{ fontSize: "0.875rem", color: "#475569", marginBottom: "0.25rem" }}>
                 Not registering for this cycle?
               </p>
-              <Link to="/observee/current-past-observations" className="registration-link">
+              <Link to="/shared/current-past-observations" className="registration-link">
                 View previous records
               </Link>
             </div>

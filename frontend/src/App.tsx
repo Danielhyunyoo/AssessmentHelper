@@ -21,7 +21,7 @@ import A03UnmatchedObservees from "./pages/committee/A03UnmatchedObservees";
 import A04FacultyRoster from "./pages/committee/A04FacultyRoster";
 import A05PendingRecords from "./pages/committee/A05PendingRecords";
 import A06SurveyTracking from "./pages/committee/A06SurveyTracking";
-// import A07KPIOverview from "./pages/committee/A07KPIOverview";
+import A07KPIOverview from "./pages/committee/A07KPIOverview";
 import A08FormEditor from "./pages/committee/A08FormEditor";
 
 // Temporary fallback component for pages not yet coded
@@ -68,7 +68,7 @@ export default function App() {
           <Route path="/committee/faculty-roster" element={<A04FacultyRoster />} />
           <Route path="/committee/pending-records" element={<A05PendingRecords />} />
           <Route path="/committee/survey-tracking" element={<A06SurveyTracking />} />
-          <Route path="/committee/kpi-overview" element={<PlaceholderPage />} />
+          <Route path="/committee/kpi-overview" element={<A07KPIOverview />} />
           <Route path="/committee/form-editor" element={<A08FormEditor />} />
 
         </Route>

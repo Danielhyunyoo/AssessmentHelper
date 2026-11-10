@@ -220,15 +220,6 @@ html.dark-mode .red {
 /* ao3 my beloved*/
 /* A03 UNMATCHED OBSERVEES STYLES */
 
-/* Page Level Title Styling */
-.unmatched-page-title {
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: #000000;
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
 /* Alert Banner */
 .unmatched-alert-banner {
   background-color: #fef08a;
@@ -347,6 +338,284 @@ html.dark-mode .unmatched-table th {
 html.dark-mode .unmatched-table td {
   color: #a1a1aa;
 }
+
+/* ==========================================
+   A07 ASSESSMENT KPI OVERVIEW STYLES
+   ========================================== */
+
+.kpi-section-heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+/* 5-Column Summary Cards Grid */
+.kpi-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.kpi-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.kpi-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-card-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpi-card-value {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+}
+
+.kpi-card-subtext {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Clickable Summary Card Link Styling */
+.kpi-card-link {
+  text-decoration: none !important;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.kpi-card-link:hover {
+  transform: translateY(-2px);
+  border-color: #94a3b8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+html.dark-mode .kpi-card-link:hover {
+  border-color: #52525b !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Charts Grid Split */
+.kpi-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.kpi-chart-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.kpi-chart-card h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.kpi-chart-subtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 1.25rem 0;
+}
+
+/* Rank Progress Bars */
+.rank-bar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rank-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.rank-bar-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.rank-progress-track {
+  height: 10px;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.rank-progress-fill-due {
+  background-color: #2563eb;
+  height: 100%;
+}
+
+.rank-progress-fill-overdue {
+  background-color: #dc2626;
+  height: 100%;
+}
+
+.rank-progress-fill-outstanding {
+  background-color: #f59e0b;
+  height: 100%;
+}
+
+/* 3-State Progress Bar Fills */
+.rank-progress-fill-unfilled {
+  background-color: #ef4444; /* Red for Unfilled */
+  height: 100%;
+}
+
+.rank-progress-fill-unsigned {
+  background-color: #f59e0b; /* Amber/Yellow for Pending Signatures */
+  height: 100%;
+}
+
+.rank-progress-fill-completed {
+  background-color: #10b981; /* Green for Completed */
+  height: 100%;
+}
+
+/* Legend Colors */
+.legend-dot-unfilled {
+  background-color: #ef4444;
+}
+
+.legend-dot-unsigned {
+  background-color: #f59e0b;
+}
+
+.legend-dot-completed {
+  background-color: #10b981;
+}
+
+.rank-bar-legend {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-dot-due { background-color: #2563eb; }
+.legend-dot-overdue { background-color: #dc2626; }
+.legend-dot-outstanding { background-color: #f59e0b; }
+
+/* Extra Process Metrics Grid */
+.kpi-extra-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.extra-metric-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.extra-metric-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.extra-metric-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.extra-metric-formula {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Dark Mode Overrides (Matching S04 / A03) */
+html.dark-mode .kpi-page-title,
+html.dark-mode .kpi-section-heading,
+html.dark-mode .kpi-card-value,
+html.dark-mode .kpi-chart-card h4,
+html.dark-mode .rank-bar-label-row,
+html.dark-mode .extra-metric-value {
+  color: #ffffff !important;
+}
+
+html.dark-mode .kpi-card,
+html.dark-mode .kpi-chart-card,
+html.dark-mode .extra-metric-card {
+  background-color: #121212 !important;
+  border-color: #27272a !important;
+}
+
+html.dark-mode .kpi-card-label,
+html.dark-mode .kpi-card-subtext,
+html.dark-mode .kpi-chart-subtitle,
+html.dark-mode .extra-metric-title,
+html.dark-mode .extra-metric-formula {
+  color: #a1a1aa !important;
+}
+
+html.dark-mode .rank-progress-track {
+  background-color: #27272a;
+}
+
+html.dark-mode .rank-bar-legend {
+  border-top-color: #27272a;
+}
+
+
+
 
 /* S02 Profile */
 .profile-page-title {

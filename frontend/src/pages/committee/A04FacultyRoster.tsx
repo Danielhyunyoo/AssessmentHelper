@@ -1,3 +1,4 @@
+// src/pages/committee/A04FacultyRoster.tsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
@@ -281,6 +282,71 @@ export default function A04FacultyRoster() {
           >
             Send Registration Reminders
           </button>
+        </div>
+      </section>
+
+      {/* SECTION 3: EVALUATION DUE & OVERDUE STATUS */}
+      <section className="dashboard-phase phase-spacing">
+        <h3>Evaluation Due & Overdue Status</h3>
+
+        <ul className="instruction-bullet-list">
+          <li>
+            <em>Track faculty evaluation status across current and past evaluation cycles.</em>
+          </li>
+          <li>
+            <em>Overdue faculty members are flagged with a warning indicator.</em>
+          </li>
+        </ul>
+
+        {/* Green Theme Table Box */}
+        <div className="table-container theme-green">
+          <div className="table-instruction">
+            Review faculty members flagged as Due or Overdue for an evaluation.
+          </div>
+
+          <div className="table-scroll-wrapper">
+            <table className="custom-data-table">
+              <thead>
+                <tr>
+                  <th>Faculty Name</th>
+                  <th>Department</th>
+                  <th>Academic Level</th>
+                  <th>Evaluation Status</th>
+                  <th>Last Evaluated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roster?.faculty.map((member) => {
+                  const isOverdue = member.progress_status?.toLowerCase().includes("overdue");
+                  return (
+                    <tr key={member.user_id}>
+                      <td className="font-semibold">{member.name}</td>
+                      <td>{member.department || "Computer Science"}</td>
+                      <td>{member.academic_rank || "Not specified"}</td>
+                      <td>
+                        {isOverdue ? (
+                          <span style={{ color: "#dc2626", fontWeight: "bold" }}>
+                            <span className="warning-icon-triangle">▲</span> Overdue
+                          </span>
+                        ) : (
+                          <span style={{ color: "#2563eb", fontWeight: "600" }}>
+                            Due for Evaluation
+                          </span>
+                        )}
+                      </td>
+                      <td>{member.last_evaluated || "Spring 2024"}</td>
+                    </tr>
+                  );
+                })}
+
+                {roster && roster.faculty.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>No evaluation status records found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

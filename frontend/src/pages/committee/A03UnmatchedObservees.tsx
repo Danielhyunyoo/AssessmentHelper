@@ -159,7 +159,7 @@ export default function A03UnmatchedObservees() {
         </Link>
       </div>
 
-      <h1 className="unmatched-page-title">View Unmatched Observees</h1>
+      <h2>View Unmatched Observees</h2>
 
       {loading && <p>Loading unmatched faculty...</p>}
       {error && <p role="alert">{error}</p>}
@@ -168,7 +168,7 @@ export default function A03UnmatchedObservees() {
       {/* Yellow Banner with Coded Grey Triangle Icon */}
       <div className="yellow-banner unmatched-alert-margin">
         <strong>
-          <span className="warning-icon-triangle">▲</span> ALERT:
+           ALERT:
         </strong>{" "}
         The observees below could not be matched with the required minimum (5) of eligible observer candidates for this cycle. Select faculty members below to defer them to the next evaluation cycle.
       </div>
