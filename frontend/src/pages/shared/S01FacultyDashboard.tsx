@@ -1,7 +1,7 @@
 // src/pages/shared/S01FacultyDashboard.tsx
 import { useEffect, useState } from "react";
 import { authApi, facultyApi } from "../../api/endpoints";
-import type { FacultyDashboard, Professor } from "../../api/types";
+import type { FacultyDashboard, Professor, RegistrationStatus } from "../../api/types";
 import { Link, useNavigate } from "react-router-dom";
 
 import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg";
@@ -16,15 +16,23 @@ import observation_record_management_card from "../../assets/observation_record_
 export default function S01FacultyDashboard() {
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<FacultyDashboard | null>(null);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [dashboardError, setDashboardError] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const canUseFacultyModules = !!currentUser && currentUser.role !== "admin";
 
-  useEffect(() => {
-    facultyApi.dashboard()
-      .then(setDashboard)
+  const loadDashboard = () => {
+    setDashboardLoading(true);
+    Promise.all([
+      facultyApi.dashboard(),
+      facultyApi.registrationStatus(),
+    ])
+      .then(([dash, reg]) => {
+        setDashboard(dash);
+        setRegistration(reg);
+      })
       .catch((err: unknown) => {
         setDashboardError(
           err instanceof Error
@@ -33,6 +41,24 @@ export default function S01FacultyDashboard() {
         );
       })
       .finally(() => setDashboardLoading(false));
+  };
+
+  useEffect(() => {
+    loadDashboard();
+
+    const handleDashboardUpdate = () => {
+      loadDashboard();
+    };
+
+    window.addEventListener("notifications-changed", handleDashboardUpdate);
+    window.addEventListener("simulated-date-changed", handleDashboardUpdate);
+    window.addEventListener("demo-date-changed", handleDashboardUpdate);
+
+    return () => {
+      window.removeEventListener("notifications-changed", handleDashboardUpdate);
+      window.removeEventListener("simulated-date-changed", handleDashboardUpdate);
+      window.removeEventListener("demo-date-changed", handleDashboardUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -78,9 +104,22 @@ export default function S01FacultyDashboard() {
     );
   }
 
+  // Use simulated today from registration status, falling back to local date
+  const todayStr = registration?.today || new Date().toISOString().split("T")[0];
+  const [todayYear, todayMonth, todayDay] = todayStr.split("-").map(Number);
+  const todayDate = new Date(todayYear, todayMonth - 1, todayDay);
+  todayDate.setHours(0, 0, 0, 0);
+
+  const observationDeadlineStr = dashboard?.cycle.observation_deadline || "2026-11-30";
+  const [deadYear, deadMonth, deadDay] = observationDeadlineStr.split("-").map(Number);
+  const observationDeadlineDate = new Date(deadYear, deadMonth - 1, deadDay);
+  observationDeadlineDate.setHours(0, 0, 0, 0);
+
+  const isLocked = todayDate < observationDeadlineDate;
+
   const observationEnd = dashboard
-    ? new Date(`${dashboard.cycle.observation_deadline}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    : "";
+    ? observationDeadlineDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : "NOV 30";
 
   return (
     <div className="dashboard-container">
@@ -132,11 +171,19 @@ export default function S01FacultyDashboard() {
 
           {canUseFacultyModules && (
             <article className="dashboard-card">
-              <Link to="/shared/current-past-observations">
+              <Link
+                to="/shared/current-past-observations"
+                onClick={(e) => {
+                  if (isLocked) e.preventDefault();
+                }}
+                style={isLocked ? { pointerEvents: "none" } : undefined}
+              >
                 <img src={post_evaluation_survey_card} alt="Post-Evaluation Survey" />
                 <h4>Post-Evaluation Survey</h4>
                 <p>Open a completed observation to complete its post-evaluation survey.</p>
-                <span className="card-status">LOCKED UNTIL {observationEnd.toUpperCase()}</span>
+                {isLocked && (
+                  <span className="card-status">LOCKED UNTIL {observationEnd.toUpperCase()}</span>
+                )}
               </Link>
             </article>
           )}

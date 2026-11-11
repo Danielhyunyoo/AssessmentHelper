@@ -157,7 +157,7 @@ export default function S04CurrentAndPastObservations() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 

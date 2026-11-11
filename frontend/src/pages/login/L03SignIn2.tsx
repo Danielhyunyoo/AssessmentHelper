@@ -123,7 +123,7 @@ export default function L03SignIn2() {
             </button>
 
             <div className="registration-link-container">
-              <Link to="/observee/current-past-observations" className="registration-link">
+              <Link to="/shared/current-past-observations" className="registration-link">
                 View Previous Observation Records
               </Link>
             </div>

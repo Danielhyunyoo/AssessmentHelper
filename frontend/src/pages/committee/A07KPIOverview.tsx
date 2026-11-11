@@ -108,7 +108,7 @@ export default function A07KpiOverview() {
               </div>
               <div className="kpi-card-value">{incompleteRecords}</div>
               <p className="kpi-card-subtext">
-                Outstanding observation records awaiting completion
+                Observation records awaiting completion
               </p>
             </Link>
 

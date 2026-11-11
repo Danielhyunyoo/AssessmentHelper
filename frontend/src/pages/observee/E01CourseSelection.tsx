@@ -1,6 +1,6 @@
 // src/pages/observee/E01CourseSelection.tsx
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { facultyApi } from "../../api/endpoints";
 import type { Course, RegistrationStatus } from "../../api/types";
 import Calendar, { DayOfWeek } from "../../components/Calendar";
@@ -9,13 +9,7 @@ function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
 }
 
-
 function extractCourseStartTime(schedule: string): string {
-  // Supports formats such as:
-  // "MW 1:00 PM - 2:15 PM"
-  // "MWF 10:00-10:50"
-  // "TR 13:00-14:15"
-
   const match = schedule.match(
     /(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i
   );
@@ -38,7 +32,6 @@ function extractCourseStartTime(schedule: string): string {
 
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
-
 
 const WEEKDAYS: DayOfWeek[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -92,6 +85,7 @@ function parseAllowedDays(scheduleText: string): DayOfWeek[] {
 }
 
 export default function E01CourseSelection() {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
@@ -101,7 +95,7 @@ export default function E01CourseSelection() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [calendarError, setCalendarError] = useState("");
   const [success, setSuccess] = useState("");
   const [datesSaved, setDatesSaved] = useState(false);
 
@@ -110,7 +104,6 @@ export default function E01CourseSelection() {
 
   async function loadPage() {
     setLoading(true);
-    setError("");
 
     try {
       const [courseData, statusData] = await Promise.all([
@@ -124,17 +117,9 @@ export default function E01CourseSelection() {
       if (statusData.is_registered && statusData.has_selected_course) {
         try {
           const savedAvailability = await facultyApi.availability();
-
           const savedDateTimes = savedAvailability.available_datetimes ?? [];
-
-          setSelectedDates(
-            savedDateTimes
-              .map(localDateString)
-              .filter(Boolean)
-          );
-
+          setSelectedDates(savedDateTimes.map(localDateString).filter(Boolean));
         } catch {
-          // Keep the page usable if availability has not been saved yet.
           setSelectedDates([]);
         }
       }
@@ -144,9 +129,8 @@ export default function E01CourseSelection() {
       setConfirmedCourseId(savedId);
       setShowCalendarSection(savedId !== "");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to load registration information."
-      );
+      const msg = err instanceof Error ? err.message : "Unable to load registration information.";
+      window.alert(msg);
     } finally {
       setLoading(false);
     }
@@ -171,12 +155,12 @@ export default function E01CourseSelection() {
 
   const handleConfirmClass = async () => {
     if (selectedCourseId === "") {
-      setError("Please select a course section first.");
+      const msg = "Please select a course section first.";
+      window.alert(msg);
       return;
     }
 
     setSaving(true);
-    setError("");
     setSuccess("");
 
     try {
@@ -194,8 +178,7 @@ export default function E01CourseSelection() {
         try {
           await facultyApi.saveAvailability([]);
         } catch {
-          // The selected course is still saved. The next availability save
-          // will overwrite the old dates.
+          // Silent catch
         }
       }
 
@@ -214,9 +197,8 @@ export default function E01CourseSelection() {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to confirm course selection."
-      );
+      const msg = err instanceof Error ? err.message : "Unable to confirm course selection.";
+      window.alert(msg);
     } finally {
       setSaving(false);
     }
@@ -226,41 +208,57 @@ export default function E01CourseSelection() {
     topRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleDateSelectionChange = (newDates: string[]) => {
+    if (newDates.length > 8) {
+      const msg = "You can only select up to 8 dates.";
+      setCalendarError(msg);
+      window.alert(msg);
+      return;
+    }
+    setCalendarError("");
+    setSelectedDates(newDates);
+  };
+
   async function handleFinalSave() {
     if (confirmedCourseId === "") {
-      setError("Please select a course section first.");
+      const msg = "Please select a course section first.";
+      setCalendarError(msg);
+      window.alert(msg);
       return;
     }
 
     if (selectedDates.length < 4) {
-      setError("Please select at least four observation dates.");
+      const msg = "Please select at least four observation dates.";
+      setCalendarError(msg);
+      window.alert(msg);
       return;
     }
 
     if (selectedDates.length > 8) {
-      setError("You can select at most eight observation dates.");
+      const msg = "You can select at most eight observation dates.";
+      setCalendarError(msg);
+      window.alert(msg);
       return;
     }
 
     if (!confirmedCourse) {
-      setError("Please confirm a course section before selecting observation dates.");
+      const msg = "Please confirm a course section before selecting observation dates.";
+      setCalendarError(msg);
+      window.alert(msg);
       return;
     }
 
     const courseStartTime = extractCourseStartTime(confirmedCourse.schedule);
 
-    console.log("Selected course:", confirmedCourse);
-    console.log("Course schedule:", confirmedCourse?.schedule);
-
     if (!courseStartTime) {
-      setError(
-        "The selected course's meeting time could not be determined. Please contact the team to check the course schedule."
-      );
+      const msg = "The selected course's meeting time could not be determined. Please contact the team to check the course schedule.";
+      setCalendarError(msg);
+      window.alert(msg);
       return;
     }
 
     setSaving(true);
-    setError("");
+    setCalendarError("");
     setSuccess("");
 
     try {
@@ -282,13 +280,12 @@ export default function E01CourseSelection() {
       );
       setDatesSaved(true);
 
-      topRef.current?.scrollIntoView({ behavior: "smooth" });
+      navigate("/observee/observer-selection");
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to save your observation dates."
-      );
+      const msg = err instanceof Error ? err.message : "Unable to save your observation dates.";
+      setCalendarError(msg);
+      window.alert(msg);
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     } finally {
       setSaving(false);
     }
@@ -312,27 +309,18 @@ export default function E01CourseSelection() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          Back to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 
       <h2>Course and Section Selection</h2>
 
-      {error && (
-        <div role="alert" className="yellow-banner">
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-
       {success && (
-        <div role="status" className="yellow-banner">
+        <div role="status" className="feedback-banner-success">
           <strong>Success:</strong> {success}
-          <p style={{ marginTop: "0.25rem" }}>
-            <Link to="/shared/notifications">View confirmation notifications</Link>
-          </p>
           {datesSaved && (
             <p style={{ marginTop: "0.25rem" }}>
-              <Link to="/observee/observer-selection">Continue to Observer Selection</Link>
+              Click <Link to="/observee/observer-selection">here</Link> to continue to Observer Selection.
             </p>
           )}
         </div>
@@ -341,28 +329,17 @@ export default function E01CourseSelection() {
       {registration && (
         <section className="dashboard-phase">
           <h3>{registration.cycle_name} Registration</h3>
-
-          <p>
-            <strong>Registration status:</strong>{" "}
-            {registration.is_registered ? "Registered" : "Not registered"}
-          </p>
-
-          <p>
-            <strong>Course selection:</strong>{" "}
-            {registration.has_selected_course ? "Course selected" : "No course selected yet"}
-          </p>
-
-          <p>
+          <p style={{ marginBottom: "0.75rem" }}>
             <strong>Signup deadline:</strong> {formatDate(registration.signup_deadline)}
           </p>
 
           {savedCourse && (
             <div className="table-instruction" style={{ marginTop: "0.5rem" }}>
-              <h3 style={{ fontSize: "0.95rem" }}>Your Saved Course</h3>
-              <p>{courseName(savedCourse)}</p>
-              <p>Section: {savedCourse.section}</p>
-              <p>Meeting times: {savedCourse.schedule}</p>
-              <p>Classroom: {savedCourse.classroom || "Not provided"}</p>
+              <h3 style={{ fontSize: "0.95rem" }}>Your Registered Course</h3>
+              <p style={{ margin: "0.25rem 0" }}>{courseName(savedCourse)}</p>
+              <p style={{ margin: "0.25rem 0" }}>Section: {savedCourse.section}</p>
+              <p style={{ margin: "0.25rem 0" }}>Meeting times: {savedCourse.schedule}</p>
+              <p style={{ margin: "0.25rem 0" }}>Classroom: {savedCourse.classroom || "Not provided"}</p>
             </div>
           )}
         </section>
@@ -431,42 +408,66 @@ export default function E01CourseSelection() {
 
       {/* Calendar Section */}
       {showCalendarSection && confirmedCourse && (
-        <section
-          ref={bottomRef}
-          className="table-container theme-orange"
-          style={{ padding: "1.5rem", marginTop: "2rem" }}
-        >
-          <div className="yellow-banner" style={{ marginBottom: "1.5rem" }}>
+        <section ref={bottomRef} className="dashboard-phase" style={{ marginTop: "2rem" }}>
+          <h3>Select Proposed Observation Dates</h3>
+
+          <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
             <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall on or before {registration && formatDate(registration.observation_deadline)}. Select 4 to 8 dates.
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
-            <div>
-              <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>Your Registered Course Information</h3>
-              <p><strong>Course Number and Title:</strong> {courseName(confirmedCourse)}</p>
-              <p style={{ marginTop: "0.5rem" }}><strong>Course Section:</strong> Section {confirmedCourse.section}</p>
-              <p style={{ marginTop: "0.5rem" }}><strong>Meeting Days and Times:</strong> {confirmedCourse.schedule}</p>
-              <p style={{ marginTop: "0.5rem" }}><strong>Classroom Location(s):</strong> {confirmedCourse.classroom || "Not provided"}</p>
-              <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "#475569" }}>
-                <em>Selected Dates: {selectedDates.length} / 8 (minimum 4 required)</em>
-              </p>
-            </div>
+          {calendarError && (
+            <p style={{ color: "#ef4444", fontWeight: 600, fontSize: "0.9rem", margin: "0 0 1rem 0" }}>
+              {calendarError}
+            </p>
+          )}
 
-            <div>
-              <Calendar
-                selectedDates={selectedDates}
-                onDateSelectionChange={setSelectedDates}
-                allowedDaysOfWeek={allowedDays as DayOfWeek[]}
-                maxSelections={8}
-                minDate={earliestAllowedDate}
-                maxDate={registration?.observation_deadline}
-                initialMonth={calendarStart.getMonth()}
-                initialYear={calendarStart.getFullYear()}
-              />
+          <div
+            className="table-container theme-orange"
+            style={{ padding: "1.5rem" }}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", justifyContent: "center" }}>
+                <h3 style={{ fontSize: "1.15rem", marginBottom: "0.15rem", color: "inherit" }}>Your Registered Course Preview</h3>
+                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Course:</strong> {courseName(confirmedCourse)}</p>
+                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Section:</strong> {confirmedCourse.section}</p>
+                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Meeting Time:</strong> {confirmedCourse.schedule}</p>
+                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Classroom:</strong> {confirmedCourse.classroom || "Not provided"}</p>
+                
+                <div style={{ marginTop: "0.5rem" }}>
+                  <p style={{ margin: "0 0 0.35rem 0", fontSize: "0.85rem", opacity: 0.75 }}>
+                    <em>Selected Dates: {selectedDates.length} / 8 (minimum 4 required)</em>
+                  </p>
+                  {selectedDates.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                      {[...selectedDates].sort().map((dateStr, idx) => {
+                        const formatted = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                        return (
+                          <span key={idx} className="version-pill font-semibold" style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}>
+                            {formatted}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Calendar
+                  selectedDates={selectedDates}
+                  onDateSelectionChange={handleDateSelectionChange}
+                  allowedDaysOfWeek={allowedDays as DayOfWeek[]}
+                  maxSelections={99}
+                  minDate={earliestAllowedDate}
+                  maxDate={registration?.observation_deadline}
+                  initialMonth={calendarStart.getMonth()}
+                  initialYear={calendarStart.getFullYear()}
+                />
+              </div>
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1rem" }}>
             <button type="button" className="btn-secondary" onClick={handleScrollToTop}>
               Select a Different Course or Section
             </button>

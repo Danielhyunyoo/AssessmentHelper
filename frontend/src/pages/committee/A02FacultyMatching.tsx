@@ -314,7 +314,7 @@ export default function A02FacultyMatching() {
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 
@@ -322,7 +322,7 @@ export default function A02FacultyMatching() {
 
       {loadingMatches && <p>Loading faculty and eligible observer candidates...</p>}
       {matchError && <div role="alert" className="yellow-banner">{matchError}</div>}
-      {matchSuccess && <div role="status" className="yellow-banner">{matchSuccess}</div>}
+      {matchSuccess && <div role="status" className="feedback-banner-success">{matchSuccess}</div>}
 
       {/* Top Banner Card */}
       <section className="table-container theme-orange summary-card-padding">

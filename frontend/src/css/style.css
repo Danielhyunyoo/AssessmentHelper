@@ -666,6 +666,25 @@ header .icon,
   border-radius: 4px;
 }
 
+/* Red Error Banner Styling */
+.banner-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+html.dark-mode .banner-error {
+  background-color: #450a0a;
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
 .feedback-banner-success {
   background-color: #dcfce7;
   border-left: 5px solid #16a34a;

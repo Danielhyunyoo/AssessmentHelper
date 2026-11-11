@@ -213,7 +213,7 @@ export default function S06PostEvaluationSurvey() {
       {/* Top Navigation */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 

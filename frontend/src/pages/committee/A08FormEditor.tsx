@@ -188,7 +188,7 @@ export default function A08FormEditor() {
     <div className="dashboard-container form-editor-page">
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 

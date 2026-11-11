@@ -1,4 +1,3 @@
-
 /* ==========================================
    CALENDAR COMPONENT
    ========================================== */
@@ -86,14 +85,22 @@
   cursor: pointer;
 }
 
-.calendar-day:hover:not(:disabled) {
+/* Hover effect ONLY for unselected active days */
+.calendar-day:not(.selected):hover:not(:disabled) {
   background-color: #dbeafe;
 }
 
+/* Solid Selected State (Light Mode) */
 .calendar-day.selected {
-  background-color: #27272a;
+  background-color: #2563eb;
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 700;
+  border: 1px solid #1d4ed8;
+}
+
+.calendar-day.selected:hover:not(:disabled) {
+  background-color: #1d4ed8;
+  color: #ffffff;
 }
 
 .calendar-day.disabled {
@@ -129,19 +136,30 @@ html.dark-mode .calendar-day {
   color: #f4f4f5;
 }
 
+/* Hover effect ONLY for unselected active days in Dark Mode */
+html.dark-mode .calendar-day:not(.selected):hover:not(:disabled) {
+  background-color: #3f3f46;
+}
+
+/* Solid Selected State (Dark Mode) */
 html.dark-mode .calendar-day.selected {
-  background-color: #52525b;
+  background-color: #2563eb;
   color: #ffffff;
+  font-weight: 700;
+  border: 2px solid #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
+}
+
+html.dark-mode .calendar-day.selected:hover:not(:disabled) {
+  background-color: #1d4ed8;
+  color: #ffffff;
+  border-color: #93c5fd;
 }
 
 html.dark-mode .calendar-day.disabled,
 html.dark-mode .calendar-day.empty {
   background-color: transparent;
   color: #52525b;
-}
-
-html.dark-mode .calendar-day:hover:not(:disabled) {
-  background-color: #3f3f46;
 }
 
 @media (max-width: 600px) {

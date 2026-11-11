@@ -73,7 +73,7 @@ export default function A05PendingObservationRecords() {
       {/* Top Standardized Navigation */}
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 

@@ -75,7 +75,7 @@ export default function A04FacultyRoster() {
       {/* Top Standardized Navigation */}
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 
@@ -313,9 +313,6 @@ export default function A04FacultyRoster() {
           <li>
             <em>Track faculty evaluation status across current and past evaluation cycles.</em>
           </li>
-          <li>
-            <em>Overdue faculty members are flagged with a warning indicator.</em>
-          </li>
         </ul>
 
         {/* Green Theme Table Box */}
@@ -347,15 +344,15 @@ export default function A04FacultyRoster() {
                       </td>
                       <td>
                         {evaluationStatus === "overdue" ? (
-                          <span style={{ color: "#dc2626", fontWeight: "bold" }}>
-                            <span className="warning-icon-triangle">▲</span> Overdue
+                          <span style={{ color: "#d74444", fontWeight: "600" }}>
+                            Overdue
                           </span>
                         ) : evaluationStatus === "due" ? (
-                          <span style={{ color: "#2563eb", fontWeight: "600" }}>
+                          <span style={{ color: "#2b61d4", fontWeight: "600" }}>
                             Due for Evaluation
                           </span>
                         ) : evaluationStatus === "not_due" ? (
-                          <span style={{ color: "#16a34a", fontWeight: "600" }}>
+                          <span style={{ color: "#2f884f", fontWeight: "600" }}>
                             Not Due
                           </span>
                         ) : (

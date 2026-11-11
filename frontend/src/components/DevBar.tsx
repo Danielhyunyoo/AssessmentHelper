@@ -1,4 +1,3 @@
-// src/components/DevBar.tsx
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { authApi, demoApi, facultyApi } from "../api/endpoints";
@@ -53,7 +52,6 @@ const PAGE_GROUPS: { group: string; items: [string, string][] }[] = [
   },
 ];
 
-// Flattened list for index calculations and lookup navigation
 const ALL_PAGES = PAGE_GROUPS.flatMap((g) => g.items);
 
 async function signInAs(persona: DemoPersona) {
@@ -78,6 +76,7 @@ function savedOpen() {
 export default function DevBar() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(savedOpen);
+  const [showInstructions, setShowInstructions] = useState(false);
   const location = useLocation();
   const [user, setUser] = useState("");
   const [personas, setPersonas] = useState<DemoPersona[]>([]);
@@ -105,7 +104,6 @@ export default function DevBar() {
     demoApi.personas().then(setPersonas).catch(() => {});
     demoApi.date().then(async (result) => {
       if (!result.simulated_date && !today) {
-        // Default to Sept 1 of the current year if no simulated date is active yet
         const currentYear = new Date().getFullYear();
         const defaultSept1 = `${currentYear}-09-01`;
         setTodayValue(defaultSept1);
@@ -128,7 +126,6 @@ export default function DevBar() {
     }
   }
 
-  // Find current page index for Previous / Next buttons
   const currentIndex = ALL_PAGES.findIndex(([, path]) => path === location.pathname);
 
   const handlePrevious = () => {
@@ -149,124 +146,188 @@ export default function DevBar() {
   const totalPagesCount = ALL_PAGES.length;
 
   return (
-    <aside className="dev-panel">
+    <aside className={`dev-panel ${open ? "is-open" : "is-closed"}`}>
       <button type="button" className="dev-panel-header" onClick={toggle}>
-        {open ? "▼" : "▶"} Page preview · {currentShortName} · {currentIndex !== -1 ? currentIndex + 1 : "?"} of {totalPagesCount}
+        <div className="dev-header-title">
+          <span className="dev-chevron">{open ? "▼" : "▶"}</span>
+          <span className="dev-header-label">Demo Controls</span>
+        </div>
+        <span className="dev-header-badge">
+          {currentShortName} ({currentIndex !== -1 ? currentIndex + 1 : "?"}/{totalPagesCount})
+        </span>
       </button>
 
       {open && (
         <div className="dev-panel-body">
-          <div className="dev-section-title">Demo Instructions</div>
-          <div className="dev-footer-note">
-            <strong>Suggested evaluation workflow:</strong>
-            <ol>
-              <li>Sign in as a faculty member.</li>
-              <li>Register for the current evaluation cycle.</li>
-              <li>Select a course and submit available observation dates.</li>
-              <li>Sign in as the Assessment Committee.</li>
-              <li>Review faculty matching and release observer candidates.</li>
-              <li>Sign in as the observee and select an observer.</li>
-              <li>Complete the observation record and both signatures.</li>
-              <li>Advance the demo date past the observation deadline.</li>
-              <li>Submit the observer and observee process surveys.</li>
-              <li>Review survey tracking and KPIs as the committee.</li>
-            </ol>
-          </div>
-
-          <hr className="dev-divider" />
-          <div className="dev-section-title">Inspect a page</div>
-
-          <label className="dev-field">
-            <select 
-              value={location.pathname} 
-              onChange={(event) => navigate(event.target.value)}
-            >
-              {PAGE_GROUPS.map((groupObj) => (
-                <optgroup key={groupObj.group} label={groupObj.group}>
-                  {groupObj.items.map(([name, path]) => (
-                    <option key={path} value={path}>{name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
-
-          <div className="dev-nav-buttons">
-            <button 
-              type="button" 
-              className="dev-btn-sub" 
-              onClick={handlePrevious}
-              disabled={currentIndex <= 0}
-            >
-              Previous
-            </button>
-            <button 
-              type="button" 
-              className="dev-btn-sub" 
-              onClick={handleNext}
-              disabled={currentIndex === -1 || currentIndex >= ALL_PAGES.length - 1}
-            >
-              Next
-            </button>
-          </div>
-
-          <hr className="dev-divider" />
-
-          <label className="dev-field">
-            <span>As:</span>
-            <select
-              value={user}
-              onChange={(event) => {
-                const persona = personas.find((item) => item.email === event.target.value);
-                if (persona) void signInAs(persona);
-              }}
-            >
-              <option value="" disabled>{personas.length ? "Signed Out" : "No demo accounts"}</option>
-              {personas.map((persona) => <option key={persona.email} value={persona.email}>{persona.name}</option>)}
-            </select>
-          </label>
-
-          <label className="dev-field">
-            <span>Today:</span>
-            <input
-              type="date"
-              value={today}
-              onChange={(event) => {
-                const value = event.target.value;
-                setTodayValue(value);
-                if (Number(value.slice(0, 4)) >= 2000) void setToday(value);
-              }}
-            />
-          </label>
-
-          <p className="dev-footer-note">
-            Changing this date simulates the current day for the evaluation workflow.
-            Use it to demonstrate registration, observation, and survey availability.
-          </p>
-
-          {cycle && (
-            <div className="dev-cycle-info">
-              <small>
-                signup: {cycle.signup_deadline}<br />
-                observe: {cycle.observation_deadline}<br />
-                survey: {cycle.survey_deadline}
-              </small>
+          {/* Section 1: Page Navigation */}
+          <div className="dev-card">
+            <div className="dev-card-title">Inspect Page</div>
+            <div className="dev-field-group">
+              <select 
+                className="dev-select"
+                value={location.pathname} 
+                onChange={(event) => navigate(event.target.value)}
+              >
+                {PAGE_GROUPS.map((groupObj) => (
+                  <optgroup key={groupObj.group} label={groupObj.group}>
+                    {groupObj.items.map(([name, path]) => (
+                      <option key={path} value={path}>{name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              
+              <div className="dev-nav-btn-row">
+                <button 
+                  type="button" 
+                  className="dev-btn dev-btn-secondary" 
+                  onClick={handlePrevious}
+                  disabled={currentIndex <= 0}
+                >
+                  ← Prev
+                </button>
+                <button 
+                  type="button" 
+                  className="dev-btn dev-btn-secondary" 
+                  onClick={handleNext}
+                  disabled={currentIndex === -1 || currentIndex >= ALL_PAGES.length - 1}
+                >
+                  Next →
+                </button>
+              </div>
             </div>
-          )}
+          </div>
 
-          <button type="button" className="dev-btn-sub" onClick={() => void resetData()} disabled={resetting}>
-            {resetting ? "Resetting..." : "Reset Data"}
-          </button>
-          {resetError && <p className="dev-footer-note" role="alert">{resetError}</p>}
+          {/* Section 2: Persona & Date Simulation */}
+          <div className="dev-card">
+            <div className="dev-card-title">Simulation Settings</div>
+            <div className="dev-field-row">
+              <label className="dev-label">Act As</label>
+              <select
+                className="dev-select"
+                value={user}
+                onChange={(event) => {
+                  const persona = personas.find((item) => item.email === event.target.value);
+                  if (persona) void signInAs(persona);
+                }}
+              >
+                <option value="" disabled>{personas.length ? "Signed Out" : "No demo accounts"}</option>
+                {personas.map((persona) => (
+                  <option key={persona.email} value={persona.email}>
+                    {persona.name} ({persona.role})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <p className="dev-footer-note">
-            Reset Data restores the demonstration dataset. Use this before restarting
-            a demonstration, not while another team member is testing.
-          </p>          
+            <div className="dev-field-row">
+              <label className="dev-label">Simulated Date</label>
+              <div className="dev-date-wrapper" style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
+                  <input
+                    type="date"
+                    className="dev-input-date"
+                    value={today}
+                    onChange={(event) => {
+                      setTodayValue(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        const val = event.currentTarget.value;
+                        if (Number(val.slice(0, 4)) >= 2000) {
+                          void setToday(val);
+                        }
+                      }
+                    }}
+                  />
+                  <svg className="dev-date-calendar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                </div>
+                <button
+                  type="button"
+                  className="dev-btn dev-btn-secondary"
+                  style={{ width: "auto", padding: "0.4rem 0.6rem", whiteSpace: "nowrap" }}
+                  onClick={() => {
+                    if (Number(today.slice(0, 4)) >= 2000) {
+                      void setToday(today);
+                    }
+                  }}
+                  title="Confirm Date"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
 
-          <p className="dev-footer-note">
-            This widget is for demo purposes only.
-          </p>
+            {cycle && (
+              <div className="dev-deadlines-section">
+                <div className="dev-subhead-title">Important Deadlines</div>
+                <div className="dev-deadlines-grid">
+                  <div className="dev-deadline-item">
+                    <span className="dev-deadline-tag">Signup</span>
+                    <span className="dev-deadline-val">{cycle.signup_deadline}</span>
+                  </div>
+                  <div className="dev-deadline-item">
+                    <span className="dev-deadline-tag">Observe</span>
+                    <span className="dev-deadline-val">{cycle.observation_deadline}</span>
+                  </div>
+                  <div className="dev-deadline-item">
+                    <span className="dev-deadline-tag">Survey</span>
+                    <span className="dev-deadline-val">{cycle.survey_deadline}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Demo Instructions Dropdown */}
+          <div className="dev-card">
+            <button 
+              type="button" 
+              className="dev-sub-accordion-trigger"
+              onClick={() => setShowInstructions(!showInstructions)}
+            >
+              <span>Suggested Workflow Checklist</span>
+              <span>{showInstructions ? "▲" : "▼"}</span>
+            </button>
+
+            {showInstructions && (
+              <ol className="dev-instructions-list">
+                <li><span>1</span> Sign in as a faculty member.</li>
+                <li><span>2</span> Register for the evaluation cycle.</li>
+                <li><span>3</span> Select course & submit observation dates.</li>
+                <li><span>4</span> Sign in as Assessment Committee.</li>
+                <li><span>5</span> Review matching & release candidates.</li>
+                <li><span>6</span> Sign in as observee & pick observer.</li>
+                <li><span>7</span> Complete record & submit signatures.</li>
+                <li><span>8</span> Advance demo date past observation deadline.</li>
+                <li><span>9</span> Submit process surveys.</li>
+                <li><span>10</span> Review survey tracking & KPIs.</li>
+              </ol>
+            )}
+          </div>
+
+          {/* Section 4: Data Reset & Disclaimer */}
+          <div className="dev-card dev-reset-card">
+            <button 
+              type="button" 
+              className="dev-btn dev-btn-danger" 
+              onClick={() => void resetData()} 
+              disabled={resetting}
+            >
+              {resetting ? "Resetting Demo..." : "↺ Reset Demonstration Data"}
+            </button>
+
+            {resetError && <p className="dev-error-text" role="alert">{resetError}</p>}
+
+            <p className="dev-caption">
+              Restores initial demo dataset. Avoid resetting while team members are actively testing.
+            </p>
+          </div>
         </div>
       )}
     </aside>

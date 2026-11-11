@@ -3,13 +3,30 @@
    ========================================== */
 
 /* ------------------------------------------
-   L01 HOME
+   L01 HOME REDESIGN & ENHANCED CARDS
    ------------------------------------------ */
 .home-container {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem 2rem;
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.home-main-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 3rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+html.dark-mode .home-main-card {
+  background-color: #121212;
+  border-color: #27272a;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
 .home-content {
@@ -22,15 +39,37 @@
 .home-text {
   flex: 1;
   max-width: 480px;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-badge-pill {
+  display: inline-block;
+  background-color: #f1f5f9;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  align-self: flex-start;
+  margin-bottom: 1.25rem;
+  border: 1px solid #cbd5e1;
+}
+
+html.dark-mode .home-badge-pill {
+  background-color: #18181b;
+  color: #d4d4d8;
+  border-color: #27272a;
 }
 
 .home-title {
-  font-size: 3.25rem;
+  font-size: 3rem;
   font-weight: 800;
-  font-style: italic;
   line-height: 1.1;
   color: #0f172a;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1.25rem 0;
   letter-spacing: -0.02em;
 }
 
@@ -39,15 +78,29 @@ html.dark-mode .home-title {
 }
 
 .home-subtitle {
-  font-size: 1.2rem;
-  font-style: italic;
+  font-size: 1.1rem;
   color: #64748b;
   line-height: 1.5;
-  margin: 0 0 2.5rem 0;
+  margin: 0 0 2rem 0;
 }
 
 html.dark-mode .home-subtitle {
   color: #a1a1aa;
+}
+
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 320px;
+}
+
+.home-main-btn,
+.home-committee-btn {
+  padding: 0.85rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
 }
 
 .home-image-container {
@@ -58,15 +111,101 @@ html.dark-mode .home-subtitle {
 
 .campus-img {
   width: 100%;
-  max-width: 600px;
-  height: auto;
+  max-width: 540px;
+  height: 360px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   object-fit: cover;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
 }
 
 html.dark-mode .campus-img {
   border-color: #27272a;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+.home-info-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.home-info-box {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+html.dark-mode .home-info-box {
+  background-color: #121212;
+  border-color: #27272a;
+}
+
+.home-box-img {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 0.25rem;
+}
+
+html.dark-mode .home-box-img {
+  border-color: #27272a;
+}
+
+.home-info-box h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+html.dark-mode .home-info-box h4 {
+  color: #ffffff;
+}
+
+.home-info-box p {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+  flex: 1;
+}
+
+html.dark-mode .home-info-box p {
+  color: #a1a1aa;
+}
+
+.home-box-btn {
+  display: block;
+  text-align: center;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 968px) {
+  .home-content {
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+  
+  .home-image-container {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .campus-img {
+    max-width: 100%;
+  }
 }
 
 /* ------------------------------------------
@@ -204,6 +343,7 @@ html.dark-mode .registration-closed-banner {
 .feedback-banner-success {
   background-color: #f0fdf4;
   border: 1px solid #bbf7d0;
+  border-left: 4px solid #16a34a;
   color: #166534;
   padding: 0.75rem 1rem;
   border-radius: 6px;
@@ -214,8 +354,9 @@ html.dark-mode .registration-closed-banner {
 
 html.dark-mode .feedback-banner-success {
   background-color: #052e16;
-  color: #86efac;
   border-color: #14532d;
+  border-left-color: #22c55e;
+  color: #86efac;
 }
 
 /* ------------------------------------------
@@ -1349,7 +1490,7 @@ html.dark-mode .summary-card-padding {
 
 .search-control-group {
   flex: 1;
-  min-width: 260px;
+  min-width: 380px;
 }
 
 .search-control-group label,
@@ -1368,6 +1509,12 @@ html.dark-mode .sort-control-group label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
+}
+
+.search-input-wrapper .styled-text-input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .instruction-bullet-list {
