@@ -193,6 +193,10 @@ export default function S02Profile(): React.ReactElement {
                     />
                   </svg>
                   <em>To update your university Email ID, please contact Assessment Committee support staff.</em>
+                  <p className="profile-edit-note">
+                    Your academic rank and department are managed by the Assessment Committee
+                    and cannot be changed from this page.
+                  </p>
                 </div>
 
                 <button

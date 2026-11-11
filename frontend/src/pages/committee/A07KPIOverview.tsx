@@ -1,28 +1,46 @@
 // src/pages/committee/A07KpiOverview.tsx
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { committeeApi } from "../../api/endpoints";
+import { downloadKpiCsv } from "../../api/http";
 
 export default function A07KpiOverview() {
-  // Demo Data Definitions
-  const facultyDue = 30;
-  const overdueFaculty = 6;
-  const incompleteRecords = 9;
-  const unsignedRecords = 3;
-  const completedRecords = 24;
-  const unmatchedFaculty = 4;
-  const completedProcessSignups = 18;
+  const [kpiData, setKpiData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const totalSignups = 24;
-  const totalAssignedObservers = 22;
-  const totalRecommendationsChecked = 35;
-  const passedMatchingChecks = 31;
-  const totalEligibleCandidates = 110;
+  useEffect(() => {
+    async function loadKpis() {
+      try {
+        setLoading(true);
+        setError("");
 
-  // Calculated Metrics
-  const surveyCompletionPct = Math.round((completedProcessSignups / totalSignups) * 100);
-  const participationPct = Math.round((totalSignups / facultyDue) * 100);
-  const observerUtilizationPct = Math.round((totalAssignedObservers / totalSignups) * 100);
-  const eligibilityPct = Math.round((passedMatchingChecks / totalRecommendationsChecked) * 100);
-  const listSufficiencyRate = (totalEligibleCandidates / totalSignups).toFixed(1);
+        const result = await committeeApi.kpis();
+        setKpiData(result);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Unable to load KPI data."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadKpis();
+  }, []);
+
+  const counts = kpiData?.counts;
+
+  const facultyDue = counts?.due ?? 0;
+
+  const overdueFaculty = counts?.overdue ?? 0;
+  const incompleteRecords = counts?.outstanding_records ?? 0;
+  const unmatchedFaculty = counts?.unmatched ?? 0;
+
+  const surveyCompletionDisplay =
+    counts?.survey_completion_percent == null
+      ? "N/A"
+      : `${counts.survey_completion_percent}%`;
 
   return (
     <div className="dashboard-container">
@@ -34,6 +52,24 @@ export default function A07KpiOverview() {
       </div>
 
       <h2 className="kpi-page-title">Assessment KPI Overview</h2>
+      <div className="dashboard-center-action">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => downloadKpiCsv(kpiData?.cycle?.id)}
+          disabled={loading || !kpiData}
+        >
+          Export KPI Report (CSV)
+        </button>
+      </div>
+
+      {loading && <p>Loading KPI data...</p>}
+
+      {error && <p role="alert">{error}</p>}
+
+      {!loading && !error && !kpiData && (
+        <p>No KPI data is currently available.</p>
+      )}
 
       {/* 1. Summary Cards Section */}
       <section className="dashboard-phase">
@@ -70,8 +106,10 @@ export default function A07KpiOverview() {
               <div className="kpi-card-header">
                 <span className="kpi-card-label">Pending Records</span>
               </div>
-              <div className="kpi-card-value">{incompleteRecords + unsignedRecords}</div>
-              <p className="kpi-card-subtext">Incomplete and/or waiting for faculty signatures</p>
+              <div className="kpi-card-value">{incompleteRecords}</div>
+              <p className="kpi-card-subtext">
+                Outstanding observation records awaiting completion
+              </p>
             </Link>
 
             {/* Card 4: Unmatched Faculty */}
@@ -88,9 +126,10 @@ export default function A07KpiOverview() {
               <div className="kpi-card-header">
                 <span className="kpi-card-label">Survey Completion</span>
               </div>
-              <div className="kpi-card-value">{surveyCompletionPct}%</div>
+              <div className="kpi-card-value">{surveyCompletionDisplay}</div>
               <p className="kpi-card-subtext">
-                {completedProcessSignups} out of {totalSignups} signups completed full process
+                {counts?.submitted_surveys ?? 0} out of{" "}
+                {counts?.expected_surveys ?? 0} required surveys submitted
               </p>
             </Link>
           </div>
@@ -109,41 +148,33 @@ export default function A07KpiOverview() {
               <p className="kpi-chart-subtitle">Split by Assistant, Associate, and Full Professors</p>
 
               <div className="rank-bar-group">
-                {/* Assistant Professor */}
-                <div className="rank-bar-item">
-                  <div className="rank-bar-label-row">
-                    <span>Assistant Professor</span>
-                    <span>10 Due / 2 Overdue</span>
-                  </div>
-                  <div className="rank-progress-track">
-                    <div className="rank-progress-fill-due" style={{ width: "80%" }}></div>
-                    <div className="rank-progress-fill-overdue" style={{ width: "20%" }}></div>
-                  </div>
-                </div>
+                {kpiData?.by_rank?.map((rank: any) => {
+                  const total = rank.due + rank.overdue;
+                  const dueWidth = total > 0 ? (rank.due / total) * 100 : 0;
+                  const overdueWidth = total > 0 ? (rank.overdue / total) * 100 : 0;
 
-                {/* Associate Professor */}
-                <div className="rank-bar-item">
-                  <div className="rank-bar-label-row">
-                    <span>Associate Professor</span>
-                    <span>12 Due / 3 Overdue</span>
-                  </div>
-                  <div className="rank-progress-track">
-                    <div className="rank-progress-fill-due" style={{ width: "75%" }}></div>
-                    <div className="rank-progress-fill-overdue" style={{ width: "25%" }}></div>
-                  </div>
-                </div>
+                  return (
+                    <div className="rank-bar-item" key={rank.rank}>
+                      <div className="rank-bar-label-row">
+                        <span>{rank.rank}</span>
+                        <span>
+                          {rank.due} Due / {rank.overdue} Overdue
+                        </span>
+                      </div>
 
-                {/* Full Professor */}
-                <div className="rank-bar-item">
-                  <div className="rank-bar-label-row">
-                    <span>Full Professor</span>
-                    <span>8 Due / 1 Overdue</span>
-                  </div>
-                  <div className="rank-progress-track">
-                    <div className="rank-progress-fill-due" style={{ width: "88%" }}></div>
-                    <div className="rank-progress-fill-overdue" style={{ width: "12%" }}></div>
-                  </div>
-                </div>
+                      <div className="rank-progress-track">
+                        <div
+                          className="rank-progress-fill-due"
+                          style={{ width: `${dueWidth}%` }}
+                        />
+                        <div
+                          className="rank-progress-fill-overdue"
+                          style={{ width: `${overdueWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="rank-bar-legend">
@@ -160,63 +191,20 @@ export default function A07KpiOverview() {
 
             {/* Chart 2: Pending & Completed Observation Records Breakdown */}
             <div className="kpi-chart-card">
-              <h4>Pending Observation Records</h4>
-              <p className="kpi-chart-subtitle">Observation forms by status across faculty ranks</p>
+              <h4>Outstanding Observation Records by Rank</h4>
+              <p className="kpi-chart-subtitle">
+                Records awaiting completion after scheduled visits
+              </p>
 
               <div className="rank-bar-group">
-                {/* Assistant Professor */}
-                <div className="rank-bar-item">
-                  <div className="rank-bar-label-row">
-                    <span>Assistant Professor</span>
-                    <span>4 Unfilled / 1 Unsigned / 8 Done</span>
+                {kpiData?.by_rank?.map((rank: any) => (
+                  <div className="rank-bar-item" key={rank.rank}>
+                    <div className="rank-bar-label-row">
+                      <span>{rank.rank}</span>
+                      <span>{rank.outstanding_records} Outstanding</span>
+                    </div>
                   </div>
-                  <div className="rank-progress-track">
-                    <div className="rank-progress-fill-unfilled" style={{ width: "31%" }}></div>
-                    <div className="rank-progress-fill-unsigned" style={{ width: "8%" }}></div>
-                    <div className="rank-progress-fill-completed" style={{ width: "61%" }}></div>
-                  </div>
-                </div>
-
-                {/* Associate Professor */}
-                <div className="rank-bar-item">
-                  <div className="rank-bar-label-row">
-                    <span>Associate Professor</span>
-                    <span>3 Unfilled / 1 Unsigned / 10 Done</span>
-                  </div>
-                  <div className="rank-progress-track">
-                    <div className="rank-progress-fill-unfilled" style={{ width: "21%" }}></div>
-                    <div className="rank-progress-fill-unsigned" style={{ width: "7%" }}></div>
-                    <div className="rank-progress-fill-completed" style={{ width: "72%" }}></div>
-                  </div>
-                </div>
-
-                {/* Full Professor */}
-                <div className="rank-bar-item">
-                  <div className="rank-bar-label-row">
-                    <span>Full Professor</span>
-                    <span>2 Unfilled / 1 Unsigned / 6 Done</span>
-                  </div>
-                  <div className="rank-progress-track">
-                    <div className="rank-progress-fill-unfilled" style={{ width: "22%" }}></div>
-                    <div className="rank-progress-fill-unsigned" style={{ width: "11%" }}></div>
-                    <div className="rank-progress-fill-completed" style={{ width: "67%" }}></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rank-bar-legend">
-                <div className="legend-item">
-                  <span className="legend-color-dot legend-dot-unfilled"></span>
-                  <span>Not Filled</span>
-                </div>
-                <div className="legend-item">
-                  <span className="legend-color-dot legend-dot-unsigned"></span>
-                  <span>Pending Signatures</span>
-                </div>
-                <div className="legend-item">
-                  <span className="legend-color-dot legend-dot-completed"></span>
-                  <span>Completed</span>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -229,44 +217,52 @@ export default function A07KpiOverview() {
           <h3 className="kpi-section-heading">Extra Process Metrics</h3>
 
           <div className="kpi-extra-metrics-grid">
-            {/* Metric 1 */}
             <div className="extra-metric-card">
-              <span className="extra-metric-title">Assessment Participation</span>
-              <div className="extra-metric-value">{participationPct}%</div>
+              <span className="extra-metric-title">Survey Completion</span>
+              <div className="extra-metric-value">
+                <div className="extra-metric-value">{surveyCompletionDisplay}</div>
+              </div>
               <p className="extra-metric-formula">
-                (Faculty who signed up / Faculty due for evaluation) × 100
+                Submitted surveys divided by expected surveys
               </p>
             </div>
 
-            {/* Metric 2 */}
             <div className="extra-metric-card">
-              <span className="extra-metric-title">Observer Utilization</span>
-              <div className="extra-metric-value">{observerUtilizationPct}%</div>
+              <span className="extra-metric-title">Outstanding Records</span>
+              <div className="extra-metric-value">
+                {counts?.outstanding_records ?? 0}
+              </div>
               <p className="extra-metric-formula">
-                (Unique assigned faculty / Faculty who signed up) × 100
+                Confirmed observations still awaiting completed records
               </p>
             </div>
 
-            {/* Metric 3 */}
             <div className="extra-metric-card">
-              <span className="extra-metric-title">Eligibility Rate</span>
-              <div className="extra-metric-value">{eligibilityPct}%</div>
+              <span className="extra-metric-title">Missing Surveys</span>
+              <div className="extra-metric-value">
+                {counts?.missing_surveys ?? 0}
+              </div>
               <p className="extra-metric-formula">
-                (Recommendations passing checks / Recommendations checked) × 100
-              </p>
-            </div>
-
-            {/* Metric 4 */}
-            <div className="extra-metric-card">
-              <span className="extra-metric-title">List Sufficiency Rate</span>
-              <div className="extra-metric-value">{listSufficiencyRate}</div>
-              <p className="extra-metric-formula">
-                Average eligible candidates available per signup (Target: ≥ 5.0)
+                Expected surveys that have not been submitted
               </p>
             </div>
           </div>
         </div>
       </section>
+
+      {kpiData?.limitations?.length > 0 && (
+        <section className="dashboard-phase">
+          <div className="table-container summary-card-padding">
+            <h3 className="kpi-section-heading">Reporting Notes</h3>
+
+            <ul>
+              {kpiData.limitations.map((limitation: string, index: number) => (
+                <li key={index}>{limitation}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {/* Bottom Center Return Button */}
       <div className="dashboard-center-action">

@@ -45,3 +45,33 @@ export function downloadKpiCsv(cycleId?: number) {
   const q = qs({ cycle_id: cycleId });
   window.open(`${baseUrl}/api/committee/kpis/export.csv${q}`, "_blank", "noopener");
 }
+export async function downloadSurveyFile(surveyId: number) {
+  const response = await fetch(
+    `${baseUrl}/api/committee/surveys/${surveyId}/file/`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    const message = contentType.includes("json")
+      ? (await response.json()).detail || "Unable to download attachment."
+      : "Unable to download attachment.";
+
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = `survey-${surveyId}-attachment`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(objectUrl);
+}

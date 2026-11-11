@@ -156,6 +156,24 @@ export default function DevBar() {
 
       {open && (
         <div className="dev-panel-body">
+          <div className="dev-section-title">Demo Instructions</div>
+          <div className="dev-footer-note">
+            <strong>Suggested evaluation workflow:</strong>
+            <ol>
+              <li>Sign in as a faculty member.</li>
+              <li>Register for the current evaluation cycle.</li>
+              <li>Select a course and submit available observation dates.</li>
+              <li>Sign in as the Assessment Committee.</li>
+              <li>Review faculty matching and release observer candidates.</li>
+              <li>Sign in as the observee and select an observer.</li>
+              <li>Complete the observation record and both signatures.</li>
+              <li>Advance the demo date past the observation deadline.</li>
+              <li>Submit the observer and observee process surveys.</li>
+              <li>Review survey tracking and KPIs as the committee.</li>
+            </ol>
+          </div>
+
+          <hr className="dev-divider" />
           <div className="dev-section-title">Inspect a page</div>
 
           <label className="dev-field">
@@ -221,6 +239,11 @@ export default function DevBar() {
             />
           </label>
 
+          <p className="dev-footer-note">
+            Changing this date simulates the current day for the evaluation workflow.
+            Use it to demonstrate registration, observation, and survey availability.
+          </p>
+
           {cycle && (
             <div className="dev-cycle-info">
               <small>
@@ -235,7 +258,12 @@ export default function DevBar() {
             {resetting ? "Resetting..." : "Reset Data"}
           </button>
           {resetError && <p className="dev-footer-note" role="alert">{resetError}</p>}
-          
+
+          <p className="dev-footer-note">
+            Reset Data restores the demonstration dataset. Use this before restarting
+            a demonstration, not while another team member is testing.
+          </p>          
+
           <p className="dev-footer-note">
             This widget is for demo purposes only.
           </p>

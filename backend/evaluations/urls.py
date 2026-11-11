@@ -55,6 +55,7 @@ urlpatterns += [
     path("surveys/", views.surveys_collection, name="surveys-collection"),
     path("surveys/template/", views.survey_template_for_pairing, name="survey-template-for-pairing"),
     path("surveys/<int:survey_id>/", views.survey_detail, name="survey-detail"),
+    path("surveys/<int:survey_id>/file/", views.survey_file_upload, name="survey-file-upload",),
 ]
 
 urlpatterns += [
@@ -62,6 +63,7 @@ urlpatterns += [
     path("committee/completed-records/", views.committee_completed_records, name="committee-completed-records"),
     path("committee/observations/<int:observation_id>/", views.committee_observation_detail, name="committee-observation-detail"),
     path("committee/surveys/<int:survey_id>/", views.committee_survey_detail, name="committee-survey-detail"),
+    path("committee/surveys/<int:survey_id>/file/", views.committee_survey_file, name="committee-survey-file",),
     path("committee/pending-records/<int:pairing_id>/remind/", views.committee_remind_record, name="committee-remind-record"),
     path("committee/pending-surveys/", views.committee_pending_surveys, name="committee-pending-surveys"),
     path("committee/pending-surveys/<int:pairing_id>/<str:role>/remind/", views.committee_remind_survey, name="committee-remind-survey"),

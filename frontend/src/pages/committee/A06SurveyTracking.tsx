@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { downloadSurveyFile } from "../../api/http";
 import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
 import type { Survey } from "../../api/types";
@@ -9,6 +10,7 @@ export default function A06SurveyTracking() {
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
 
   async function openSurveyDetails(surveyId: number) {
@@ -22,8 +24,23 @@ export default function A06SurveyTracking() {
     }
   }
 
+  async function handleDownloadFile(surveyId: number) {
+    setError("");
+
+    try {
+      await downloadSurveyFile(surveyId);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to download the supporting file."
+      );
+    }
+  }
+
   async function loadSurveys() {
     try {
+      setError("");
       const result = await committeeApi.pendingSurveys();
       setSurveyData(result);
     } catch (err) {
@@ -39,12 +56,22 @@ export default function A06SurveyTracking() {
     pairingId: number,
     role: "observer" | "observee"
   ) {
+    const key = `${pairingId}-${role}`;
+
+    setError("");
+    setMessage("");
+    setSendingReminder(key);
+
     try {
       await committeeApi.remindSurvey(pairingId, role);
       setMessage(`Reminder sent to the ${role}.`);
       await loadSurveys();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to send reminder.");
+      setError(
+        err instanceof Error ? err.message : "Unable to send reminder."
+      );
+    } finally {
+      setSendingReminder(null);
     }
   }
 
@@ -58,6 +85,15 @@ export default function A06SurveyTracking() {
       </div>
 
       <h2>Post-Evaluation Survey Tracking</h2>
+      <div className="dashboard-center-action">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => void loadSurveys()}
+        >
+          Refresh Survey Data
+        </button>
+      </div>
 
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
@@ -103,11 +139,14 @@ export default function A06SurveyTracking() {
                       <button
                         type="button"
                         className="btn-primary"
+                        disabled={sendingReminder === `${record.pairing_id}-${record.respondent_type}`}
                         onClick={() =>
                           void handleReminder(record.pairing_id, record.respondent_type)
                         }
                       >
-                        Send Reminder
+                        {sendingReminder === `${record.pairing_id}-${record.respondent_type}`
+                          ? "Sending..."
+                          : "Send Reminder"}
                       </button>
                     </td>
                   </tr>
@@ -230,6 +269,20 @@ export default function A06SurveyTracking() {
                   </span>
                 </div>
               ))}
+              {selectedSurvey.survey_file && (
+                <div className="modal-detail-row">
+                  <span className="detail-label">Supporting File</span>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() =>
+                      void handleDownloadFile(selectedSurvey.survey_id)
+                    }
+                  >
+                    Download Attachment
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
