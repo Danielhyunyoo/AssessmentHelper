@@ -16,6 +16,11 @@
   padding-bottom: 0.5rem;
 }
 
+html.dark-mode .dashboard-container h2 {
+  color: #ffffff;
+  border-bottom-color: #27272a;
+}
+
 .dashboard-phase {
   display: flex;
   flex-direction: column;
@@ -28,14 +33,25 @@
   color: #334155;
 }
 
+html.dark-mode .dashboard-phase h3 {
+  color: #f4f4f5;
+}
+
 .yellow-banner,
 .reminder-banner {
   background-color: #fef9c3;
   border-left: 4px solid #eab308;
-  color: #713f12;
+  color: #000000;
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
   border-radius: 4px;
+}
+
+html.dark-mode .yellow-banner,
+html.dark-mode .reminder-banner {
+  background-color: #291e03;
+  color: #fef08a;
+  border-left-color: #eab308;
 }
 
 .feedback-banner-success {
@@ -46,6 +62,12 @@
   border-radius: 6px;
   margin-bottom: 1.5rem;
   font-weight: 600;
+}
+
+html.dark-mode .feedback-banner-success {
+  background-color: #052e16;
+  color: #86efac;
+  border-left-color: #22c55e;
 }
 
 .card-grid {
@@ -64,6 +86,12 @@
   gap: 0.75rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+html.dark-mode .dashboard-card {
+  background-color: #121212;
+  color: #f4f4f5;
+  border-color: #27272a;
 }
 
 .dashboard-card:hover {
@@ -95,21 +123,37 @@
   color: #0f172a;
 }
 
+html.dark-mode .dashboard-card h4 {
+  color: #ffffff;
+}
+
 .dashboard-card p {
   font-size: 0.875rem;
   color: #475569;
   line-height: 1.4;
 }
 
+html.dark-mode .dashboard-card p {
+  color: #a1a1aa;
+}
+
+/* ==========================================
+   CARD STATUS BADGES
+   ========================================== */
 .card-status {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #b45309;
+  color: #000000;
   background-color: #fef3c7;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   align-self: flex-start;
   text-transform: uppercase;
+}
+
+html.dark-mode .card-status {
+  background-color: #fef3c7;
+  color: #000000;
 }
 
 .dashboard-center-action {
@@ -118,7 +162,9 @@
   margin-top: 2.5rem;
 }
 
-/* Dashboard Notifications Widget */
+/* ==========================================
+   DASHBOARD NOTIFICATIONS WIDGET
+   ========================================== */
 .notification-card {
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
@@ -138,6 +184,10 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
+html.dark-mode .notification-card h4 {
+  border-bottom-color: #27272a;
+}
+
 .dashboard-notifications-container {
   max-height: 280px;
   overflow-y: auto;
@@ -155,22 +205,66 @@
 }
 
 .dashboard-notif-item {
-  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
   border-radius: 6px;
   font-size: 0.85rem;
   cursor: pointer;
   background-color: #f8fafc;
   border: 1px solid #f1f5f9;
-  transition: background-color 0.15s ease;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .dashboard-notif-item:hover {
   background-color: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+html.dark-mode .dashboard-notif-item {
+  background-color: #18181b;
+  border-color: #27272a;
+}
+
+html.dark-mode .dashboard-notif-item:hover {
+  background-color: #27272a;
+  border-color: #3f3f46;
 }
 
 .dashboard-notif-title {
-  margin: 0 0 0.15rem 0;
+  margin: 0;
   color: #1e293b;
+}
+
+html.dark-mode .dashboard-notif-title {
+  color: #f4f4f5;
+}
+
+/* Right-aligned link logic: hidden by default, blue in both modes */
+a.dashboard-notif-link,
+.dashboard-notif-link {
+  align-self: flex-end;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2563eb;
+  text-decoration: underline;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease, color 0.15s ease;
+}
+
+html.dark-mode a.dashboard-notif-link,
+html.dark-mode .dashboard-notif-link {
+  color: #2563eb;
+}
+
+/* Reveal link on card hover */
+.dashboard-notif-item:hover a.dashboard-notif-link,
+.dashboard-notif-item:hover .dashboard-notif-link {
+  opacity: 1;
+  visibility: visible;
 }
 
 .dashboard-notif-title.fw-bold { font-weight: 700; }
@@ -183,24 +277,6 @@
 .dashboard-notif-time.text-success-green { color: #166534; }
 .dashboard-notif-time.text-muted-gray { color: #94a3b8; }
 
-.notif-unread-highlight {
-  background-color: #f0fdf4 !important;
-  border-left: 3px solid #22c55e !important;
-}
-
-.notif-unread-highlight:hover {
-  background-color: #dcfce7 !important;
-}
-
-.notif-read-item {
-  background-color: #ffffff;
-  border-left: 3px solid transparent;
-}
-
-.notif-read-item:hover {
-  background-color: #f1f5f9 !important;
-}
-
 .full-width-notification-card {
   grid-column: 1 / -1;
   display: flex;
@@ -211,6 +287,12 @@
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+html.dark-mode .full-width-notification-card {
+  background-color: #121212;
+  color: #f4f4f5;
+  border-color: #27272a;
 }
 
 .notification-card-header {
@@ -238,364 +320,20 @@
   border: 1px solid #fca5a5;
 }
 
-.notification-action-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.dashboard-card.notification-card.stretched-notification-card {
+  height: 270px;
+  max-height: 270px;
+  min-height: 270px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-
-.notification-alert-link {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  border-radius: 8px;
-  background-color: #fffbebf5;
-  border: 1px solid #fde68a;
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.15s ease;
-}
-
-.notification-alert-link:hover {
-  background-color: #fef3c7;
-  border-color: #f59e0b;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.alert-icon {
-  font-size: 1.25rem;
-  flex-shrink: 0;
-}
-
-.alert-text-wrapper {
-  flex-grow: 1;
-}
-
-.alert-text-wrapper strong {
-  display: block;
-  font-size: 0.925rem;
-  color: #92400e;
-  margin-bottom: 0.2rem;
-}
-
-.alert-text-wrapper p {
-  margin: 0;
-  font-size: 0.825rem;
-  color: #b45309;
-}
-
-.alert-arrow {
-  font-size: 1.1rem;
-  color: #b45309;
-  transition: transform 0.15s ease;
-}
-
-.notification-alert-link:hover .alert-arrow {
-  transform: translateX(4px);
-}
-
-.dashboard-card.notification-card.stretched-notification-card {
-  height: 270px !important;
-  max-height: 270px !important;
-  min-height: 270px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .dashboard-card.notification-card.stretched-notification-card .dashboard-notifications-container {
-  flex: 1 !important;
-  min-height: 0 !important;
-  max-height: 170px !important;
-  overflow-y: auto !important;
-  padding-right: 4px !important;
-}
-
-.inline-alert-card {
-  padding: 1.25rem;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  box-sizing: border-box;
-}
-
-.inline-alert-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.65rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.inline-alert-header h4 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.action-required-badge {
-  background-color: #fee2e2;
-  color: #991b1b;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.25rem 0.6rem;
-  border-radius: 12px;
-  border: 1px solid #fca5a5;
-  white-space: nowrap;
-}
-
-.inline-alert-box {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.9rem;
-  border-radius: 8px;
-  background-color: #fffbeb;
-  border: 1px solid #fde68a;
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.15s ease;
-}
-
-.inline-alert-box:hover {
-  background-color: #fef3c7;
-  border-color: #f59e0b;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.alert-warning-icon {
-  font-size: 1.2rem;
-  flex-shrink: 0;
-}
-
-.alert-content-text {
-  flex-grow: 1;
-}
-
-.alert-content-text strong {
-  display: block;
-  font-size: 0.85rem;
-  color: #92400e;
-  line-height: 1.35;
-  margin-bottom: 0.25rem;
-}
-
-.alert-content-text p {
-  margin: 0;
-  font-size: 0.75rem;
-  color: #b45309;
-  line-height: 1.3;
-}
-
-.alert-arrow-btn {
-  font-size: 1rem;
-  color: #b45309;
-  transition: transform 0.15s ease;
-  flex-shrink: 0;
-}
-
-.inline-alert-box:hover .alert-arrow-btn {
-  transform: translateX(3px);
-}
-
-/* Dashboard & Cards Dark Mode Overrides (Colors Only) */
-html.dark-mode .dashboard-card,
-html.dark-mode .full-width-notification-card,
-html.dark-mode .inline-alert-card {
-  background-color: #121212;
-  color: #f4f4f5;
-  border-color: #27272a;
-}
-
-html.dark-mode .yellow-banner,
-html.dark-mode .reminder-banner {
-  background-color: #291e03;
-  color: #fef08a;
-  border-left-color: #eab308;
-}
-
-html.dark-mode .feedback-banner-success {
-  background-color: #052e16;
-  color: #86efac;
-  border-left-color: #22c55e;
-}
-
-html.dark-mode .notification-alert-link,
-html.dark-mode .inline-alert-box {
-  background-color: #1f1a07;
-  border-color: #713f12;
-}
-
-html.dark-mode .notification-alert-link:hover,
-html.dark-mode .inline-alert-box:hover {
-  background-color: #2e240a;
-  border-color: #a16207;
-}
-
-html.dark-mode .alert-text-wrapper strong,
-html.dark-mode .alert-content-text strong {
-  color: #fef08a;
-}
-
-html.dark-mode .alert-text-wrapper p,
-html.dark-mode .alert-content-text p,
-html.dark-mode .alert-arrow,
-html.dark-mode .alert-arrow-btn {
-  color: #fde047;
-}
-
-html.dark-mode .dashboard-notif-item {
-  background-color: #18181b;
-  border-color: #27272a;
-}
-
-html.dark-mode .dashboard-notif-item:hover {
-  background-color: #27272a;
-}
-
-
-/* ==========================================
-   A02 FACULTY MATCHING
-   ========================================== */
-
-.pairing-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-  width: 100%;
-}
-
-.approved-observee-card,
-.manual-observee-card {
-  min-width: 0;
-  padding: 1.25rem;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.approved-observee-card h4,
-.manual-observee-card h4 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.observer-checkbox-list,
-.observer-select-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.checkbox-row-label {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background-color: #f8fafc;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #334155;
-  line-height: 1.4;
-}
-
-.checkbox-row-label input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.checkbox-row-label input:disabled {
-  cursor: not-allowed;
-}
-
-.slot-select-input {
-  width: 100%;
-  min-width: 0;
-  padding: 0.65rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #1e293b;
-  font-size: 0.9rem;
-}
-
-html.dark-mode .approved-observee-card,
-html.dark-mode .manual-observee-card {
-  background-color: #18181b;
-  border-color: #3f3f46;
-}
-
-html.dark-mode .approved-observee-card h4,
-html.dark-mode .manual-observee-card h4 {
-  color: #f4f4f5;
-}
-
-html.dark-mode .checkbox-row-label {
-  background-color: #27272a;
-  border-color: #3f3f46;
-  color: #e4e4e7;
-}
-
-html.dark-mode .slot-select-input {
-  background-color: #27272a;
-  border-color: #52525b;
-  color: #f4f4f5;
-}
-
-/* A03 - Carry-forward form */
-.unmatched-transfer-details {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 550px;
-  margin: 24px 0;
-}
-
-.unmatched-transfer-details .form-group {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  width: 100%;
-}
-
-.unmatched-transfer-details label {
-  display: block;
-  font-weight: 600;
-}
-
-.unmatched-transfer-details select,
-.unmatched-transfer-details textarea {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-}
-
-.unmatched-transfer-details textarea {
-  min-height: 100px;
-  resize: vertical;
+  flex: 1;
+  min-height: 0;
+  max-height: 170px;
+  overflow-y: auto;
+  padding-right: 4px;
 }

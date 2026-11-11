@@ -18,22 +18,26 @@ export default function A08FormEditor() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const isEditable = !selectedTemplateId || Boolean(selectedTemplate?.can_edit);
+
   async function loadTemplates(type = activeFormType) {
     try {
       const result = await committeeApi.templates(type);
       setTemplates(result.templates);
 
       if (result.templates.length > 0) {
-        const first = result.templates[0];
-        setSelectedTemplateId(first.template_id);
-        setSelectedTemplate(first);
-        setName(first.name);
-        setInstructions(first.instructions);
-        setQuestions(first.questions);
+        const draftOrLatest =
+          result.templates.find((t) => t.can_edit) ?? result.templates[result.templates.length - 1];
+
+        setSelectedTemplateId(draftOrLatest.template_id);
+        setSelectedTemplate(draftOrLatest);
+        setName(draftOrLatest.name);
+        setInstructions(draftOrLatest.instructions);
+        setQuestions(draftOrLatest.questions);
       } else {
         setSelectedTemplateId(null);
         setSelectedTemplate(null);
-        setName(type === "observation" ? "Observation Form" : "Survey Form");
+        setName(type === "observation" ? "New Observation Form" : "New Survey Form");
         setInstructions("");
         setQuestions([]);
       }
@@ -54,6 +58,8 @@ export default function A08FormEditor() {
       setName(result.name);
       setInstructions(result.instructions);
       setQuestions(result.questions);
+      setError("");
+      setMessage("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load template.");
     }
@@ -132,12 +138,12 @@ export default function A08FormEditor() {
 
         await loadTemplates(activeFormType);
         await selectTemplate(created.template_id);
-        setMessage("Draft template created.");
+        setMessage("Draft template created successfully.");
         return;
       }
 
       if (!selectedTemplate?.can_edit) {
-        setError("This template cannot be edited. Clone it first.");
+        setError("This template is published and locked. Click 'Clone as New Version' to make changes.");
         return;
       }
 
@@ -147,7 +153,7 @@ export default function A08FormEditor() {
       });
 
       await selectTemplate(selectedTemplateId);
-      setMessage("Draft saved.");
+      setMessage("Draft saved successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save template.");
     }
@@ -160,7 +166,7 @@ export default function A08FormEditor() {
       const created = await committeeApi.cloneTemplate(selectedTemplateId);
       await loadTemplates(activeFormType);
       await selectTemplate(created.template_id);
-      setMessage("A new draft version was created.");
+      setMessage(`Cloned successfully! You are now editing Version ${created.version} as a new draft.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to clone template.");
     }
@@ -172,7 +178,7 @@ export default function A08FormEditor() {
     try {
       await committeeApi.publishTemplate(selectedTemplateId);
       await loadTemplates(activeFormType);
-      setMessage("Template published.");
+      setMessage("Template published successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to publish template.");
     }
@@ -187,21 +193,17 @@ export default function A08FormEditor() {
       </div>
 
       <div className="editor-top-bar">
-        <h2>Edit Evaluation / Survey Forms</h2>
+        <h2>Edit Evaluation & Survey Forms</h2>
       </div>
 
-      {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
+      {error && <p className="signin-error-banner" role="alert">{error}</p>}
+      {message && <p className="feedback-banner-success" role="status">{message}</p>}
 
-      {/* Control Banner */}
-      <div className="table-container theme-orange editor-control-banner">
+      {/* Top Control Banner */}
+      <div className="editor-control-banner">
         <div className="editor-control-group">
-          <label>
-            <strong>Form Type:</strong>
-          </label>
-
+          <label>Form Type:</label>
           <select
-            className="styled-select-input"
             value={activeFormType}
             onChange={(event) =>
               setActiveFormType(
@@ -215,12 +217,8 @@ export default function A08FormEditor() {
         </div>
 
         <div className="editor-control-group">
-          <label>
-            <strong>Template:</strong>
-          </label>
-
+          <label>Template Select:</label>
           <select
-            className="styled-select-input"
             value={selectedTemplateId ?? ""}
             onChange={(event) => {
               if (event.target.value) {
@@ -233,21 +231,19 @@ export default function A08FormEditor() {
                 key={template.template_id}
                 value={template.template_id}
               >
-                {template.name}, Version {template.version} ({template.status})
+                {template.name} (v{template.version} - {template.status.toUpperCase()})
               </option>
             ))}
           </select>
         </div>
 
         <div className="editor-control-group">
-          <label>
-            <strong>Template Name:</strong>
-          </label>
-
+          <label>Template Name:</label>
           <input
-            className="styled-text-input"
+            type="text"
             value={name}
-            disabled={selectedTemplateId !== null}
+            disabled={!isEditable}
+            placeholder="e.g. Peer Observation Form"
             onChange={(event) => setName(event.target.value)}
           />
         </div>
@@ -265,293 +261,218 @@ export default function A08FormEditor() {
             );
             setInstructions("");
             setQuestions([]);
-            setMessage("");
+            setMessage("Started a blank new template.");
             setError("");
           }}
         >
-          New Template
+          + Blank Form
         </button>
       </div>
 
-      <div className="roster-section-divider" />
-
-      {/* ================= OBSERVATION FORM EDITOR ================= */}
-      {activeFormType === "observation" && (
-        <section className="evaluation-form-wrapper">
-          <div className="evaluation-form-header">
-            <h3>{name}</h3>
-
-            <span className="form-version-tag">
-              {selectedTemplate
-                ? `Version ${selectedTemplate.version}`
-                : "New Draft"}
-            </span>
-          </div>
-
-          <div className="evaluation-form-card">
-            <div className="editable-field-container">
-              <span className="edit-indicator-tag">Edit Instructions</span>
-
-              <textarea
-                value={instructions}
-                onChange={(event) => setInstructions(event.target.value)}
-                disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                className="fixed-height-textarea"
-              />
+      {/* Questions Section */}
+      <section className="evaluation-form-wrapper">
+        <div className="evaluation-form-header">
+          <div className="header-left-col">
+            <div className="header-title-group">
+              <h3>{name || "Untitled Form"}</h3>
+              {selectedTemplate && (
+                <span className="version-pill">
+                  v{selectedTemplate.version}
+                </span>
+              )}
             </div>
 
-            <div className="form-section-group">
-              <h4 className="form-section-title">Observation Questions</h4>
+            {selectedTemplateId !== null && (
+              <div className="header-sub-actions">
+                <button
+                  type="button"
+                  className="btn-secondary header-clone-btn"
+                  onClick={() => void cloneTemplate()}
+                >
+                  Clone as New Version
+                </button>
+              </div>
+            )}
+          </div>
 
-              {questions.map((question) => (
-                <div key={question.id} className="editor-question-card">
-                  <div className="editable-field-container">
-                    <label>Question Text</label>
+          <div className="header-badges">
+            <span className={isEditable ? "status-chip chip-draft" : "status-chip chip-locked"}>
+              {isEditable ? "Editable Draft" : "Published (Locked)"}
+            </span>
+          </div>
+        </div>
 
-                    <input
-                      type="text"
-                      value={question.text}
-                      disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                      onChange={(event) =>
-                        updateQuestion(question.id, {
-                          text: event.target.value,
-                        })
-                      }
-                      className="styled-text-input editor-input-field"
-                    />
-                  </div>
+        <div className="editor-question-card">
+          <label className="card-input-label">Instructions / Guidelines</label>
+          <textarea
+            value={instructions}
+            onChange={(event) => setInstructions(event.target.value)}
+            disabled={!isEditable}
+            placeholder="Enter instructions for observers or survey respondents..."
+            rows={3}
+            className="full-row-textarea"
+          />
+        </div>
 
-                  <p>Question type: {question.type}</p>
+        <div className="form-section-group">
+          <h4 className="form-section-title">
+            {activeFormType === "observation" ? "Observation Questions" : "Survey Questions"}
+          </h4>
 
-                  <label>
-                    Required:
-                    <input
-                      type="checkbox"
-                      checked={question.required}
-                      disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                      onChange={(event) =>
-                        updateQuestion(question.id, {
-                          required: event.target.checked,
-                        })
-                      }
-                    />
-                  </label>
+          {questions.length === 0 && (
+            <div className="observation-empty-state">
+              No questions in this form yet. {isEditable && "Click below to add rating or text questions."}
+            </div>
+          )}
 
-                  {question.type === "rating" && (
-                    <div className="editor-question-header">
-                      <label>
-                        Minimum:
-                        <input
-                          type="number"
-                          value={question.min ?? 1}
-                          disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                          onChange={(event) =>
+          {questions.map((question, index) => (
+            <div key={question.id} className="editor-question-card">
+              <div className="card-question-header">
+                <span className="question-number">Question {index + 1}</span>
+              </div>
+
+              <div className="editor-question-row">
+                <label>Question Text</label>
+                <input
+                  type="text"
+                  value={question.text}
+                  disabled={!isEditable}
+                  placeholder="Enter evaluation question here..."
+                  onChange={(event) =>
+                    updateQuestion(question.id, {
+                      text: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="editor-question-meta-row">
+                <label className="checkbox-row-label">
+                  <input
+                    type="checkbox"
+                    checked={question.required}
+                    disabled={!isEditable}
+                    onChange={(event) =>
+                      updateQuestion(question.id, {
+                        required: event.target.checked,
+                      })
+                    }
+                  />
+                  Required Question
+                </label>
+
+                {question.type === "rating" && (
+                  <div className="editor-range-group">
+                    <div className="stepper-field-card">
+                      <span className="stepper-label">Min Score</span>
+                      <div className="custom-stepper-control">
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={!isEditable || (question.min ?? 1) <= 0}
+                          onClick={() =>
                             updateQuestion(question.id, {
-                              min: Number(event.target.value),
+                              min: Math.max(0, (question.min ?? 1) - 1),
                             })
                           }
-                        />
-                      </label>
-
-                      <label>
-                        Maximum:
-                        <input
-                          type="number"
-                          value={question.max ?? 5}
-                          disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                          onChange={(event) =>
+                        >
+                          −
+                        </button>
+                        <span className="stepper-value-badge">{question.min ?? 1}</span>
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={!isEditable || (question.min ?? 1) >= (question.max ?? 5) - 1}
+                          onClick={() =>
                             updateQuestion(question.id, {
-                              max: Number(event.target.value),
+                              min: (question.min ?? 1) + 1,
                             })
                           }
-                        />
-                      </label>
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                  )}
 
-                  {(!selectedTemplateId || selectedTemplate?.can_edit) && (
-                    <button
-                      type="button"
-                      className="btn-danger-sm"
-                      onClick={() => deleteQuestion(question.id)}
-                    >
-                      Delete Question
-                    </button>
-                  )}
-                </div>
-              ))}
+                    <div className="stepper-field-card">
+                      <span className="stepper-label">Max Score</span>
+                      <div className="custom-stepper-control">
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={!isEditable || (question.max ?? 5) <= (question.min ?? 1) + 1}
+                          onClick={() =>
+                            updateQuestion(question.id, {
+                              max: Math.max((question.min ?? 1) + 1, (question.max ?? 5) - 1),
+                            })
+                          }
+                        >
+                          −
+                        </button>
+                        <span className="stepper-value-badge">{question.max ?? 5}</span>
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={!isEditable}
+                          onClick={() =>
+                            updateQuestion(question.id, {
+                              max: (question.max ?? 5) + 1,
+                            })
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-              {(!selectedTemplateId || selectedTemplate?.can_edit) && (
-                <div className="add-question-bar">
+              {isEditable && (
+                <div className="question-card-actions">
                   <button
                     type="button"
-                    className="btn-primary"
-                    onClick={() => addQuestion("rating")}
+                    className="btn-danger-sm"
+                    onClick={() => deleteQuestion(question.id)}
                   >
-                    + Add Rating Question
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => addQuestion("text")}
-                  >
-                    + Add Text Question
+                    Remove Question
                   </button>
                 </div>
               )}
             </div>
-          </div>
-        </section>
-      )}
+          ))}
 
-      {/* ================= SURVEY FORM EDITOR ================= */}
-      {activeFormType === "survey" && (
-        <section className="evaluation-form-wrapper">
-          <div className="evaluation-form-header">
-            <h3>{name}</h3>
+          {isEditable && (
+            <div className="add-questions-bar">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => addQuestion("rating")}
+              >
+                + Add Rating Question
+              </button>
 
-            <span className="form-version-tag">
-              {selectedTemplate
-                ? `Version ${selectedTemplate.version}`
-                : "New Draft"}
-            </span>
-          </div>
-
-          <div className="evaluation-form-card">
-            <div className="editable-field-container">
-              <span className="edit-indicator-tag">Edit Instructions</span>
-
-              <textarea
-                value={instructions}
-                onChange={(event) => setInstructions(event.target.value)}
-                disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                className="fixed-height-textarea"
-              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => addQuestion("text")}
+              >
+                + Add Text Question
+              </button>
             </div>
+          )}
+        </div>
+      </section>
 
-            <div className="form-section-group">
-              <h4 className="form-section-title">Survey Questions</h4>
-
-              {questions.map((question) => (
-                <div key={question.id} className="editor-question-card">
-                  <div className="editable-field-container">
-                    <label>Question Text</label>
-
-                    <input
-                      type="text"
-                      value={question.text}
-                      disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                      onChange={(event) =>
-                        updateQuestion(question.id, {
-                          text: event.target.value,
-                        })
-                      }
-                      className="styled-text-input editor-input-field"
-                    />
-                  </div>
-
-                  <p>Question type: {question.type}</p>
-
-                  <label>
-                    Required:
-                    <input
-                      type="checkbox"
-                      checked={question.required}
-                      disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                      onChange={(event) =>
-                        updateQuestion(question.id, {
-                          required: event.target.checked,
-                        })
-                      }
-                    />
-                  </label>
-
-                  {question.type === "rating" && (
-                    <div className="editor-question-header">
-                      <label>
-                        Minimum:
-                        <input
-                          type="number"
-                          value={question.min ?? 1}
-                          disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                          onChange={(event) =>
-                            updateQuestion(question.id, {
-                              min: Number(event.target.value),
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Maximum:
-                        <input
-                          type="number"
-                          value={question.max ?? 5}
-                          disabled={Boolean(selectedTemplateId && !selectedTemplate?.can_edit)}
-                          onChange={(event) =>
-                            updateQuestion(question.id, {
-                              max: Number(event.target.value),
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {(!selectedTemplateId || selectedTemplate?.can_edit) && (
-                    <button
-                      type="button"
-                      className="btn-danger-sm"
-                      onClick={() => deleteQuestion(question.id)}
-                    >
-                      Delete Question
-                    </button>
-                  )}
-                </div>
-              ))}
-
-              {(!selectedTemplateId || selectedTemplate?.can_edit) && (
-                <div className="add-question-bar">
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => addQuestion("rating")}
-                  >
-                    + Add Rating Question
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => addQuestion("text")}
-                  >
-                    + Add Text Question
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Bottom Action Footer */}
-      <div className="editor-action-footer">
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => void saveDraft()}
-        >
-          Save Draft
-        </button>
-
-        {selectedTemplateId !== null && (
+      {/* Footer Actions */}
+      <div className="form-editor-footer-actions">
+        {isEditable && (
           <button
             type="button"
-            className="btn-secondary"
-            onClick={() => void cloneTemplate()}
+            className="btn-primary"
+            onClick={() => void saveDraft()}
           >
-            Clone as New Version
+            Save Draft
           </button>
         )}
 

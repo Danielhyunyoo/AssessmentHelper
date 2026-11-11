@@ -184,10 +184,14 @@ export default function A01CommitteeDashboard() {
             )}
 
             {alerts?.map((alert) => (
-              <div key={alert.code} className="dashboard-notif-item">
+              <Link 
+                key={alert.code} 
+                to={alert.destination} 
+                className="dashboard-notif-item"
+              >
                 <p className="dashboard-notif-title">{alert.message}</p>
-                <Link to={alert.destination}>View details</Link>
-              </div>
+                <span className="dashboard-notif-link">View details</span>
+              </Link>
             ))}
           </article>
         </div>
