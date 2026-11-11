@@ -22,9 +22,16 @@ class DemoFlowTests(APITestCase):
     def setUp(self):
         call_command("seed_demo", stdout=StringIO())
         self.cycle = Cycle.objects.get(status="active")
+
         self.cycle.signup_deadline = timezone.localdate() + timedelta(days=7)
         self.cycle.observation_deadline = timezone.localdate() + timedelta(days=30)
-        self.cycle.save(update_fields=["signup_deadline", "observation_deadline"])
+        self.cycle.survey_deadline = timezone.localdate() + timedelta(days=40)
+
+        self.cycle.save(update_fields=[
+            "signup_deadline",
+            "observation_deadline",
+            "survey_deadline",
+        ])
         self.professor_a = User.objects.get(username="professor_a")
         self.professor_b = User.objects.get(username="professor_b")
         self.course = Course.objects.get(instructor=self.professor_a, course_number="2337", year=2026)

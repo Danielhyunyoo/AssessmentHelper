@@ -4,10 +4,15 @@ from django.core.management import call_command
 from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.shortcuts import get_object_or_404
+import mimetypes
+from django.http import FileResponse
+from django.core.files.storage import default_storage
 import json
+import os
 
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (api_view, authentication_classes, permission_classes, parser_classes,)
 from rest_framework.exceptions import NotAuthenticated, NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -523,6 +528,31 @@ def committee_cycle_dates(request):
                 )
             })
 
+        proposed_observation_deadline = updates.get(
+            "observation_deadline",
+            cycle.observation_deadline,
+        )
+
+        proposed_survey_deadline = updates.get(
+            "survey_deadline",
+            cycle.survey_deadline,
+        )
+
+        if proposed_observation_deadline < proposed_signup_deadline:
+            raise ValidationError({
+                "observation_deadline": (
+                    "The observation deadline cannot be before registration closes."
+                )
+            })
+
+        if proposed_survey_deadline <= proposed_observation_deadline:
+            raise ValidationError({
+                "survey_deadline": (
+                    "The survey deadline must be after the observation deadline."
+                )
+            })
+
+        # Save only after every date has passed validation.
         for field, value in updates.items():
             setattr(cycle, field, value)
 
@@ -1255,15 +1285,22 @@ def _store_survey_answers(survey, answers, *, submit):
     survey.improvements = answers.get("improvements") if isinstance(answers.get("improvements"), str) else ""
     if submit:
         survey.submitted_at = clock.now()
-    survey.save(update_fields=["responses", "score", "pain_points", "improvements", "submitted_at"])
+    survey.save()
 
 
 def _assert_survey_ready(pairing, user):
     role = _survey_role(pairing, user)
     if pairing.status != "confirmed":
         raise ValidationError({"detail": "Pairing is not confirmed."})
-    if clock.today() > pairing.cycle.survey_deadline:
-        raise ValidationError({"detail": "The survey deadline has passed."})
+    today = clock.today()
+    if today <= pairing.cycle.observation_deadline:
+        raise ValidationError({
+            "detail": "Process surveys are not available until the observation period ends."
+        })
+    if today > pairing.cycle.survey_deadline:
+        raise ValidationError({
+            "detail": "The survey deadline has passed."
+        })
     if not Observation.objects.filter(
         pairing=pairing, status="completed", observer_signed=True, observee_signed=True,
     ).exists():
@@ -1380,6 +1417,88 @@ def survey_detail(request, survey_id):
         _validate_survey_answers(survey.template, answers, submit=submit)
         _store_survey_answers(survey, answers, submit=submit)
     return Response(_survey_json(survey))
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def survey_file_upload(request, survey_id):
+    user = get_current_professor(request)
+
+    survey = get_object_or_404(
+        _survey_queryset(user).select_related("pairing"),
+        pk=survey_id,
+    )
+
+    role = _assert_survey_ready(survey.pairing, user)
+
+    if role != "observee":
+        raise ValidationError({
+            "detail": "Only the observee may attach a supporting file."
+        })
+
+    if survey.submitted_at is not None:
+        raise ValidationError({
+            "detail": "Submitted surveys cannot be modified."
+        })
+
+    uploaded = request.FILES.get("survey_file")
+
+    if not uploaded:
+        raise ValidationError({
+            "survey_file": "Select a file to upload."
+        })
+
+    allowed_extensions = {".pdf", ".doc", ".docx", ".txt"}
+    extension = os.path.splitext(uploaded.name)[1].lower()
+
+    if extension not in allowed_extensions:
+        raise ValidationError({
+            "survey_file": "Unsupported file type."
+        })
+
+    if uploaded.size > 10 * 1024 * 1024:
+        raise ValidationError({
+            "survey_file": "The file cannot exceed 10 MB."
+        })
+
+    from django.core.files.storage import default_storage
+
+    filename = default_storage.save(
+        f"survey_files/{survey.survey_id}/{uploaded.name}",
+        uploaded,
+    )
+
+    survey.survey_file = filename
+    survey.save(update_fields=["survey_file"])
+
+    return Response(_survey_json(survey))
+
+@api_view(["GET"])
+def committee_survey_file(request, survey_id):
+    member = get_current_professor(request)
+    require_committee(member)
+
+    survey = get_object_or_404(Survey, pk=survey_id)
+
+    if not survey.survey_file:
+        raise NotFound("This survey does not have an attached file.")
+
+    if not default_storage.exists(survey.survey_file):
+        raise NotFound("The attached file could not be found.")
+
+    filename = os.path.basename(survey.survey_file)
+    content_type, _ = mimetypes.guess_type(filename)
+
+    file_handle = default_storage.open(survey.survey_file, "rb")
+
+    response = FileResponse(
+        file_handle,
+        as_attachment=True,
+        filename=filename,
+        content_type=content_type or "application/octet-stream",
+    )
+
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 # --- A05/A06: Assessment Committee pending records and surveys ---
 

@@ -25,6 +25,8 @@ export default function A02FacultyMatching() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [startDate, setStartDate] = useState<string>("2026-09-13");
   const [endDate, setEndDate] = useState<string>("2026-10-09");
+  const [observationDeadline, setObservationDeadline] = useState<string>("");
+  const [surveyDeadline, setSurveyDeadline] = useState<string>("");
   const [currentToday, setCurrentToday] = useState<string>("");
   const [savingDates, setSavingDates] = useState(false);
   const [displayStartDate, setDisplayStartDate] = useState<string>("Sep 13, 2026");
@@ -43,13 +45,23 @@ export default function A02FacultyMatching() {
   };
 
   const handleSaveDates = async () => {
-    if (!startDate || !endDate) {
-      setMatchError("Enter both the registration opening and closing dates.");
+    if (!startDate || !endDate || !observationDeadline || !surveyDeadline) {
+      setMatchError("Please enter all four cycle dates.");
       return;
     }
 
     if (startDate > endDate) {
       setMatchError("The registration opening date must be before the closing date.");
+      return;
+    }
+
+    if (endDate > observationDeadline) {
+      setMatchError("The observation deadline cannot be before registration closes.");
+      return;
+    }
+
+    if (observationDeadline >= surveyDeadline) {
+      setMatchError("The survey deadline must be after the observation deadline.");
       return;
     }
 
@@ -61,10 +73,14 @@ export default function A02FacultyMatching() {
       const updated = await committeeApi.updateCycleDates({
         start_date: startDate,
         signup_deadline: endDate,
+        observation_deadline: observationDeadline,
+        survey_deadline: surveyDeadline,
       });
 
       setStartDate(updated.start_date);
       setEndDate(updated.signup_deadline);
+      setObservationDeadline(updated.observation_deadline);
+      setSurveyDeadline(updated.survey_deadline);
 
       setDisplayStartDate(
         new Date(`${updated.start_date}T00:00:00`).toLocaleDateString(
@@ -113,6 +129,8 @@ export default function A02FacultyMatching() {
 
         setStartDate(cycleDates.start_date);
         setEndDate(cycleDates.signup_deadline);
+        setObservationDeadline(cycleDates.observation_deadline);
+        setSurveyDeadline(cycleDates.survey_deadline);
 
         setDisplayStartDate(
           new Date(`${cycleDates.start_date}T00:00:00`).toLocaleDateString(
@@ -443,7 +461,10 @@ export default function A02FacultyMatching() {
             checked={showManualMatching}
             onChange={(e) => setShowManualMatching(e.target.checked)}
           />
-          <span><strong>Demo Sandbox:</strong> Simulate unmatched professor scenario (Reveal Manual Matching)</span>
+          <span>
+            <strong>Demo Display:</strong> Show the manual matching section
+            (does not create unmatched faculty)
+          </span>
         </label>
       </div>
 
@@ -531,8 +552,11 @@ export default function A02FacultyMatching() {
       {isModalOpen && (
         <div className="modal-backdrop" onClick={handleCloseModal}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Edit Course Registration Dates</h3>
-
+            <h3 className="modal-title">Edit Evaluation Cycle Dates</h3>
+            <p>
+              Configure the registration, observation, and process survey deadlines
+              for the active evaluation cycle.
+            </p>
             <div className="modal-field">
               <label htmlFor="reg-opens">
                 Registration opens <span className="modal-fixed-note">(12:00 AM fixed)</span>
@@ -555,6 +579,32 @@ export default function A02FacultyMatching() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                className="modal-input"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label htmlFor="observation-deadline">
+                Observation Records End
+              </label>
+              <input
+                id="observation-deadline"
+                type="date"
+                value={observationDeadline}
+                onChange={(e) => setObservationDeadline(e.target.value)}
+                className="modal-input"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label htmlFor="survey-deadline">
+                Process Surveys End
+              </label>
+              <input
+                id="survey-deadline"
+                type="date"
+                value={surveyDeadline}
+                onChange={(e) => setSurveyDeadline(e.target.value)}
                 className="modal-input"
               />
             </div>

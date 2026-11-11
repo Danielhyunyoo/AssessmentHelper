@@ -1,4 +1,4 @@
-import { get, patch, post, put, qs } from "./http";
+import { get, patch, post, put, qs, request } from "./http";
 import type { Course, CommitteeCompletedRecords, CommitteePendingRecords, CommitteeSurveyTracking, CycleDates, DemoPersona, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, ScheduledVisit, Signup, SignupAvailability, Survey, Template } from "./types";
 // L02-L03
 export const authApi = {
@@ -53,9 +53,10 @@ export const observationApi = {
 export const surveyApi = {
   list: () => get<Survey[]>("/surveys/"),
   detail: (id: number) => get<Survey>(`/surveys/${id}/`),
-  templateForPairing: (pairingId: number) => get<{ paiing_id: number; respondent_type: "observer" | "observee"; template: Template; }>(`/surveys/template/${qs({ pairing_id: pairingId })}`),
+  templateForPairing: (pairingId: number) => get<{ pairing_id: number; respondent_type: "observer" | "observee"; template: Template; }>(`/surveys/template/${qs({ pairing_id: pairingId })}`),
   update: ( id: number, body: { responses: Record<string, number | string>; submit: boolean; } ) => patch<Survey>(`/surveys/${id}/`, body),
   submit: (body: { pairing_id: number; template_id: number; responses?: Record<string, number | string>; score?: number; pain_points?: string; improvements?: string; submit?: boolean; }) => post<Survey>("/surveys/", body),
+  uploadSupportingFile: (id: number, file: File) => { const body = new FormData(); body.append("survey_file", file); return request<Survey>(`/surveys/${id}/file/`, { method: "POST", body, }); },
 };
 // A01-A08
 export const committeeApi = {

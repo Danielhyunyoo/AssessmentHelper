@@ -13,6 +13,8 @@ export default function S06PostEvaluationSurvey() {
   const [record, setRecord] = useState<ObservationRecord | null>(null);
   const [template, setTemplate] = useState<Template | null>(null);
   const [responses, setResponses] = useState<Record<string, string | number>>({});
+  const [respondentType, setRespondentType] = useState< "observer" | "observee" | null >(null);
+  const [supportingFile, setSupportingFile] = useState<File | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,6 +44,7 @@ export default function S06PostEvaluationSurvey() {
         if (surveyId) {
           const result = await surveyApi.detail(Number(surveyId));
           setSurvey(result);
+          setRespondentType(result.respondent_type);
           setTemplate(
             result.template
               ? normalizeSurveyTemplate(result.template)
@@ -69,6 +72,7 @@ export default function S06PostEvaluationSurvey() {
 
         if (existingSurvey) {
           setSurvey(existingSurvey);
+          setRespondentType(existingSurvey.respondent_type);
 
           setTemplate(
             existingSurvey.template
@@ -92,6 +96,7 @@ export default function S06PostEvaluationSurvey() {
           setRecord(matchingRecord);
 
           const result = await surveyApi.templateForPairing(pairingId);
+          setRespondentType(result.respondent_type);
           setTemplate(result.template);
         }
       } catch (err) {
@@ -126,17 +131,35 @@ export default function S06PostEvaluationSurvey() {
     try {
       let result: Survey;
 
+      // First create or update the survey as a draft.
       if (survey) {
         result = await surveyApi.update(survey.survey_id, {
           responses,
-          submit,
+          submit: false,
         });
       } else {
         result = await surveyApi.submit({
           pairing_id: activePairingId,
           template_id: template.template_id,
           responses,
-          submit,
+          submit: false,
+        });
+      }
+
+      // Upload the optional file while the survey is still editable.
+      if (supportingFile) {
+        result = await surveyApi.uploadSupportingFile(
+          result.survey_id,
+          supportingFile
+        );
+        setSupportingFile(null);
+      }
+
+      // Submit only after the file upload succeeds.
+      if (submit) {
+        result = await surveyApi.update(result.survey_id, {
+          responses,
+          submit: true,
         });
       }
 
@@ -311,6 +334,34 @@ export default function S06PostEvaluationSurvey() {
               </div>
             ))}
           </div>
+
+          {respondentType === "observee" && (
+            <div className="form-section-block-sm">
+              <h4 className="section-subtitle">
+                Optional Supporting Statement or File
+              </h4>
+
+              <p>
+                You may attach an optional document to provide additional context
+                about the evaluation process.
+              </p>
+
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                disabled={!canEdit || saving}
+                onChange={(event) =>
+                  setSupportingFile(event.target.files?.[0] ?? null)
+                }
+              />
+
+              {supportingFile && (
+                <p role="status">
+                  Selected file: {supportingFile.name}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="submit-action-row">
             {canEdit && (

@@ -32,6 +32,8 @@ export default function A04FacultyRoster() {
   }, [search, sort]);
 
   async function handleRankChange(userId: number, rank: string) {
+    setError("");
+    setMessage("");
     try {
       await committeeApi.updateRank(userId, rank);
       await loadFaculty();
@@ -154,20 +156,27 @@ export default function A04FacultyRoster() {
                     <td>
                       <select
                         className="styled-select-input"
-                        value={member.academic_rank}
+                        value={member.academic_rank || ""}
                         onChange={(event) =>
                           void handleRankChange(member.user_id, event.target.value)
                         }
                       >
                         <option value="">Not specified</option>
-                        <option value="Assistant Professor">Assistant Professor</option>
-                        <option value="Associate Professor">Associate Professor</option>
-                        <option value="Full Professor">Full Professor</option>
-                        <option value="Professor of Instruction">Professor of Instruction</option>
+                        <option value="assistant">Assistant Professor</option>
+                        <option value="associate">Associate Professor</option>
+                        <option value="full">Full Professor</option>
+                        <option value="professor_of_instruction">
+                          Professor of Instruction
+                        </option>
                       </select>
                     </td>
 
-                    <td>{member.progress_status}</td>
+                    <td>
+                      {member.progress_status
+                        ? member.progress_status.charAt(0).toUpperCase() +
+                          member.progress_status.slice(1)
+                        : "Not available"}
+                    </td>
 
                     <td className="align-center">
                       {member.email ? (
@@ -317,24 +326,41 @@ export default function A04FacultyRoster() {
               </thead>
               <tbody>
                 {roster?.faculty.map((member) => {
-                  const isOverdue = member.progress_status?.toLowerCase().includes("overdue");
+                  const evaluationStatus = member.evaluation_status;
                   return (
                     <tr key={member.user_id}>
                       <td className="font-semibold">{member.name}</td>
-                      <td>{member.department || "Computer Science"}</td>
-                      <td>{member.academic_rank || "Not specified"}</td>
+                      <td>{member.department || "Not provided"}</td>
                       <td>
-                        {isOverdue ? (
+                        {{
+                          assistant: "Assistant Professor",
+                          associate: "Associate Professor",
+                          full: "Full Professor",
+                          professor_of_instruction: "Professor of Instruction",
+                        }[member.academic_rank] || "Not specified"}
+                      </td>
+                      <td>
+                        {evaluationStatus === "overdue" ? (
                           <span style={{ color: "#dc2626", fontWeight: "bold" }}>
                             <span className="warning-icon-triangle">▲</span> Overdue
                           </span>
-                        ) : (
+                        ) : evaluationStatus === "due" ? (
                           <span style={{ color: "#2563eb", fontWeight: "600" }}>
                             Due for Evaluation
                           </span>
+                        ) : evaluationStatus === "not_due" ? (
+                          <span style={{ color: "#16a34a", fontWeight: "600" }}>
+                            Not Due
+                          </span>
+                        ) : (
+                          <span>Undetermined</span>
                         )}
                       </td>
-                      <td>{member.last_evaluated || "Spring 2024"}</td>
+                      <td>
+                        {member.last_evaluated_semester
+                          ? `${member.last_evaluated_semester} ${member.last_evaluated_year ?? ""}`.trim()
+                          : "No previous evaluation"}
+                      </td>
                     </tr>
                   );
                 })}

@@ -24,6 +24,12 @@ export default function L03SignIn2() {
         return;
       }
       setUser(sessionUser);
+
+      if (sessionUser.role === "admin") {
+        navigate("/committee/dashboard");
+        return;
+      }
+
       setRegistration(await facultyApi.registrationStatus());
     } catch (err) {
       setError(
