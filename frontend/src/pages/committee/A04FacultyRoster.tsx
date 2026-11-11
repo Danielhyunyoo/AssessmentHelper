@@ -4,6 +4,17 @@ import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
 import type { FacultyRow, FacultyRoster } from "../../api/types";
 
+function formatAcademicRank(rank: string | null | undefined): string {
+  const rankLabels: Record<string, string> = {
+    assistant: "Assistant Professor",
+    associate: "Associate Professor",
+    full: "Full Professor",
+    professor_of_instruction: "Professor of Instruction",
+  };
+
+  return rank ? rankLabels[rank] || rank : "Not specified";
+}
+
 export default function A04FacultyRoster() {
   const [roster, setRoster] = useState<FacultyRoster | null>(null);
   const [unregistered, setUnregistered] = useState<FacultyRow[]>([]);
@@ -250,7 +261,7 @@ export default function A04FacultyRoster() {
 
                     <td className="font-semibold">{prof.name}</td>
                     <td>{prof.department ?? "Not provided"}</td>
-                    <td>{prof.academic_rank || "Not provided"}</td>
+                    <td>{formatAcademicRank(prof.academic_rank)}</td>
                     <td>{prof.email || "No email"}</td>
                   </tr>
                 ))}
@@ -332,12 +343,7 @@ export default function A04FacultyRoster() {
                       <td className="font-semibold">{member.name}</td>
                       <td>{member.department || "Not provided"}</td>
                       <td>
-                        {{
-                          assistant: "Assistant Professor",
-                          associate: "Associate Professor",
-                          full: "Full Professor",
-                          professor_of_instruction: "Professor of Instruction",
-                        }[member.academic_rank] || "Not specified"}
+                        {formatAcademicRank(member.academic_rank)}
                       </td>
                       <td>
                         {evaluationStatus === "overdue" ? (
