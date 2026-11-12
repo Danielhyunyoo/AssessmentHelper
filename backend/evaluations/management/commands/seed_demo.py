@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Q
 
+from evaluations.demo_history import SURVEY_TEMPLATE
 from evaluations.models import (
     Course, Cycle, Department, EvaluationCarryForward, Invitation, Notification,
     Observation, Pairing, Signup, Survey, Template,
@@ -47,14 +48,14 @@ def professor(letter, academic_level, last_evaluated_year):
 
 
 FACULTY = [
-    professor("A", "assistant", 2025),
-    professor("B", "associate", 2023),
-    professor("C", "full", 2025),
-    professor("D", "assistant", None),
-    professor("E", "associate", 2024),
-    professor("F", "full", 2023),
-    professor("G", "assistant", 2025),
-    professor("H", "associate", 2024),
+    professor("A", "Assistant Professor", 2025),
+    professor("B", "Associate Professor", 2023),
+    professor("C", "Full Professor", 2025),
+    professor("D", "Assistant Professor", None),
+    professor("E", "Associate Professor", 2024),
+    professor("F", "Full Professor", 2023),
+    professor("G", "Assistant Professor", 2025),
+    professor("H", "Associate Professor", 2024),
 ]
 
 RENAMED_USERNAMES = {
@@ -90,6 +91,11 @@ COURSES = [
     ("professor_g", "3377", "001", "Systems Programming in UNIX and Other Environments", "TR 8:30 AM - 9:45 AM", "ECSS 2.306", "Fall", 2026),
     ("professor_h", "4348", "001", "Operating Systems Concepts", "MW 8:30 AM - 9:45 AM", "ECSS 2.311", "Fall", 2026),
 ]
+
+
+def published_template(kind, defaults):
+    template = Template.objects.filter(type=kind, status="published").order_by("-version", "-template_id").first()
+    return template or Template.objects.create(**defaults)
 
 
 class Command(BaseCommand):
@@ -137,8 +143,8 @@ class Command(BaseCommand):
 
         Cycle.objects.update_or_create(semester="Fall 2026", defaults=FALL_2026)
 
-        if not Template.objects.filter(type="observation", status="published").exists():
-            Template.objects.create(**OBSERVATION_TEMPLATE)
+        published_template("observation", OBSERVATION_TEMPLATE)
+        published_template("survey", SURVEY_TEMPLATE)
 
         for username, number, section, title, schedule, classroom, semester, year in COURSES:
             Course.objects.update_or_create(

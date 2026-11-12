@@ -37,7 +37,7 @@ class SeedDemoTests(APITestCase):
 
         call_command("seed_demo", stdout=StringIO())
 
-        self.assertEqual(list(Template.objects.values_list("name", flat=True)), ["Committee form"])
+        self.assertEqual(list(Template.objects.filter(type="observation").values_list("name", flat=True)), ["Committee form"])
 
     def test_personas_list_the_seeded_accounts_in_order(self):
         response = self.client.get("/api/demo/personas/")

@@ -173,9 +173,9 @@ export default function A04FacultyRoster() {
                         }
                       >
                         <option value="">Not specified</option>
-                        <option value="assistant">Assistant Professor</option>
-                        <option value="associate">Associate Professor</option>
-                        <option value="full">Full Professor</option>
+                        <option value="Assistant Professor">Assistant Professor</option>
+                        <option value="Associate Professor">Associate Professor</option>
+                        <option value="Full Professor">Full Professor</option>
                         <option value="professor_of_instruction">
                           Professor of Instruction
                         </option>

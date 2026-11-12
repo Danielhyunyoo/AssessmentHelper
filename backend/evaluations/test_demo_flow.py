@@ -184,7 +184,7 @@ class DemoDateTests(APITestCase):
 
         self.client.post("/api/demo/reset/")
 
-        self.assertFalse(Signup.objects.filter(user=professor_a).exists())
+        self.assertFalse(Signup.objects.filter(user=professor_a, cycle__status="active").exists())
         self.assertIsNone(self.client.get("/api/demo/date/").data["simulated_date"])
 
     def test_reset_rebuilds_an_empty_database(self):

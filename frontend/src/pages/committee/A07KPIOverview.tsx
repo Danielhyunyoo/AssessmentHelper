@@ -148,7 +148,7 @@ export default function A07KpiOverview() {
               <p className="kpi-chart-subtitle">Split by Assistant, Associate, and Full Professors</p>
 
               <div className="rank-bar-group">
-                {kpiData?.by_rank?.map((rank: any) => {
+                {kpiData?.by_rank?.filter((rank: any) => rank.due + rank.overdue > 0).map((rank: any) => {
                   const total = rank.due + rank.overdue;
                   const dueWidth = total > 0 ? (rank.due / total) * 100 : 0;
                   const overdueWidth = total > 0 ? (rank.overdue / total) * 100 : 0;
@@ -197,7 +197,7 @@ export default function A07KpiOverview() {
               </p>
 
               <div className="rank-bar-group">
-                {kpiData?.by_rank?.map((rank: any) => (
+                {kpiData?.by_rank?.filter((rank: any) => rank.outstanding_records > 0).map((rank: any) => (
                   <div className="rank-bar-item" key={rank.rank}>
                     <div className="rank-bar-label-row">
                       <span>{rank.rank}</span>

@@ -127,6 +127,7 @@ def demo_reset(request):
     if executor.migration_plan(executor.loader.graph.leaf_nodes()):
         call_command("migrate", interactive=False, stdout=StringIO())
     call_command("seed_demo", "--reset", stdout=StringIO())
+    call_command("seed_sample_data", "--reset", stdout=StringIO())
     clock.set_simulated_date(None)
     return Response({"detail": "Demo data reset."})
 
