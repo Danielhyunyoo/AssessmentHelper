@@ -694,6 +694,7 @@ def invitation_json(inv):
         "recipient_id": inv.recipient_id,
         "course_id": inv.course_id,
         "sender": ProfessorSerializer(inv.sender).data,
+        "recipient": ProfessorSerializer(inv.recipient).data,
         "course": CourseSerializer(inv.course).data,
         "status": (
             "expired"
@@ -836,7 +837,7 @@ def my_sent_invitations(request):
     invs = (
         Invitation.objects
         .filter(sender=user, cycle=get_current_cycle())
-        .select_related("sender", "course", "course__department")
+        .select_related("sender", "recipient", "course", "course__department")
         .prefetch_related("proposed_dates")
     )
     return Response([invitation_json(inv) for inv in invs])
@@ -849,7 +850,7 @@ def my_received_invitations(request):
     invs = (
         Invitation.objects
         .filter(recipient=user, cycle=get_current_cycle())
-        .select_related("sender", "course", "course__department")
+        .select_related("sender", "recipient", "course", "course__department")
         .prefetch_related("proposed_dates")
     )
     return Response([invitation_json(inv) for inv in invs])

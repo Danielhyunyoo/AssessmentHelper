@@ -211,7 +211,7 @@ export default function S01FacultyDashboard() {
             <h3>Observer Modules</h3>
 
             <div className="yellow-banner" role="status">
-              <strong>Observer Reminder:</strong> Respond to incoming peer observation requests within 48 hours and upload completed evaluation forms promptly.
+              <strong>Observer Reminder:</strong> Respond to incoming peer observation requests within 48 hours and sign observation records promptly.
             </div>
 
             <div className="card-grid">

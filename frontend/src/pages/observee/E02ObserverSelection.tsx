@@ -139,7 +139,7 @@ export default function E02ObserverSelection() {
           Object.fromEntries(
             (matches.candidates ?? []).map((candidate) => [
               String(candidate.id),
-              [],
+              savedDates.slice(0, 8),
             ])
           )
         );
@@ -174,7 +174,8 @@ export default function E02ObserverSelection() {
             err instanceof Error
               ? err.message
               : "Unable to load observer candidates and invitations.";
-          window.alert(msg);
+          setMessageArea("page");
+          setValidationError(msg);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -204,7 +205,6 @@ export default function E02ObserverSelection() {
     if (selectedCandidates.length === 0) {
       const msg = "Select at least one observer first.";
       setValidationError(msg);
-      window.alert(msg);
       return;
     }
 
@@ -212,7 +212,6 @@ export default function E02ObserverSelection() {
       const msg =
         "No saved observation date/times were found. Return to Course Selection and save your availability.";
       setValidationError(msg);
-      window.alert(msg);
       return;
     }
 
@@ -224,7 +223,11 @@ export default function E02ObserverSelection() {
       const msg =
         "Select at least four proposed dates for every observer you want to invite.";
       setValidationError(msg);
-      window.alert(msg);
+      return;
+    }
+
+    if (selectedCandidates.some((observerId) => (candidateDates[observerId] ?? []).length > 8)) {
+      setValidationError("Propose at most eight dates to each observer.");
       return;
     }
 
@@ -258,7 +261,7 @@ export default function E02ObserverSelection() {
       );
       setSelectedCandidates([]);
     } catch (err) {
-      window.alert(
+      setValidationError(
         err instanceof Error
           ? err.message
           : "Unable to send invitation requests."
@@ -454,6 +457,7 @@ export default function E02ObserverSelection() {
     message: string
   ) => {
     setSuccess("");
+    setValidationError("");
     setMessageArea("responses");
     setSaving(true);
 
@@ -463,7 +467,7 @@ export default function E02ObserverSelection() {
       setSuccess(message);
       await reloadResponses();
     } catch (err) {
-      window.alert(
+      setValidationError(
         err instanceof Error
           ? err.message
           : "Unable to update the invitation."
@@ -491,11 +495,12 @@ export default function E02ObserverSelection() {
 
   const handleConfirmPairing = async () => {
     setSuccess("");
+    setValidationError("");
     setMessageArea("responses");
 
     if (selectedInvitationId === null) {
       const msg = "Please select an observer who has accepted an invitation.";
-      window.alert(msg);
+      setValidationError(msg);
       return;
     }
 
@@ -508,7 +513,7 @@ export default function E02ObserverSelection() {
       const invitations = await matchingApi.sentInvitations();
       setResponseData(toResponseRows(invitations, observerNames));
     } catch (err) {
-      window.alert(
+      setValidationError(
         err instanceof Error
           ? err.message
           : "Unable to confirm the observation pairing."
@@ -530,6 +535,19 @@ export default function E02ObserverSelection() {
       <h2>Observer Selection</h2>
 
       {loading && <p>Loading matched observers and invitations...</p>}
+        {messageArea === "page" && validationError && (
+          <p
+            role="alert"
+            style={{
+              color: "#ef4444",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              margin: "1rem 0 0 0",
+            }}
+          >
+            {validationError}
+          </p>
+        )}
 
       {/* Top Section: Course Details & Clean Badge Bar */}
       <section className="table-container theme-orange summary-card-padding">
@@ -629,6 +647,7 @@ export default function E02ObserverSelection() {
 
         {messageArea === "invite" && validationError && (
           <p
+            role="alert"
             style={{
               color: "#ef4444",
               fontWeight: 600,
@@ -724,14 +743,16 @@ export default function E02ObserverSelection() {
         />
 
         <div className="compact-actions-bar unregistered-actions-bar">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => void handleRejectAll()}
-            disabled={saving || !hasOpenInvitations}
-          >
-            Reject All
-          </button>
+          {!isFinalized && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void handleRejectAll()}
+              disabled={saving || !hasOpenInvitations}
+            >
+              Reject All
+            </button>
+          )}
           <button
             type="button"
             className="btn-primary"
@@ -745,6 +766,20 @@ export default function E02ObserverSelection() {
               : "Confirm and Lock Changes"}
           </button>
         </div>
+
+        {messageArea === "responses" && validationError && (
+          <p
+            role="alert"
+            style={{
+              color: "#ef4444",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              margin: "1rem 0 0 0",
+            }}
+          >
+            {validationError}
+          </p>
+        )}
 
         {messageArea === "responses" && success && (
           <div

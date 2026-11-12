@@ -95,6 +95,7 @@ export default function DevBar() {
   const [, setSimulated] = useState(false);
   const [cycle, setCycle] = useState<RegistrationStatus | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const [resetError, setResetError] = useState("");
 
   async function resetData() {
@@ -426,14 +427,35 @@ export default function DevBar() {
 
           {/* Section 4: Data Reset & Disclaimer */}
           <div className="dev-card dev-reset-card">
-            <button 
-              type="button" 
-              className="dev-btn dev-btn-danger" 
-              onClick={() => void resetData()} 
-              disabled={resetting}
-            >
-              {resetting ? "Resetting Demo..." : "↺ Reset Demonstration Data"}
-            </button>
+            {confirmingReset ? (
+              <>
+                <p className="dev-caption">
+                  This resets the demo for everyone using this link. Continue?
+                </p>
+                <button
+                  type="button"
+                  className="dev-btn dev-btn-danger"
+                  onClick={() => {
+                    setConfirmingReset(false);
+                    void resetData();
+                  }}
+                >
+                  Yes, reset for everyone
+                </button>
+                <button type="button" className="dev-btn dev-btn-secondary" onClick={() => setConfirmingReset(false)}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="dev-btn dev-btn-danger"
+                onClick={() => setConfirmingReset(true)}
+                disabled={resetting}
+              >
+                {resetting ? "Resetting Demo..." : "↺ Reset Demonstration Data"}
+              </button>
+            )}
 
             {resetError && <p className="dev-error-text" role="alert">{resetError}</p>}
 

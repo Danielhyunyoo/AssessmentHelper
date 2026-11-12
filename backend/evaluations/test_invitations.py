@@ -185,6 +185,13 @@ class InvitationTests(APITestCase):
         self.assertEqual(self.confirm(b).status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(self.invite(self.professor_b).status_code, status.HTTP_201_CREATED)
 
+    def test_sent_invitations_name_the_observer(self):
+        self.invite(self.professor_b)
+
+        sent = self.client.get("/api/invitations/").data
+
+        self.assertEqual(sent[0]["recipient"]["last_name"], "B")
+
     def test_only_the_sender_can_reject(self):
         b = self.invite(self.professor_b).data["invitation_id"]
         self.as_user(self.professor_b)

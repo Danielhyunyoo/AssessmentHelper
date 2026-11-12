@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { observationApi, surveyApi } from "../../api/endpoints";
 import type { ObservationRecord, Survey, Template } from "../../api/types";
+import { formatDateTime } from "../../api/format";
 
 export default function S06PostEvaluationSurvey() {
   const { surveyId } = useParams();
@@ -250,7 +251,7 @@ export default function S06PostEvaluationSurvey() {
           <div>
             <strong className="summary-field-label">Observation Date</strong>
             <p className="summary-field-val">
-              {displayDate ? new Date(displayDate).toLocaleString() : "Not available"}
+              {displayDate ? formatDateTime(displayDate) : "Not available"}
             </p>
           </div>
         </div>

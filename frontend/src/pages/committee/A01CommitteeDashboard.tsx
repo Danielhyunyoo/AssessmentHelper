@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
 import type { JsonObject } from "../../api/types";
+import { formatDate } from "../../api/format";
 
 import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg";
 import unmatched_observees_card from "../../assets/unmatched_observees_card.jpg";
@@ -62,7 +63,7 @@ export default function A01CommitteeDashboard() {
           <p>
             <strong>Registration deadline:</strong>{" "}
             {cycle?.signup_deadline
-              ? new Date(String(cycle.signup_deadline)).toLocaleDateString()
+              ? formatDate(String(cycle.signup_deadline))
               : "Loading..."}
           </p>
         </div>
@@ -98,7 +99,7 @@ export default function A01CommitteeDashboard() {
             <Link to="/committee/faculty-roster">
               <img src={observation_record_management_card} alt="Observation Record Management" />
               <h4>Observation Record Management</h4>
-              <p>Monitor course registrations and dispatch reminders to due or overdue faculty before the Oct 9 cutoff</p>
+              <p>Monitor course registrations and dispatch reminders to due or overdue faculty before the registration deadline</p>
             </Link>
           </article>
         </div>
@@ -111,7 +112,7 @@ export default function A01CommitteeDashboard() {
           <p>
             <strong>Observation deadline:</strong>{" "}
             {cycle?.observation_deadline
-              ? new Date(String(cycle.observation_deadline)).toLocaleDateString()
+              ? formatDate(String(cycle.observation_deadline))
               : "Loading..."}
           </p>
         </div>
@@ -134,7 +135,7 @@ export default function A01CommitteeDashboard() {
           <p>
             <strong>Survey deadline:</strong>{" "}
             {cycle?.survey_deadline
-              ? new Date(String(cycle.survey_deadline)).toLocaleDateString()
+              ? formatDate(String(cycle.survey_deadline))
               : "Loading..."}
           </p>
         </div>

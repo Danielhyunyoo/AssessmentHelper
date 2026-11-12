@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { observationApi } from "../../api/endpoints";
 import type { ObservationRecord } from "../../api/types";
+import { formatDateTime } from "../../api/format";
+import { ApiError } from "../../api/http";
+
+function recordError(err: unknown, record: ObservationRecord, fallback: string) {
+  if (!(err instanceof Error)) return fallback;
+  const payload = err instanceof ApiError && typeof err.payload === "object" ? err.payload : null;
+  const answers = payload?.responses;
+  if (!answers || typeof answers !== "object") return err.message;
+  const byMessage: Record<string, string[]> = {};
+  for (const [id, message] of Object.entries(answers as Record<string, unknown>)) {
+    const question = record.template.questions.find((item) => String(item.id) === id);
+    const key = String(message).replace(/\.$/, "");
+    byMessage[key] = [...(byMessage[key] ?? []), question?.text ?? id];
+  }
+  return Object.entries(byMessage).map(([message, questions]) => `${message}: ${questions.join("; ")}.`).join(" ");
+}
 
 export default function S05ObservationRecord() {
   const { observationId } = useParams();
@@ -70,9 +86,7 @@ export default function S05ObservationRecord() {
       setResponses(updated.responses ?? {});
       setSuccess("Observation record saved.");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to save record."
-      );
+      setError(recordError(err, record, "Unable to save record."));
     } finally {
       setSaving(false);
     }
@@ -105,9 +119,7 @@ export default function S05ObservationRecord() {
           : "Your signature has been saved."
       );
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to sign record."
-      );
+      setError(recordError(err, record, "Unable to sign record."));
     } finally {
       setSaving(false);
     }
@@ -174,7 +186,7 @@ export default function S05ObservationRecord() {
             <strong className="summary-field-label">Observation Date</strong>
             <p className="summary-field-val">
               {record.confirmed_datetime
-                ? new Date(record.confirmed_datetime).toLocaleString()
+                ? formatDateTime(record.confirmed_datetime)
                 : "Not scheduled"}
             </p>
           </div>
@@ -266,7 +278,7 @@ export default function S05ObservationRecord() {
               <p>
                 {record.observer_signed
                   ? `Signed ${record.observer_signed_at
-                      ? new Date(record.observer_signed_at).toLocaleString()
+                      ? formatDateTime(record.observer_signed_at)
                       : ""}`
                   : "Awaiting observer signature"}
               </p>
@@ -277,7 +289,7 @@ export default function S05ObservationRecord() {
               <p>
                 {record.observee_signed
                   ? `Signed ${record.observee_signed_at
-                      ? new Date(record.observee_signed_at).toLocaleString()
+                      ? formatDateTime(record.observee_signed_at)
                       : ""}`
                   : "Awaiting observee signature"}
               </p>

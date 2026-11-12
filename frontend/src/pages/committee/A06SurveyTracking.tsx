@@ -3,6 +3,7 @@ import { downloadSurveyFile } from "../../api/http";
 import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
 import type { Survey } from "../../api/types";
+import { formatDate, formatDateTime } from "../../api/format";
 
 export default function A06SurveyTracking() {
   const [surveyData, setSurveyData] =
@@ -134,7 +135,7 @@ export default function A06SurveyTracking() {
                         ? new Date(record.observation_datetime).toLocaleDateString()
                         : "Not provided"}
                     </td>
-                    <td>{new Date(record.survey_deadline).toLocaleDateString()}</td>
+                    <td>{formatDate(record.survey_deadline)}</td>
                     <td className="align-center">
                       <button
                         type="button"
@@ -195,7 +196,7 @@ export default function A06SurveyTracking() {
                     <td>{record.department ?? "Not provided"}</td>
                     <td>{record.academic_rank || "Not provided"}</td>
                     <td>{record.respondent_type}</td>
-                    <td>{new Date(record.submitted_at).toLocaleString()}</td>
+                    <td>{formatDateTime(record.submitted_at)}</td>
                     <td className="align-center">
                       <button
                         type="button"
@@ -255,7 +256,7 @@ export default function A06SurveyTracking() {
               <p>
                 <strong>Submitted:</strong>{" "}
                 {selectedSurvey.submitted_at
-                  ? new Date(selectedSurvey.submitted_at).toLocaleString()
+                  ? formatDateTime(selectedSurvey.submitted_at)
                   : "Not submitted"}
               </p>
 

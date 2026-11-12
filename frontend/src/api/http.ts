@@ -5,9 +5,25 @@ const mockMode = import.meta.env.VITE_USE_MOCKS === "true";
 export function isMockMode() { return mockMode; }
 export class ApiError extends Error {
   constructor(public status: number, public payload: ApiErrorPayload | string) {
-    super(typeof payload === "string" ? payload : (payload.detail || JSON.stringify(payload)));
+    super(errorText(payload));
     this.name = "ApiError";
   }
+}
+function errorText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(errorText).join(" ");
+  if (value && typeof value === "object") {
+    const fields = value as Record<string, unknown>;
+    if (typeof fields.detail === "string") return fields.detail;
+    return Object.entries(fields).map(([key, item]) =>
+      key === "non_field_errors" || key === "responses" ? errorText(item) : `${fieldLabel(key)}: ${errorText(item)}`
+    ).join(" ");
+  }
+  return String(value ?? "");
+}
+function fieldLabel(key: string) {
+  const words = key.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 function cookie(name: string): string | undefined {
   return document.cookie.split("; ").find(item => item.startsWith(`${name}=`))?.split("=").slice(1).join("=");

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
 import type { ObservationRecord } from "../../api/types";
+import { formatDateTime } from "../../api/format";
 
 export default function A05PendingObservationRecords() {
   const [pending, setPending] = useState<{
@@ -243,7 +244,7 @@ export default function A05PendingObservationRecords() {
                 <span className="detail-label">Observation Date:</span>
                 <span>
                   {selectedRecord.confirmed_datetime
-                    ? new Date(selectedRecord.confirmed_datetime).toLocaleString()
+                    ? formatDateTime(selectedRecord.confirmed_datetime)
                     : "Not scheduled"}
                 </span>
               </div>

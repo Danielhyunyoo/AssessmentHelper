@@ -1,13 +1,15 @@
 
 import { useEffect, useState } from "react";
-import { authApi, facultyApi, observationApi } from "../../api/endpoints";
+import { authApi, facultyApi, matchingApi, observationApi } from "../../api/endpoints";
 import type {
+  Invitation,
   ObservationRecord,
   Professor,
   RegistrationStatus,
   ScheduledVisit,
 } from "../../api/types";
 import { Link } from "react-router-dom";
+import { formatDateTime } from "../../api/format";
 
 function formatReminderDate(value?: string) {
   if (!value) return "Not available";
@@ -17,6 +19,17 @@ function formatReminderDate(value?: string) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "In progress",
+  awaiting_observee_signature: "Waiting for the observee to sign",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+function statusLabel(status: string) {
+  return STATUS_LABELS[status] ?? status;
 }
 
 function getSemester(value?: string | null) {
@@ -50,6 +63,7 @@ export default function S04CurrentAndPastObservations() {
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [liveRecords, setLiveRecords] = useState<ObservationRecord[]>([]);
   const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState<Invitation[]>([]);
   const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveError, setLiveError] = useState("");
@@ -74,7 +88,16 @@ export default function S04CurrentAndPastObservations() {
 
         setCurrentUser(session.professor);
         setLiveRecords(records);
-        setScheduledVisits(await observationApi.scheduled());
+        const [scheduled, sent, received] = await Promise.all([
+          observationApi.scheduled(),
+          matchingApi.sentInvitations(),
+          matchingApi.incomingInvitations(),
+        ]);
+        if (cancelled) return;
+        setScheduledVisits(scheduled);
+        setAwaitingConfirmation(
+          [...sent, ...received].filter((invitation) => invitation.status === "accepted")
+        );
         setRegistration(registrationData);
       } catch (err) {
         if (!cancelled) {
@@ -209,12 +232,58 @@ export default function S04CurrentAndPastObservations() {
 
           <div className="table-container accordion-wrapper">
             <div className="accordion-content">
-              {currentRecords.length === 0 && scheduledVisits.length === 0 ? (
+              {currentRecords.length === 0 && scheduledVisits.length === 0 && awaitingConfirmation.length === 0 ? (
                 <div className="observation-empty-state">
                   No current observations.
                 </div>
               ) : (
                 <div className="observation-cards-container">
+                  {awaitingConfirmation.map((invitation) => {
+                    const isObserver = invitation.recipient_id === currentUser?.id;
+                    const other = isObserver ? invitation.sender : invitation.recipient;
+                    const acceptedDate = invitation.proposed_dates.find((date) => date.status === "accepted");
+
+                    return (
+                      <article className="observation-card-history" key={`invitation-${invitation.invitation_id}`}>
+                        <div className="observation-card-header">
+                          <strong className="observation-card-title">
+                            {formatObservationDate(acceptedDate?.datetime)}
+                          </strong>
+                          <span className={`pill-badge ${isObserver ? "pill-observer" : "pill-observee"}`}>
+                            {isObserver ? "Observer" : "Observee"}
+                          </span>
+                        </div>
+
+                        <p className="observation-card-text">
+                          <strong>{isObserver ? "Observee:" : "Observer:"}</strong>{" "}
+                          {other ? `${other.first_name} ${other.last_name}` : "Unknown"}
+                        </p>
+
+                        <p className="observation-card-text">
+                          <strong>Course:</strong> {invitation.course?.department_code} {invitation.course?.course_number}
+                        </p>
+
+                        <p className="observation-card-text">
+                          <strong>Section:</strong> {invitation.course?.section}
+                        </p>
+
+                        <p className="observation-card-subtext">
+                          <strong>Status:</strong> Waiting for confirmation
+                        </p>
+
+                        {isObserver ? (
+                          <p className="observation-card-subtext">
+                            You accepted this date. The observee still has to confirm the visit.
+                          </p>
+                        ) : (
+                          <p className="observation-card-subtext">
+                            This observer accepted.{" "}
+                            <Link to="/observee/observer-selection">Confirm the visit</Link> to schedule it.
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
                   {scheduledVisits.map((visit) => {
                     const isObserver = visit.observer.id === currentUser?.id;
 
@@ -300,7 +369,7 @@ export default function S04CurrentAndPastObservations() {
                         </p>
 
                         <p className="observation-card-subtext">
-                          <strong>Status:</strong> {record.status}
+                          <strong>Status:</strong> {statusLabel(record.status)}
                         </p>
 
                         <p className="observation-card-subtext">
@@ -423,15 +492,13 @@ export default function S04CurrentAndPastObservations() {
                               </p>
 
                               <p className="observation-card-subtext">
-                                <strong>Status:</strong> {record.status}
+                                <strong>Status:</strong> {statusLabel(record.status)}
                               </p>
 
                               <p className="observation-card-subtext">
                                 <strong>Finalized:</strong>{" "}
                                 {record.observee_signed_at
-                                  ? new Date(
-                                      record.observee_signed_at
-                                    ).toLocaleString()
+                                  ? formatDateTime(record.observee_signed_at)
                                   : "Not finalized"}
                               </p>
 
