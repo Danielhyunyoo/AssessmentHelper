@@ -1668,9 +1668,9 @@ def committee_pending_surveys(request):
             }
             if response and response.submitted_at:
                 completed.append({**item, "survey_id": response.pk, "submitted_at": response.submitted_at})
-            else:
+            elif clock.surveys_open(cycle):
                 missing.append(item)
-    return Response({"cycle_id": cycle.pk, "missing_count": len(missing),
+    return Response({"cycle_id": cycle.pk, "surveys_open": clock.surveys_open(cycle), "missing_count": len(missing),
                      "completed_count": len(completed), "missing": missing, "completed": completed})
 
 
@@ -1899,6 +1899,8 @@ def committee_dashboard(request):
         alerts.append({"code": "released_zero_candidates", "message": f"{released_with_zero} released candidate lists contain no observers.", "count": released_with_zero, "destination": "/committee/unmatched"})
     if pending_records:
         alerts.append({"code": "pending_records", "message": f"{pending_records} observation records need attention.", "count": pending_records, "destination": "/committee/pending-records"})
+    if not clock.surveys_open(cycle):
+        pending_surveys = 0
     if pending_surveys:
         alerts.append({"code": "missing_surveys", "message": f"{pending_surveys} post-observation survey responses are missing.", "count": pending_surveys, "destination": "/committee/survey-tracking"})
 
@@ -1942,6 +1944,7 @@ def committee_dashboard(request):
             "missing_observer_submissions": missing_observer_submissions,
             "missing_observee_signatures": missing_observee_signatures,
             "missing_surveys": pending_surveys,
+            "surveys_open": clock.surveys_open(cycle),
             "submitted_surveys": submitted_surveys,
             "expected_surveys": expected_surveys,
             "faculty_due": due_count,

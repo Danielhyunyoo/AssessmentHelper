@@ -19,6 +19,10 @@ def today():
     return simulated_date() or timezone.localdate()
 
 
+def surveys_open(cycle):
+    return today() > cycle.observation_deadline
+
+
 def now():
     real_now = timezone.now()
     simulated = simulated_date()

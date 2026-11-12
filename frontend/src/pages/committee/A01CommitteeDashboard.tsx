@@ -51,7 +51,7 @@ export default function A01CommitteeDashboard() {
           <p>Registered faculty: {String(counts.registered_faculty ?? 0)}</p>
           <p>Unregistered faculty: {String(counts.unregistered_faculty ?? 0)}</p>
           <p>Pending observation records: {String(counts.pending_observation_records ?? 0)}</p>
-          <p>Missing surveys: {String(counts.missing_surveys ?? 0)}</p>
+          <p>Missing surveys: {counts.surveys_open === false ? "surveys not open yet" : String(counts.missing_surveys ?? 0)}</p>
         </section>
       )}
 

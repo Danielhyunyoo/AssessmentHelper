@@ -154,7 +154,11 @@ export default function A06SurveyTracking() {
 
                 {surveyData && surveyData.missing.length === 0 && (
                   <tr>
-                    <td colSpan={7}>No missing surveys.</td>
+                    <td colSpan={7}>
+                      {surveyData.surveys_open === false
+                        ? "Surveys open after the observation deadline."
+                        : "No missing surveys."}
+                    </td>
                   </tr>
                 )}
               </tbody>

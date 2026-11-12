@@ -4,10 +4,36 @@ import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
 import { downloadKpiCsv } from "../../api/http";
 
+interface ProposalKpi {
+  key: string;
+  label: string;
+  definition: string;
+  value: number | null;
+  numerator: number | null;
+  denominator: number | null;
+  unit: "percent" | "average" | "count";
+  note?: string;
+}
+
+function formatKpi(kpi: ProposalKpi) {
+  if (kpi.value == null) return kpi.note || "N/A";
+  if (kpi.unit === "percent") return `${kpi.value}%`;
+  return String(kpi.value);
+}
+
+function kpiBasis(kpi: ProposalKpi) {
+  if (kpi.numerator == null || kpi.denominator == null) return "";
+  return kpi.unit === "average"
+    ? `${kpi.numerator} eligible candidates across ${kpi.denominator} released lists`
+    : `${kpi.numerator} of ${kpi.denominator}`;
+}
+
 export default function A07KpiOverview() {
   const [kpiData, setKpiData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cycleId, setCycleId] = useState<number | undefined>(undefined);
+  const [cycles, setCycles] = useState<{ cycle_id: number; semester: string }[]>([]);
 
   useEffect(() => {
     async function loadKpis() {
@@ -15,7 +41,10 @@ export default function A07KpiOverview() {
         setLoading(true);
         setError("");
 
-        const result = await committeeApi.kpis();
+        const result = await committeeApi.kpis(cycleId);
+        if (cycleId === undefined && Array.isArray(result.historical_breakdown)) {
+          setCycles(result.historical_breakdown as { cycle_id: number; semester: string }[]);
+        }
         setKpiData(result);
       } catch (err) {
         setError(
@@ -27,7 +56,7 @@ export default function A07KpiOverview() {
     }
 
     void loadKpis();
-  }, []);
+  }, [cycleId]);
 
   const counts = kpiData?.counts;
 
@@ -37,10 +66,9 @@ export default function A07KpiOverview() {
   const incompleteRecords = counts?.outstanding_records ?? 0;
   const unmatchedFaculty = counts?.unmatched ?? 0;
 
-  const surveyCompletionDisplay =
-    counts?.survey_completion_percent == null
-      ? "N/A"
-      : `${counts.survey_completion_percent}%`;
+  const kpis: ProposalKpi[] = kpiData?.kpis ?? [];
+  const processCompletion = kpis.find((kpi) => kpi.key === "process_completion");
+  const surveyCompletionDisplay = processCompletion ? formatKpi(processCompletion) : "N/A";
 
   return (
     <div className="dashboard-container">
@@ -53,6 +81,21 @@ export default function A07KpiOverview() {
 
       <h2 className="kpi-page-title">Assessment KPI Overview</h2>
       <div className="dashboard-center-action">
+        {cycles.length > 1 && (
+          <label>
+            Cycle:{" "}
+            <select
+              value={cycleId ?? kpiData?.cycle?.id ?? ""}
+              onChange={(event) => setCycleId(Number(event.target.value))}
+            >
+              {[...cycles].reverse().map((cycle) => (
+                <option key={cycle.cycle_id} value={cycle.cycle_id}>
+                  {cycle.semester}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button
           type="button"
           className="btn-secondary"
@@ -128,8 +171,8 @@ export default function A07KpiOverview() {
               </div>
               <div className="kpi-card-value">{surveyCompletionDisplay}</div>
               <p className="kpi-card-subtext">
-                {counts?.submitted_surveys ?? 0} out of{" "}
-                {counts?.expected_surveys ?? 0} required surveys submitted
+                {processCompletion?.numerator ?? 0} out of{" "}
+                {processCompletion?.denominator ?? 0} signups completed the full process
               </p>
             </Link>
           </div>
@@ -217,35 +260,13 @@ export default function A07KpiOverview() {
           <h3 className="kpi-section-heading">Extra Process Metrics</h3>
 
           <div className="kpi-extra-metrics-grid">
-            <div className="extra-metric-card">
-              <span className="extra-metric-title">Survey Completion</span>
-              <div className="extra-metric-value">
-                <div className="extra-metric-value">{surveyCompletionDisplay}</div>
+            {kpis.map((kpi) => (
+              <div className="extra-metric-card" key={kpi.key}>
+                <span className="extra-metric-title">{kpi.label}</span>
+                <div className="extra-metric-value">{formatKpi(kpi)}</div>
+                <p className="extra-metric-formula">{kpiBasis(kpi)}</p>
               </div>
-              <p className="extra-metric-formula">
-                Submitted surveys divided by expected surveys
-              </p>
-            </div>
-
-            <div className="extra-metric-card">
-              <span className="extra-metric-title">Outstanding Records</span>
-              <div className="extra-metric-value">
-                {counts?.outstanding_records ?? 0}
-              </div>
-              <p className="extra-metric-formula">
-                Confirmed observations still awaiting completed records
-              </p>
-            </div>
-
-            <div className="extra-metric-card">
-              <span className="extra-metric-title">Missing Surveys</span>
-              <div className="extra-metric-value">
-                {counts?.missing_surveys ?? 0}
-              </div>
-              <p className="extra-metric-formula">
-                Expected surveys that have not been submitted
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -260,6 +281,23 @@ export default function A07KpiOverview() {
                 <li key={index}>{limitation}</li>
               ))}
             </ul>
+          </div>
+        </section>
+      )}
+
+      {kpis.length > 0 && (
+        <section className="dashboard-phase">
+          <div className="table-container summary-card-padding">
+            <h3 className="kpi-section-heading">Definitions</h3>
+
+            <dl>
+              {kpis.map((kpi) => (
+                <div key={kpi.key}>
+                  <dt><strong>{kpi.label}</strong></dt>
+                  <dd>{kpi.definition}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
       )}

@@ -5,6 +5,7 @@ from django.utils import timezone
 from . import clock
 from .evaluation_status import evaluation_status_for
 from .models import Cycle, Signup, Pairing, Observation, Survey, EvaluationCarryForward
+from .proposal_kpis import proposal_kpis
 
 
 def rank_label(user):
@@ -72,16 +73,19 @@ def cycle_metrics(cycle):
     keys = ('faculty_total', 'due', 'overdue', 'not_due', 'undetermined',
             'unmatched', 'outstanding_records', 'expected_surveys', 'submitted_surveys')
     totals = {key: sum(r[key] for r in breakdown) for key in keys}
-    totals['missing_surveys'] = totals['expected_surveys'] - totals['submitted_surveys']
+    surveys_open = clock.surveys_open(cycle)
+    totals['surveys_open'] = surveys_open
+    totals['missing_surveys'] = totals['expected_surveys'] - totals['submitted_surveys'] if surveys_open else 0
     totals['survey_completion_percent'] = (
         round(100 * totals['submitted_surveys'] / totals['expected_surveys'], 2)
-        if totals['expected_surveys'] else None
+        if totals['expected_surveys'] and surveys_open else None
     )
     return {
         'cycle': {'id': cycle.pk, 'name': cycle.semester,
                   'start_date': cycle.start_date.isoformat(), 'end_date': cycle.end_date.isoformat()},
         'generated_at': clock.now().isoformat(),
         'counts': totals,
+        'kpis': proposal_kpis(cycle, status_by_user),
         'by_rank': breakdown,
         'record_pairing_ids': pending_pairing_ids,
         'unmatched_faculty_ids': sorted(unmatched_ids),
@@ -95,7 +99,7 @@ def kpi_report(cycle):
         metrics = current if c.pk == cycle.pk else cycle_metrics(c)
         history.append({
             'cycle_id': c.pk, 'semester': c.semester, 'year': c.start_date.year,
-            'counts': metrics['counts'], 'by_rank': metrics['by_rank'],
+            'counts': metrics['counts'], 'kpis': metrics['kpis'], 'by_rank': metrics['by_rank'],
         })
     return {
         **current,
