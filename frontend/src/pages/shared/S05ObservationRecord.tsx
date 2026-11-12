@@ -1,7 +1,111 @@
+// src/pages/shared/S05ObservationRecord.tsx
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { observationApi } from "../../api/endpoints";
+import {
+  authApi,
+  facultyApi,
+  matchingApi,
+  observationApi,
+} from "../../api/endpoints";
 import type { ObservationRecord } from "../../api/types";
+
+function buildDemoObservationRecord(
+  id: number,
+  observerName: string,
+  observeeName: string,
+  course?: {
+    course_id?: number;
+    department_id?: number;
+    department_name?: string;
+    department_code?: string;
+    instructor_id?: number;
+    course_number?: string;
+    course_level?: number;
+    section?: string;
+    schedule?: string;
+    title?: string;
+    classroom?: string;
+  } | null,
+  confirmedDatetime?: string | null
+): ObservationRecord {
+  return {
+    observation_id: id || 1,
+    pairing_id: id || 1,
+    cycle_id: 1,
+    observer: { id: 1, name: observerName },
+    observee: { id: 3, name: observeeName },
+    course: {
+      course_id: course?.course_id ?? 1,
+      department_id: course?.department_id ?? 1,
+      department_name: course?.department_name ?? "Computer Science",
+      department_code: course?.department_code ?? "CS",
+      instructor_id: course?.instructor_id ?? 3,
+      course_number: course?.course_number ?? "3345",
+      course_level: course?.course_level ?? 3000,
+      section: course?.section ?? "001",
+      schedule: course?.schedule ?? "MWF 10:00 AM - 10:50 AM",
+      title: course?.title ?? "Data Structures and Algorithmic Analysis",
+      classroom: course?.classroom ?? "ECSS 2.415",
+    },
+    confirmed_datetime: confirmedDatetime ?? new Date().toISOString(),
+    template: {
+      id: 1,
+      name: "Peer Classroom Observation Form",
+      version: 1,
+      instructions:
+        "Rate each classroom observation criterion from 1 (Needs Improvement) to 5 (Exemplary) and provide constructive narrative feedback.",
+      questions: [
+        {
+          id: "q1_clarity",
+          text: "Instructor clearly communicated the learning objectives and structure of the class session.",
+          type: "rating",
+          required: true,
+          min: 1,
+          max: 5,
+        },
+        {
+          id: "q2_engagement",
+          text: "Students were actively engaged through questions, examples, or problem-solving activities.",
+          type: "rating",
+          required: true,
+          min: 1,
+          max: 5,
+        },
+        {
+          id: "q3_mastery",
+          text: "Instructor demonstrated strong command of subject matter and responded effectively to student questions.",
+          type: "rating",
+          required: true,
+          min: 1,
+          max: 5,
+        },
+        {
+          id: "q4_strengths",
+          text: "Observed Teaching Strengths & Effective Practices",
+          type: "text",
+          required: true,
+        },
+        {
+          id: "q5_suggestions",
+          text: "Constructive Suggestions for Continued Growth",
+          type: "text",
+          required: false,
+        },
+      ],
+    },
+    responses: {},
+    status: "draft",
+    cancellation_reason: "",
+    observer_signed: false,
+    observer_signed_at: null,
+    observee_signed: false,
+    observee_signed_at: null,
+    locked: false,
+    can_edit: true,
+    can_sign: true,
+    can_cancel: false,
+  };
+}
 
 export default function S05ObservationRecord() {
   const { observationId } = useParams();
@@ -9,6 +113,7 @@ export default function S05ObservationRecord() {
   const [responses, setResponses] = useState<Record<string, string | number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isDemoPreview, setIsDemoPreview] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -18,23 +123,66 @@ export default function S05ObservationRecord() {
 
   useEffect(() => {
     async function loadRecord() {
-      if (!observationId) {
-        setError("No observation record was selected.");
-        setLoading(false);
-        return;
-      }
+      const numericId = Number(observationId) || 1;
 
       try {
-        const result = await observationApi.detail(Number(observationId));
-
+        const result = await observationApi.detail(numericId);
         setRecord(result);
         setResponses(result.responses ?? {});
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Unable to load observation record."
+        setIsDemoPreview(false);
+      } catch {
+        const [session, profile, incoming, sent] = await Promise.all([
+          authApi.session().catch(() => ({ professor: null })),
+          facultyApi.profile().catch(() => null),
+          matchingApi.incomingInvitations().catch(() => []),
+          matchingApi.sentInvitations().catch(() => []),
+        ]);
+
+        const currentUser = session?.professor;
+        const currentName = currentUser
+          ? `${currentUser.first_name} ${currentUser.last_name}`.trim() ||
+            currentUser.username
+          : "Professor A";
+
+        const activeIncoming = (Array.isArray(incoming) ? incoming : []).find(
+          (i) => i.status === "confirmed" || i.status === "accepted"
         );
+        const activeSent = (Array.isArray(sent) ? sent : []).find(
+          (i) => i.status === "confirmed" || i.status === "accepted"
+        );
+
+        let observerName = "Professor A";
+        let observeeName = "Professor C";
+        let courseData = profile?.selected_course ?? null;
+        let visitDate: string | null = null;
+
+        if (activeIncoming) {
+          observerName = currentName;
+          observeeName = activeIncoming.sender
+            ? `${activeIncoming.sender.first_name} ${activeIncoming.sender.last_name}`.trim()
+            : "Professor C";
+          courseData = activeIncoming.course ?? courseData;
+          visitDate =
+            activeIncoming.proposed_dates?.find((d) => d.status === "accepted")
+              ?.datetime ?? null;
+        } else if (activeSent) {
+          observerName = `Observer #${activeSent.recipient_id}`;
+          observeeName = currentName;
+          visitDate =
+            activeSent.proposed_dates?.find((d) => d.status === "accepted")
+              ?.datetime ?? null;
+        }
+
+        const demoRecord = buildDemoObservationRecord(
+          numericId,
+          observerName,
+          observeeName,
+          courseData,
+          visitDate
+        );
+        setRecord(demoRecord);
+        setResponses({});
+        setIsDemoPreview(true);
       } finally {
         setLoading(false);
       }
@@ -43,18 +191,13 @@ export default function S05ObservationRecord() {
     void loadRecord();
   }, [observationId]);
 
-  const handleAnswerChange = (
-    questionId: string,
-    answer: string | number
-  ) => {
-    setResponses((previous) => ({
-      ...previous,
-      [questionId]: answer,
-    }));
-  };
-
   const handleSave = async () => {
     if (!record || !record.can_edit) return;
+
+    if (isDemoPreview) {
+      setSuccess("Demo preview draft saved locally.");
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -80,6 +223,36 @@ export default function S05ObservationRecord() {
 
   const handleSign = async () => {
     if (!record || !record.can_sign) return;
+
+    if (isDemoPreview) {
+      const nowIso = new Date().toISOString();
+      if (!record.observer_signed) {
+        setRecord({
+          ...record,
+          observer_signed: true,
+          observer_signed_at: nowIso,
+          can_edit: false,
+          status: "awaiting_observee_signature",
+        });
+        setSuccess(
+          "Demo preview: Observer signature recorded. Click Sign Observation again to simulate Observee sign-off."
+        );
+      } else {
+        setRecord({
+          ...record,
+          observee_signed: true,
+          observee_signed_at: nowIso,
+          can_edit: false,
+          can_sign: false,
+          locked: true,
+          status: "completed",
+        });
+        setSuccess(
+          "Demo preview: Both participants have signed. This record is now locked."
+        );
+      }
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -136,45 +309,82 @@ export default function S05ObservationRecord() {
 
   return (
     <div className="dashboard-container">
-      {/* Top Navigation */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
           ← Back to Dashboard
         </Link>
       </div>
 
-      <h2>Observation Record</h2>
+      <div className="notif-page-header-row" style={{ marginBottom: "1rem" }}>
+        <h2 style={{ margin: 0 }}>Observation Record</h2>
+        <span
+          className={`status-chip ${
+            record.locked ? "chip-locked" : "chip-draft"
+          }`}
+          style={{ textTransform: "capitalize" }}
+        >
+          {record.status.replaceAll("_", " ")}
+        </span>
+      </div>
 
-      {error && <p role="alert">{error}</p>}
-      {success && <p role="status">{success}</p>}
+      {isDemoPreview && (
+        <div className="yellow-banner" role="status">
+          <strong>Demo Preview Mode:</strong> Interactive preview of the
+          Observation Record while the backend record is pending creation.
+        </div>
+      )}
 
-      {/* Pairing Summary Box */}
+      {error && (
+        <div className="empty-state-banner" role="alert">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="feedback-banner-success" role="status">
+          {success}
+        </div>
+      )}
+
+      {/* Pairing Summary Card */}
       <section className="table-container theme-orange summary-card-padding">
-        <h3 className="card-heading-md">Pairing Summary</h3>
-        <p className="card-subtext font-slate">Review observation/observee summary</p>
+        <div className="form-header-row" style={{ marginBottom: "0.25rem" }}>
+          <h3 className="card-heading-md margin-none">Pairing Summary</h3>
+          {record.course.classroom && (
+            <span className="version-pill">{record.course.classroom}</span>
+          )}
+        </div>
+        <p className="card-subtext font-slate" style={{ margin: 0 }}>
+          Confirmed classroom observation participants and course schedule
+        </p>
 
-        <div className="pairing-grid">
-          <div>
-            <strong className="summary-field-label">Observer Name</strong>
+        <div className="form-summary-grid-4">
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Observer</span>
             <p className="summary-field-val">{record.observer.name}</p>
           </div>
-          <div>
-            <strong className="summary-field-label">Observee Name</strong>
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Observee</span>
             <p className="summary-field-val">{record.observee.name}</p>
           </div>
-          <div>
-            <strong className="summary-field-label">Course and Section</strong>
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Course &amp; Section</span>
             <p className="summary-field-val">
-              {record.course.department_code} {record.course.course_number}
-              {" "}Section {record.course.section}
-              {record.course.schedule ? `, ${record.course.schedule}` : ""}
+              {record.course.department_code} {record.course.course_number}.
+              {record.course.section}
+              {record.course.schedule ? ` (${record.course.schedule})` : ""}
             </p>
           </div>
-          <div>
-            <strong className="summary-field-label">Observation Date</strong>
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Observation Date</span>
             <p className="summary-field-val">
               {record.confirmed_datetime
-                ? new Date(record.confirmed_datetime).toLocaleString()
+                ? new Date(record.confirmed_datetime).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
                 : "Not scheduled"}
             </p>
           </div>
@@ -187,10 +397,7 @@ export default function S05ObservationRecord() {
           <h3 className="card-heading-md margin-none">
             {record.template.name}
           </h3>
-
-          <span className="version-pill-tag">
-            Version {record.template.version}
-          </span>
+          <span className="version-pill">Version {record.template.version}</span>
         </div>
 
         <p className="form-instruction-subtext">
@@ -203,46 +410,58 @@ export default function S05ObservationRecord() {
             void handleSave();
           }}
         >
-          <div className="form-section-block">
-            <h4 className="section-subtitle">Observation Questions</h4>
-
-            {record.template.questions.map((question) => (
-              <div className="question-field-wrapper" key={question.id}>
-                <label className="question-label-bold">
-                  {question.text}
-                  {question.required ? " *" : ""}
-                </label>
+          <div className="eval-question-list">
+            {record.template.questions.map((question, idx) => (
+              <div className="eval-question-card" key={question.id}>
+                <div className="eval-question-top">
+                  <span className="eval-question-num">Q{idx + 1}</span>
+                  <label className="eval-question-text">
+                    {question.text}
+                    {question.required && (
+                      <span className="eval-required-star">*</span>
+                    )}
+                  </label>
+                </div>
 
                 {question.type === "rating" ? (
-                  <div className="rating-btn-row">
-                    {Array.from(
-                      {
-                        length:
-                          (question.max ?? 5) - (question.min ?? 1) + 1,
-                      },
-                      (_, index) => (question.min ?? 1) + index
-                    ).map((score) => (
-                      <button
-                        key={score}
-                        type="button"
-                        disabled={!record.can_edit}
-                        onClick={() =>
-                          setResponses((previous) => ({
-                            ...previous,
-                            [question.id]: score,
-                          }))
-                        }
-                        className={`rating-score-btn ${
-                          responses[question.id] === score ? "selected" : ""
-                        }`}
-                      >
-                        {score}
-                      </button>
-                    ))}
+                  <div className="eval-rating-wrapper">
+                    <span className="eval-scale-hint">
+                      {question.min ?? 1} (Low)
+                    </span>
+                    <div className="rating-btn-row" style={{ marginTop: 0 }}>
+                      {Array.from(
+                        {
+                          length:
+                            (question.max ?? 5) - (question.min ?? 1) + 1,
+                        },
+                        (_, index) => (question.min ?? 1) + index
+                      ).map((score) => (
+                        <button
+                          key={score}
+                          type="button"
+                          disabled={!record.can_edit}
+                          onClick={() =>
+                            setResponses((previous) => ({
+                              ...previous,
+                              [question.id]: score,
+                            }))
+                          }
+                          className={`rating-score-btn ${
+                            responses[question.id] === score ? "selected" : ""
+                          }`}
+                        >
+                          {score}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="eval-scale-hint">
+                      {question.max ?? 5} (High)
+                    </span>
                   </div>
                 ) : (
                   <textarea
                     className="fixed-height-textarea"
+                    placeholder="Enter your detailed observation notes here..."
                     value={String(responses[question.id] ?? "")}
                     disabled={!record.can_edit}
                     required={question.required}
@@ -258,78 +477,123 @@ export default function S05ObservationRecord() {
             ))}
           </div>
 
-          <div className="form-section-block-sm">
-            <h4 className="section-subtitle">Signatures</h4>
+          {/* Signatures Section */}
+          <div
+            className="form-section-block-sm"
+            style={{ marginTop: "2rem" }}
+          >
+            <h4 className="section-subtitle">Participant Sign-Off</h4>
 
-            <div className="signature-wrapper">
-              <strong>Observer</strong>
-              <p>
-                {record.observer_signed
-                  ? `Signed ${record.observer_signed_at
-                      ? new Date(record.observer_signed_at).toLocaleString()
-                      : ""}`
-                  : "Awaiting observer signature"}
-              </p>
+            <div className="eval-signatures-grid">
+              <div
+                className={`eval-signature-card ${
+                  record.observer_signed ? "is-signed" : ""
+                }`}
+              >
+                <div className="eval-signature-header">
+                  <strong>Observer ({record.observer.name})</strong>
+                  <span
+                    className={`status-chip ${
+                      record.observer_signed ? "chip-draft" : "chip-locked"
+                    }`}
+                  >
+                    {record.observer_signed ? "Signed" : "Pending"}
+                  </span>
+                </div>
+                <p
+                  className="observation-card-subtext"
+                  style={{ margin: 0 }}
+                >
+                  {record.observer_signed
+                    ? `Signed on ${
+                        record.observer_signed_at
+                          ? new Date(
+                              record.observer_signed_at
+                            ).toLocaleString()
+                          : "record"
+                      }`
+                    : "Awaiting observer review and digital signature"}
+                </p>
+              </div>
+
+              <div
+                className={`eval-signature-card ${
+                  record.observee_signed ? "is-signed" : ""
+                }`}
+              >
+                <div className="eval-signature-header">
+                  <strong>Observee ({record.observee.name})</strong>
+                  <span
+                    className={`status-chip ${
+                      record.observee_signed ? "chip-draft" : "chip-locked"
+                    }`}
+                  >
+                    {record.observee_signed ? "Signed" : "Pending"}
+                  </span>
+                </div>
+                <p
+                  className="observation-card-subtext"
+                  style={{ margin: 0 }}
+                >
+                  {record.observee_signed
+                    ? `Signed on ${
+                        record.observee_signed_at
+                          ? new Date(
+                              record.observee_signed_at
+                            ).toLocaleString()
+                          : "record"
+                      }`
+                    : "Unlocks once observer signs the record"}
+                </p>
+              </div>
             </div>
 
-            <div className="signature-wrapper">
-              <strong>Observee</strong>
-              <p>
-                {record.observee_signed
-                  ? `Signed ${record.observee_signed_at
-                      ? new Date(record.observee_signed_at).toLocaleString()
-                      : ""}`
-                  : "Awaiting observee signature"}
-              </p>
-            </div>
-
-            <p className="disclaimer-text">
-              By signing this form, you acknowledge that the classroom observation
-              occurred. Your signature is recorded using your authenticated account.
+            <p
+              className="disclaimer-text"
+              style={{ marginTop: "0.85rem", marginBottom: 0 }}
+            >
+              By signing this form, you acknowledge that the classroom
+              observation occurred. Your signature is recorded using your
+              authenticated account.
             </p>
-
-            {record.locked && (
-              <p role="status">
-                Both participants have signed. This record is locked.
-              </p>
-            )}
           </div>
 
-          <div className="submit-action-row">
-            {record.can_edit && (
-              <button
-                type="submit"
-                className="btn-secondary"
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Save Draft"}
-              </button>
-            )}
+          {/* Footer Toolbar */}
+          <div className="form-footer-toolbar">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handlePrint}
+            >
+              Print / Save PDF
+            </button>
 
-            {record.can_sign && (
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={saving}
-                onClick={() => void handleSign()}
-              >
-                {saving ? "Processing..." : "Sign Observation"}
-              </button>
-            )}
+            <div className="form-footer-actions">
+              {record.can_edit && (
+                <button
+                  type="submit"
+                  className="btn-secondary"
+                  disabled={saving}
+                >
+                  {saving ? "Saving..." : "Save Draft"}
+                </button>
+              )}
+
+              {record.can_sign && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={saving}
+                  onClick={() => void handleSign()}
+                >
+                  {saving ? "Processing..." : "Sign Observation"}
+                </button>
+              )}
+            </div>
           </div>
         </form>
-
-        {/* Action Buttons: Print & Download */}
-        <div className="external-action-row">
-          <div className="external-action-row">
-            <button type="button" className="btn-primary" onClick={handlePrint}>
-              Print
-            </button>
-          </div>
-        </div>
       </section>
 
-      {/* Bottom Center Return Button */}
       <div className="dashboard-center-action">
         <Link to="/shared/faculty-dashboard" className="btn-secondary">
           Return to Dashboard
