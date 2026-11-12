@@ -80,10 +80,10 @@ export default function A07KpiOverview() {
       </div>
 
       <h2 className="kpi-page-title">Assessment KPI Overview</h2>
-      <div className="dashboard-center-action">
+      <div className="filter-row" style={{ justifyContent: "space-between" }}>
         {cycles.length > 1 && (
           <label>
-            Cycle:{" "}
+            Cycle{" "}
             <select
               value={cycleId ?? kpiData?.cycle?.id ?? ""}
               onChange={(event) => setCycleId(Number(event.target.value))}
@@ -254,10 +254,10 @@ export default function A07KpiOverview() {
         </div>
       </section>
 
-      {/* 3. Extra Process Metrics Section */}
+      {/* 3. Proposal KPIs Section */}
       <section className="dashboard-phase">
         <div className="table-container theme-orange summary-card-padding">
-          <h3 className="kpi-section-heading">Extra Process Metrics</h3>
+          <h3 className="kpi-section-heading">Proposal KPIs</h3>
 
           <div className="kpi-extra-metrics-grid">
             {kpis.map((kpi) => (
@@ -270,20 +270,6 @@ export default function A07KpiOverview() {
           </div>
         </div>
       </section>
-
-      {kpiData?.limitations?.length > 0 && (
-        <section className="dashboard-phase">
-          <div className="table-container summary-card-padding">
-            <h3 className="kpi-section-heading">Reporting Notes</h3>
-
-            <ul>
-              {kpiData.limitations.map((limitation: string, index: number) => (
-                <li key={index}>{limitation}</li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      )}
 
       {kpis.length > 0 && (
         <section className="dashboard-phase">

@@ -97,7 +97,7 @@ export default function A06SurveyTracking() {
       </div>
 
       {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
+      {message && <div role="status" className="feedback-banner-success">{message}</div>}
 
       {!surveyData && <p>Loading survey data...</p>}
 
@@ -107,7 +107,7 @@ export default function A06SurveyTracking() {
 
         <div className="table-container theme-green">
           <div className="table-instruction">
-            Select a Professor's name to dispatch a survey deadline notification.
+            Send a reminder to faculty who have not submitted their survey.
           </div>
 
           <div className="table-scroll-wrapper">
@@ -129,17 +129,18 @@ export default function A06SurveyTracking() {
                     <td>{record.faculty_name}</td>
                     <td>{record.department ?? "Not provided"}</td>
                     <td>{record.academic_rank || "Not provided"}</td>
-                    <td>{record.respondent_type}</td>
+                    <td>{record.respondent_type === "observer" ? "Observer" : "Observee"}</td>
                     <td>
                       {record.observation_datetime
-                        ? new Date(record.observation_datetime).toLocaleDateString()
+                        ? formatDate(record.observation_datetime)
                         : "Not provided"}
                     </td>
                     <td>{formatDate(record.survey_deadline)}</td>
                     <td className="align-center">
                       <button
                         type="button"
-                        className="btn-primary"
+                        className="btn-select-toggle"
+                        style={{ whiteSpace: "nowrap" }}
                         disabled={sendingReminder === `${record.pairing_id}-${record.respondent_type}`}
                         onClick={() =>
                           void handleReminder(record.pairing_id, record.respondent_type)
@@ -195,7 +196,7 @@ export default function A06SurveyTracking() {
                     <td>{record.faculty_name}</td>
                     <td>{record.department ?? "Not provided"}</td>
                     <td>{record.academic_rank || "Not provided"}</td>
-                    <td>{record.respondent_type}</td>
+                    <td>{record.respondent_type === "observer" ? "Observer" : "Observee"}</td>
                     <td>{formatDateTime(record.submitted_at)}</td>
                     <td className="align-center">
                       <button

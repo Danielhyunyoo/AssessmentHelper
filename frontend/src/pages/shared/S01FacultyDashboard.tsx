@@ -124,7 +124,7 @@ export default function S01FacultyDashboard() {
           {dashboardLoading
             ? "Checking evaluation cycle deadlines..."
             : dashboard?.is_registered
-            ? `You are registered for the current cycle. Observation deadline is ${observationEnd.toUpperCase()}.`
+            ? `You are registered for the current cycle. Observation deadline is ${observationEnd}.`
             : "Action Required: Please register and select your course section before the cycle deadline."}
         </div>
 

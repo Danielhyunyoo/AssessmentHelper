@@ -530,7 +530,7 @@ export default function A02FacultyMatching() {
       }));
       setUnlockedSignupIds((prev) => ({ ...prev, [signupId]: false }));
       setMatchSuccess(
-        `Released ${observerIds.length} observer(s) to ${observeeName}. They have been notified.`
+        `Released ${observerIds.length} observer${observerIds.length === 1 ? "" : "s"} to ${observeeName}. They have been notified.`
       );
     } catch (err) {
       setMatchError(
@@ -847,8 +847,8 @@ export default function A02FacultyMatching() {
             matches to notify the observee.
           </p>
 
-          <label>
-            Department:{" "}
+          <label className="filter-row">
+            Department
             <select value={shownDepartment} onChange={(event) => setDepartmentFilter(event.target.value)}>
               <option value="">All departments</option>
               {departments.map((department) => (
@@ -860,6 +860,10 @@ export default function A02FacultyMatching() {
           <div className="pairing-grid">
             {observeeList
               .filter((person) => !shownDepartment || person.department === shownDepartment)
+              .sort((a, b) =>
+                Number(Boolean(a.signup_id != null && releasedAt[a.signup_id])) -
+                Number(Boolean(b.signup_id != null && releasedAt[b.signup_id]))
+              )
               .map((person) => {
               const signupId = person.signup_id;
 
@@ -966,7 +970,7 @@ export default function A02FacultyMatching() {
                             selectedIds.includes(candidate.id)
                           )
                           .map((candidate) => candidate.name)
-                          .join(", ")}
+                          .join(", ") || "no observers"}
                       </p>
                       <button
                         type="button"
@@ -1020,12 +1024,14 @@ export default function A02FacultyMatching() {
                             />
                             <span>
                               {candidate.name}{" "}
-                              <span className="font-slate">
-                                ({candidate.academic_level})
-                              </span>
-                              {candidate.eligible === false && (
+                              {candidate.academic_level && (
                                 <span className="font-slate">
-                                  {" "}Not eligible: {candidate.problems?.join(", ")}
+                                  ({candidate.academic_level})
+                                </span>
+                              )}
+                              {candidate.eligible === false && (
+                                <span className="font-slate font-sm" style={{ display: "block" }}>
+                                  Not eligible: {candidate.problems?.join(", ")}
                                 </span>
                               )}
                             </span>
@@ -1055,7 +1061,7 @@ export default function A02FacultyMatching() {
                             ? "Releasing..."
                             : released
                             ? `Update & Re-release (${selectedIds.length})`
-                            : `Release ${selectedIds.length} observer(s) to ${person.name}`}
+                            : `Release ${selectedIds.length} observer${selectedIds.length === 1 ? "" : "s"} to ${person.name}`}
                         </button>
 
                         {released && isUnlocked && (

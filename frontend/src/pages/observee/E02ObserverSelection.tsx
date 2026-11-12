@@ -4,6 +4,7 @@ import { matchingApi, facultyApi } from "../../api/endpoints";
 import type { Candidate, Invitation, Course } from "../../api/types";
 import { Link } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
+import { formatDate } from "../../api/format";
 import {
   getPendingCourseChangeRequest,
   type PendingCourseChangeRequest,
@@ -257,7 +258,7 @@ export default function E02ObserverSelection() {
 
       setResponseData(toResponseRows(invitations, observerNames));
       setSuccess(
-        `Sent ${selectedCandidates.length} invitation(s). Their responses appear below.`
+        `Sent ${selectedCandidates.length} invitation${selectedCandidates.length === 1 ? "" : "s"}. Their responses appear below.`
       );
       setSelectedCandidates([]);
     } catch (err) {
@@ -313,12 +314,12 @@ export default function E02ObserverSelection() {
             </span>
           );
         }
+        if (isFinalized) return null;
         return (
           <input
             type="checkbox"
             checked={selectedCandidates.includes(row.id)}
             onChange={() => handleCheckboxToggle(row.id)}
-            disabled={isFinalized}
           />
         );
       },
@@ -327,8 +328,9 @@ export default function E02ObserverSelection() {
     { header: "Department", accessor: "department" },
     { header: "Academic Level", accessor: "academicLevel" },
     {
-      header: "Observation Date(s)",
+      header: "Proposed Dates",
       render: (row) => {
+        if (isFinalized || openInvitationStatus[Number(row.id)]) return null;
         const activeDates = candidateDates[row.id] || [];
 
         return (
@@ -639,9 +641,7 @@ export default function E02ObserverSelection() {
         <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
           <strong>IMPORTANT:</strong>{" "}
           {observationDeadline
-            ? `Please make sure all proposed observation dates fall before ${new Date(
-                `${observationDeadline}T00:00:00`
-              ).toLocaleDateString()}.`
+            ? `Please make sure all proposed observation dates fall on or before ${formatDate(observationDeadline)}.`
             : "The observation deadline could not be loaded. Please verify the allowed observation period."}
         </div>
 
@@ -671,6 +671,7 @@ export default function E02ObserverSelection() {
           data={candidateData}
         />
 
+        {!isFinalized && invitableIds.length > 0 && (
         <div className="compact-actions-bar unregistered-actions-bar">
           <div className="bulk-btn-group">
             <button
@@ -704,6 +705,7 @@ export default function E02ObserverSelection() {
             {saving ? "Sending..." : "Send Invitation Requests"}
           </button>
         </div>
+        )}
 
         {messageArea === "invite" && success && (
           <div
@@ -742,30 +744,26 @@ export default function E02ObserverSelection() {
           data={responseData}
         />
 
-        <div className="compact-actions-bar unregistered-actions-bar">
-          {!isFinalized && (
+        {!isFinalized && hasOpenInvitations && (
+          <div className="compact-actions-bar unregistered-actions-bar">
             <button
               type="button"
               className="btn-secondary"
               onClick={() => void handleRejectAll()}
-              disabled={saving || !hasOpenInvitations}
+              disabled={saving}
             >
               Reject All
             </button>
-          )}
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void handleConfirmPairing()}
-            disabled={saving || isFinalized || selectedInvitationId === null}
-          >
-            {saving
-              ? "Confirming..."
-              : isFinalized
-              ? "Observer Confirmed"
-              : "Confirm and Lock Changes"}
-          </button>
-        </div>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void handleConfirmPairing()}
+              disabled={saving || selectedInvitationId === null}
+            >
+              {saving ? "Confirming..." : "Confirm and Lock Changes"}
+            </button>
+          </div>
+        )}
 
         {messageArea === "responses" && validationError && (
           <p

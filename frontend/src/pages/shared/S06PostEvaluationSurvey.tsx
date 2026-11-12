@@ -219,13 +219,11 @@ export default function S06PostEvaluationSurvey() {
       </div>
 
       <h2>Post-Evaluation Survey</h2>
-      {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
+      {message && <div role="status" className="feedback-banner-success">{message}</div>}
 
       {/* Pairing Summary Box */}
       <section className="table-container theme-orange summary-card-padding">
         <h3 className="card-heading-md">Pairing Summary</h3>
-        <p className="card-subtext font-slate">Review observation/observee summary</p>
 
         <div className="pairing-grid">
           <div>
@@ -264,9 +262,6 @@ export default function S06PostEvaluationSurvey() {
             {template?.name ?? "Post-Evaluation Survey"}
           </h3>
 
-          <span className="version-pill-tag">
-            {template ? `Version ${template.version}` : "No template"}
-          </span>
         </div>
 
         <p className="form-instruction-subtext">
@@ -364,6 +359,8 @@ export default function S06PostEvaluationSurvey() {
             </div>
           )}
 
+          {error && <div role="alert" className="feedback-banner-error">{error}</div>}
+
           <div className="submit-action-row">
             {canEdit && (
               <>
@@ -386,7 +383,7 @@ export default function S06PostEvaluationSurvey() {
               </>
             )}
 
-            {!canEdit && (
+            {!canEdit && !message && (
               <p>This survey has already been submitted and cannot be edited.</p>
             )}
           </div>

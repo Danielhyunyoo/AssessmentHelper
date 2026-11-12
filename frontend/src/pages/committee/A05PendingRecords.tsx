@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
 import type { ObservationRecord } from "../../api/types";
-import { formatDateTime } from "../../api/format";
+import { formatDate, formatDateTime } from "../../api/format";
 
 export default function A05PendingObservationRecords() {
   const [pending, setPending] = useState<{
@@ -80,7 +80,7 @@ export default function A05PendingObservationRecords() {
 
       <h2>View Pending Observation Records</h2>
       {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
+      {message && <div role="status" className="feedback-banner-success">{message}</div>}
 
       {/* SECTION 1: PENDING EVALUATION FORMS */}
       <section className="dashboard-phase">
@@ -89,7 +89,7 @@ export default function A05PendingObservationRecords() {
         {/* Blue Theme Table Box Container */}
         <div className="table-container theme-blue">
           <div className="table-instruction">
-            Select a Professor's name to remind them to complete their Evaluation Form.
+            Send a reminder to faculty with an unfinished observation record.
           </div>
 
           <div className="table-scroll-wrapper">
@@ -121,7 +121,8 @@ export default function A05PendingObservationRecords() {
                     <td className="align-center">
                       <button
                         type="button"
-                        className="btn-primary"
+                        className="btn-select-toggle"
+                        style={{ whiteSpace: "nowrap" }}
                         onClick={() => void handleReminder(record.pairing_id)}
                       >
                         Send Reminder
@@ -169,7 +170,7 @@ export default function A05PendingObservationRecords() {
                     <td>{record.academic_rank || "Not provided"}</td>
                     <td>
                       {record.completed_at
-                        ? new Date(record.completed_at).toLocaleDateString()
+                        ? formatDate(record.completed_at)
                         : "Not provided"}
                     </td>
                     <td className="align-center">

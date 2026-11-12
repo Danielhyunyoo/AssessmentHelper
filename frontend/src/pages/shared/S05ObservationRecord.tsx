@@ -114,9 +114,7 @@ export default function S05ObservationRecord() {
       setRecord(updated);
       setResponses(updated.responses ?? {});
       setSuccess(
-        updated.locked
-          ? "Both participants have signed. This record is now locked."
-          : "Your signature has been saved."
+        updated.locked ? "" : "Your signature has been saved."
       );
     } catch (err) {
       setError(recordError(err, record, "Unable to sign record."));
@@ -157,13 +155,11 @@ export default function S05ObservationRecord() {
 
       <h2>Observation Record</h2>
 
-      {error && <p role="alert">{error}</p>}
-      {success && <p role="status">{success}</p>}
+      {success && <div role="status" className="feedback-banner-success">{success}</div>}
 
       {/* Pairing Summary Box */}
       <section className="table-container theme-orange summary-card-padding">
         <h3 className="card-heading-md">Pairing Summary</h3>
-        <p className="card-subtext font-slate">Review observation/observee summary</p>
 
         <div className="pairing-grid">
           <div>
@@ -200,9 +196,6 @@ export default function S05ObservationRecord() {
             {record.template.name}
           </h3>
 
-          <span className="version-pill-tag">
-            Version {record.template.version}
-          </span>
         </div>
 
         <p className="form-instruction-subtext">
@@ -295,10 +288,12 @@ export default function S05ObservationRecord() {
               </p>
             </div>
 
-            <p className="disclaimer-text">
-              By signing this form, you acknowledge that the classroom observation
-              occurred. Your signature is recorded using your authenticated account.
-            </p>
+            {record.can_sign && (
+              <p className="disclaimer-text">
+                By signing this form, you acknowledge that the classroom observation
+                occurred. Your signature is recorded using your authenticated account.
+              </p>
+            )}
 
             {record.locked && (
               <p role="status">
@@ -306,6 +301,8 @@ export default function S05ObservationRecord() {
               </p>
             )}
           </div>
+
+          {error && <div role="alert" className="feedback-banner-error">{error}</div>}
 
           <div className="submit-action-row">
             {record.can_edit && (
@@ -332,12 +329,10 @@ export default function S05ObservationRecord() {
         </form>
 
         {/* Action Buttons: Print & Download */}
-        <div className="external-action-row">
-          <div className="external-action-row">
-            <button type="button" className="btn-primary" onClick={handlePrint}>
-              Print
-            </button>
-          </div>
+        <div className="submit-action-row">
+          <button type="button" className="btn-secondary" onClick={handlePrint}>
+            Print
+          </button>
         </div>
       </section>
 

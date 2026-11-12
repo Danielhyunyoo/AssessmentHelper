@@ -122,7 +122,7 @@ export default function S04CurrentAndPastObservations() {
   const toggleSemester = (semester: string) => {
     setOpenSemesters((prev) => ({
       ...prev,
-      [semester]: !prev[semester],
+      [semester]: !(prev[semester] ?? semester === sortedSemesters[0]),
     }));
   };
 
@@ -174,6 +174,9 @@ export default function S04CurrentAndPastObservations() {
 
     return getSortValue(b) - getSortValue(a);
   });
+
+  const isOpen = (semester: string) =>
+    openSemesters[semester] ?? semester === sortedSemesters[0];
 
   return (
     <div className="dashboard-container">
@@ -382,13 +385,6 @@ export default function S04CurrentAndPastObservations() {
                           {record.observee_signed ? "Complete" : "Pending"}
                         </p>
 
-                        <p className="observation-card-subtext">
-                          <strong>Record:</strong>{" "}
-                          {record.locked
-                            ? "Finalized / locked"
-                            : "In progress"}
-                        </p>
-
                         <div className="observation-card-actions">
                           <Link
                             to={`/shared/observation-record/${record.observation_id}`}
@@ -426,7 +422,7 @@ export default function S04CurrentAndPastObservations() {
                     className="accordion-header"
                     role="button"
                     tabIndex={0}
-                    aria-expanded={!!openSemesters[semester]}
+                    aria-expanded={isOpen(semester)}
                     onClick={() => toggleSemester(semester)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -437,11 +433,11 @@ export default function S04CurrentAndPastObservations() {
                   >
                     <span>{semester}</span>
                     <span>
-                      {openSemesters[semester] ? "▲" : "▼"}
+                      {isOpen(semester) ? "▲" : "▼"}
                     </span>
                   </div>
 
-                  {openSemesters[semester] && (
+                  {isOpen(semester) && (
                     <div className="accordion-content">
                       <div className="observation-cards-container">
                         {pastRecordsBySemester[semester].map((record) => {
@@ -500,13 +496,6 @@ export default function S04CurrentAndPastObservations() {
                                 {record.observee_signed_at
                                   ? formatDateTime(record.observee_signed_at)
                                   : "Not finalized"}
-                              </p>
-
-                              <p className="observation-card-subtext">
-                                <strong>Record:</strong>{" "}
-                                {record.locked
-                                  ? "Finalized / locked"
-                                  : "Not locked"}
                               </p>
 
                               <div className="observation-card-actions">

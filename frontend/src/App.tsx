@@ -1,5 +1,5 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 
 //PAGES FOR DEMO
@@ -70,6 +70,7 @@ export default function App() {
           <Route path="/committee/survey-tracking" element={<A06SurveyTracking />} />
           <Route path="/committee/kpi-overview" element={<A07KPIOverview />} />
           <Route path="/committee/form-editor" element={<A08FormEditor />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
 
         </Route>
       </Routes>

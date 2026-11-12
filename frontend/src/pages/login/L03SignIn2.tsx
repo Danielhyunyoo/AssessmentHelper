@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor, RegistrationStatus } from "../../api/types";
+import { formatDate } from "../../api/format";
 
 export default function L03SignIn2() {
   const navigate = useNavigate();
@@ -91,12 +92,12 @@ export default function L03SignIn2() {
         >
           <p>
             <strong>Cycle dates:</strong>{" "}
-            {new Date(`${registration.start_date}T00:00:00`).toLocaleDateString()} to{" "}
-            {new Date(`${registration.end_date}T00:00:00`).toLocaleDateString()}
+            {formatDate(registration.start_date)} to{" "}
+            {formatDate(registration.end_date)}
           </p>
           <p>
             <strong>Registration deadline:</strong>{" "}
-            {new Date(`${registration.signup_deadline}T00:00:00`).toLocaleDateString()}
+            {formatDate(registration.signup_deadline)}
           </p>
         </div>
       )}

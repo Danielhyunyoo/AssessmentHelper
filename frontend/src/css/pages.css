@@ -588,6 +588,27 @@ html.dark-mode .approved-observee-card + .approved-observee-card {
   border-top-color: #27272a;
 }
 
+.pairing-grid > .approved-observee-card + .approved-observee-card {
+  margin-top: 0;
+  padding-top: 1.25rem;
+  border-top-color: #cbd5e1;
+}
+
+html.dark-mode .pairing-grid > .approved-observee-card + .approved-observee-card {
+  border-top-color: #27272a;
+}
+
+.observer-checkbox-list > .checkbox-row-label {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.checkbox-row-label > span {
+  min-width: 0;
+  white-space: normal;
+}
+
 /* ------------------------------------------
    A03 UNMATCHED OBSERVEES STYLES
    ------------------------------------------ */

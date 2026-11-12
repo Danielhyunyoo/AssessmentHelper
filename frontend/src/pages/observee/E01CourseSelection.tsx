@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { facultyApi, matchingApi } from "../../api/endpoints";
 import type { Course, RegistrationStatus } from "../../api/types";
 import Calendar, { DayOfWeek } from "../../components/Calendar";
+import { formatDate } from "../../api/format";
 
 export interface PendingCourseChangeRequest {
   professor_id?: number;
@@ -44,9 +45,6 @@ export function savePendingCourseChangeRequest(req: PendingCourseChangeRequest |
   }
 }
 
-function formatDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString();
-}
 
 function extractCourseStartTime(schedule: string): string {
   const match = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i);

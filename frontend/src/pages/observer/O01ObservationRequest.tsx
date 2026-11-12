@@ -4,6 +4,7 @@ import { matchingApi } from "../../api/endpoints";
 import type { Invitation } from "../../api/types";
 import { Link, useNavigate } from "react-router-dom";
 import profileIcon from "../../assets/profile_icon.png";
+import { formatDateTime as formatMoment } from "../../api/format";
 
 interface ProposedDateSlot {
   id: string;
@@ -111,11 +112,7 @@ export default function O01ObservationRequest() {
         Number(selectedSlotId)
       );
       setInvitation(updated);
-
-      setStatusMessage({
-        type: "success",
-        text: "Your response was saved. The observee must confirm the final pairing.",
-      });
+      setStatusMessage(null);
     } catch (err) {
       setStatusMessage({
         type: "error",
@@ -205,9 +202,11 @@ export default function O01ObservationRequest() {
         <>
           {/* Faculty Request Card Section */}
           <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
-            <div className="yellow-banner" style={{ marginBottom: "1.25rem" }}>
-              <strong>NOTE:</strong> {answeredText ?? "Current Invitation Expires in 48 Hours!"}
-            </div>
+            {!answeredText && invitation.expires_at && (
+              <div className="yellow-banner" style={{ marginBottom: "1.25rem" }}>
+                <strong>NOTE:</strong> Respond by {formatMoment(invitation.expires_at)}.
+              </div>
+            )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "2rem", alignItems: "center" }}>
               <div>
@@ -263,7 +262,7 @@ export default function O01ObservationRequest() {
               {/* Profile Avatar Silhouette */}
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <img
-                  src={profileIcon}
+                  src={invitation.sender?.profile_photo || profileIcon}
                   alt="Faculty Avatar"
                   style={{
                     width: "140px",
