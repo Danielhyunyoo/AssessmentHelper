@@ -23,14 +23,16 @@ load_dotenv(BASE_DIR / ".env")
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-h13#)--4#r9j#t_u@p_sn(^qkwg#fc2&=udvi2!jzthbe%gm9m'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", 'django-insecure-h13#)--4#r9j#t_u@p_sn(^qkwg#fc2&=udvi2!jzthbe%gm9m')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [host for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host]
 
 ASSESSMENT_HELPER_DEMO_AUTH = os.getenv("ASSESSMENT_HELPER_DEMO_AUTH", "true").lower() == "true"
+
+ASSESSMENT_HELPER_PUBLIC_DEMO = os.getenv("ASSESSMENT_HELPER_PUBLIC_DEMO", "false").lower() == "true"
 
 CSRF_TRUSTED_ORIGINS = os.getenv(
     "CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"

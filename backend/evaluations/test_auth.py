@@ -157,6 +157,12 @@ class SessionAuthTests(APITestCase):
 
         self.assertEqual(response.data["professor"]["username"], "professor_a")
 
+    @override_settings(ASSESSMENT_HELPER_PUBLIC_DEMO=True)
+    def test_public_demo_keeps_the_demo_header_without_debug(self):
+        response = self.client.get("/api/me/", HTTP_X_DEMO_USERNAME="professor_a")
+
+        self.assertEqual(response.data["professor"]["username"], "professor_a")
+
     def test_each_account_sees_only_its_own_courses(self):
         for username, number in [("professor_a", "2337"), ("professor_b", "2305")]:
             self.login(username, f"{username}-pass")

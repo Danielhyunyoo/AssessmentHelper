@@ -100,7 +100,7 @@ def session_user(request):
     return Response({"professor": ProfessorSerializer(request.user).data})
 
 def require_demo_mode():
-    if not (settings.DEBUG and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False)):
+    if not demo_mode_enabled():
         raise NotFound("Demo mode is off.")
 
 
@@ -144,12 +144,17 @@ def demo_personas(request):
         for user in accounts
     ])
 
+def demo_mode_enabled():
+    public_demo = getattr(settings, "ASSESSMENT_HELPER_PUBLIC_DEMO", False)
+    return (settings.DEBUG or public_demo) and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False)
+
+
 def get_current_professor(request):
     """Return the authenticated user or a DEBUG-only demo user."""
     if request.user.is_authenticated:
         return request.user
 
-    if settings.DEBUG and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False):
+    if demo_mode_enabled():
         username = request.headers.get("X-Demo-Username")
         if username:
             return get_object_or_404(User, username=username)
