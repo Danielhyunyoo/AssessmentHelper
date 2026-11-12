@@ -1,18 +1,55 @@
 // src/pages/observee/E01CourseSelection.tsx
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { facultyApi } from "../../api/endpoints";
+import { facultyApi, matchingApi } from "../../api/endpoints";
 import type { Course, RegistrationStatus } from "../../api/types";
 import Calendar, { DayOfWeek } from "../../components/Calendar";
+
+export interface PendingCourseChangeRequest {
+  professor_id?: number;
+  professor_name?: string;
+  current_course_id: number | "";
+  requested_course_id: number;
+  requested_course_label: string;
+  requested_section: string;
+  requested_schedule: string;
+  requested_dates: string[];
+  reason: string;
+  trigger_reason: "deadline_passed" | "observers_matched" | "both";
+  submitted_at: string;
+  status: "pending";
+}
+
+export const COURSE_CHANGE_REQUEST_KEY = "pending_course_change_request";
+
+export function getPendingCourseChangeRequest(): PendingCourseChangeRequest | null {
+  try {
+    const raw = localStorage.getItem(COURSE_CHANGE_REQUEST_KEY);
+    return raw ? (JSON.parse(raw) as PendingCourseChangeRequest) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePendingCourseChangeRequest(req: PendingCourseChangeRequest | null) {
+  try {
+    if (req) {
+      localStorage.setItem(COURSE_CHANGE_REQUEST_KEY, JSON.stringify(req));
+    } else {
+      localStorage.removeItem(COURSE_CHANGE_REQUEST_KEY);
+    }
+    window.dispatchEvent(new Event("course-change-request-updated"));
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
 }
 
 function extractCourseStartTime(schedule: string): string {
-  const match = schedule.match(
-    /(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i
-  );
+  const match = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i);
 
   if (!match) return "";
 
@@ -88,10 +125,19 @@ export default function E01CourseSelection() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
+  const [professorName, setProfessorName] = useState("");
+  const [hasMatchedObservers, setHasMatchedObservers] = useState(false);
+
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
   const [confirmedCourseId, setConfirmedCourseId] = useState<number | "">("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showCalendarSection, setShowCalendarSection] = useState<boolean>(false);
+
+  // Change request state
+  const [pendingRequest, setPendingRequest] = useState<PendingCourseChangeRequest | null>(
+    () => getPendingCourseChangeRequest()
+  );
+  const [changeReason, setChangeReason] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -106,13 +152,27 @@ export default function E01CourseSelection() {
     setLoading(true);
 
     try {
-      const [courseData, statusData] = await Promise.all([
+      const [courseData, statusData, profileData, matchesData] = await Promise.all([
         facultyApi.courses(),
         facultyApi.registrationStatus(),
+        facultyApi.profile().catch(() => null),
+        matchingApi.matches().catch(() => null),
       ]);
 
       setCourses(courseData);
       setRegistration(statusData);
+
+      if (profileData?.professor) {
+        setProfessorName(
+          `${profileData.professor.first_name} ${profileData.professor.last_name}`.trim()
+        );
+      }
+
+      // Check if the AC committee has already released matched observers to this observee
+      const observersReleased = Boolean(
+        matchesData?.released || (matchesData?.candidates && matchesData.candidates.length > 0)
+      );
+      setHasMatchedObservers(observersReleased);
 
       if (statusData.is_registered && statusData.has_selected_course) {
         try {
@@ -128,6 +188,7 @@ export default function E01CourseSelection() {
       setSelectedCourseId(savedId);
       setConfirmedCourseId(savedId);
       setShowCalendarSection(savedId !== "");
+      setPendingRequest(getPendingCourseChangeRequest());
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unable to load registration information.";
       window.alert(msg);
@@ -140,6 +201,19 @@ export default function E01CourseSelection() {
     void loadPage();
   }, []);
 
+  // Lock direct overwrites if:
+  // 1) Registration deadline has passed, OR
+  // 2) Matched observers have already been released by the AC committee
+  const isPastRegistrationDeadline = Boolean(
+    registration?.today &&
+      registration?.signup_deadline &&
+      registration.today > registration.signup_deadline
+  );
+
+  const requiresApprovalForChanges =
+    Boolean(registration?.is_registered) &&
+    (isPastRegistrationDeadline || hasMatchedObservers);
+
   const tomorrowIsoDate = registration ? nextDay(registration.today) : "";
 
   const earliestAllowedDate =
@@ -148,15 +222,35 @@ export default function E01CourseSelection() {
       : tomorrowIsoDate;
 
   const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
-  const allowedDays = confirmedCourse ? parseAllowedDays(confirmedCourse.schedule) : ["Mon", "Wed", "Thu"];
-  const calendarStart = selectedDates.length > 0
-    ? new Date(`${[...selectedDates].sort()[0]}T00:00:00`)
-    : firstClassDay(earliestAllowedDate, allowedDays);
+  const allowedDays = confirmedCourse
+    ? parseAllowedDays(confirmedCourse.schedule)
+    : ["Mon", "Wed", "Thu"];
+  const calendarStart =
+    selectedDates.length > 0
+      ? new Date(`${[...selectedDates].sort()[0]}T00:00:00`)
+      : firstClassDay(earliestAllowedDate, allowedDays);
 
   const handleConfirmClass = async () => {
     if (selectedCourseId === "") {
-      const msg = "Please select a course section first.";
-      window.alert(msg);
+      window.alert("Please select a course section first.");
+      return;
+    }
+
+    // Stage the selected course for date selection & AC approval request without overwriting DB
+    if (requiresApprovalForChanges) {
+      setConfirmedCourseId(selectedCourseId);
+      if (selectedCourseId !== registration?.selected_course_id) {
+        setSelectedDates([]);
+      }
+      setShowCalendarSection(true);
+      setSuccess(
+        hasMatchedObservers
+          ? "Matched observers have already been released for your registration. Review your proposed dates below and submit a change request for Assessment Committee approval."
+          : "Registration deadline has passed. Choose your proposed observation dates below and submit a change request for Assessment Committee approval."
+      );
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
       return;
     }
 
@@ -251,9 +345,42 @@ export default function E01CourseSelection() {
     const courseStartTime = extractCourseStartTime(confirmedCourse.schedule);
 
     if (!courseStartTime) {
-      const msg = "The selected course's meeting time could not be determined. Please contact the team to check the course schedule.";
+      const msg =
+        "The selected course's meeting time could not be determined. Please contact the team to check the course schedule.";
       setCalendarError(msg);
       window.alert(msg);
+      return;
+    }
+
+    // Submit as a Pending Course Change Request instead of directly overwriting
+    if (requiresApprovalForChanges) {
+      const triggerReason =
+        isPastRegistrationDeadline && hasMatchedObservers
+          ? "both"
+          : hasMatchedObservers
+          ? "observers_matched"
+          : "deadline_passed";
+
+      const requestPayload: PendingCourseChangeRequest = {
+        professor_name: professorName || "Faculty Observee",
+        current_course_id: registration?.selected_course_id ?? "",
+        requested_course_id: confirmedCourse.course_id,
+        requested_course_label: courseName(confirmedCourse),
+        requested_section: confirmedCourse.section,
+        requested_schedule: confirmedCourse.schedule,
+        requested_dates: [...selectedDates].sort(),
+        reason: changeReason.trim(),
+        trigger_reason: triggerReason,
+        submitted_at: new Date().toISOString(),
+        status: "pending",
+      };
+
+      savePendingCourseChangeRequest(requestPayload);
+      setPendingRequest(requestPayload);
+      setSuccess(
+        "Your course and availability change request has been submitted and is pending Assessment Committee approval."
+      );
+      topRef.current?.scrollIntoView({ behavior: "smooth" });
       return;
     }
 
@@ -291,6 +418,16 @@ export default function E01CourseSelection() {
     }
   }
 
+  const handleWithdrawRequest = () => {
+    savePendingCourseChangeRequest(null);
+    setPendingRequest(null);
+    setChangeReason("");
+    const activeId = registration?.selected_course_id ?? "";
+    setSelectedCourseId(activeId);
+    setConfirmedCourseId(activeId);
+    setSuccess("Pending course change request withdrawn.");
+  };
+
   const savedCourse = courses.find(
     (course) => course.course_id === registration?.selected_course_id
   );
@@ -326,6 +463,77 @@ export default function E01CourseSelection() {
         </div>
       )}
 
+      {/* Pending AC Approval Banner & Summary Card */}
+      {pendingRequest && (
+        <section
+          className="table-container theme-orange"
+          style={{
+            padding: "1.25rem 1.5rem",
+            borderLeft: "4px solid #f59e0b",
+            marginBottom: "1rem",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+              <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
+                Pending Course Change Request
+              </h3>
+              <span
+                className="card-status"
+                style={{ backgroundColor: "#fef3c7", color: "#92400e" }}
+              >
+                PENDING AC APPROVAL
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+              onClick={handleWithdrawRequest}
+            >
+              Withdraw Request
+            </button>
+          </div>
+
+          <p style={{ margin: "0.25rem 0", fontSize: "0.925rem" }}>
+            <strong>Requested Course:</strong> {pendingRequest.requested_course_label} (Section{" "}
+            {pendingRequest.requested_section})
+          </p>
+          <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+            <strong>Schedule:</strong> {pendingRequest.requested_schedule}
+          </p>
+          <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+            <strong>Proposed Dates ({pendingRequest.requested_dates.length}):</strong>{" "}
+            {pendingRequest.requested_dates
+              .map((d) =>
+                new Date(`${d}T00:00:00`).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })
+              )
+              .join(", ")}
+          </p>
+          {pendingRequest.reason && (
+            <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+              <strong>Reason:</strong> {pendingRequest.reason}
+            </p>
+          )}
+          <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.8rem", opacity: 0.75 }}>
+            Your current registered course remains active until an Assessment Committee member approves this request.
+          </p>
+        </section>
+      )}
+
       {registration && (
         <section className="dashboard-phase">
           <h3>{registration.cycle_name} Registration</h3>
@@ -335,20 +543,47 @@ export default function E01CourseSelection() {
 
           {savedCourse && (
             <div className="table-instruction" style={{ marginTop: "0.5rem" }}>
-              <h3 style={{ fontSize: "0.95rem" }}>Your Registered Course</h3>
+              <h3 style={{ fontSize: "0.95rem" }}>
+                Your Active Registered Course{pendingRequest ? " (Current)" : ""}
+              </h3>
               <p style={{ margin: "0.25rem 0" }}>{courseName(savedCourse)}</p>
               <p style={{ margin: "0.25rem 0" }}>Section: {savedCourse.section}</p>
               <p style={{ margin: "0.25rem 0" }}>Meeting times: {savedCourse.schedule}</p>
-              <p style={{ margin: "0.25rem 0" }}>Classroom: {savedCourse.classroom || "Not provided"}</p>
+              <p style={{ margin: "0.25rem 0" }}>
+                Classroom: {savedCourse.classroom || "Not provided"}
+              </p>
             </div>
           )}
         </section>
       )}
 
       <section className="dashboard-phase">
-        <h3>Select a Course Section</h3>
+        <h3>
+          {requiresApprovalForChanges
+            ? "Request a Course Section Change"
+            : "Select a Course Section"}
+        </h3>
+
         <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-          <strong>IMPORTANT:</strong> Course registration closes {registration && formatDate(registration.signup_deadline)} at 11:59 PM. You must select and register 1 active course section.
+          {requiresApprovalForChanges ? (
+            <>
+              <strong>APPROVAL REQUIRED FOR CHANGES:</strong>{" "}
+              {hasMatchedObservers && isPastRegistrationDeadline
+                ? "The standard signup deadline has passed and matched observers have already been assigned to your registration."
+                : hasMatchedObservers
+                ? "Matched observers have already been released by the Assessment Committee for your current registration."
+                : `The standard signup deadline (${
+                    registration ? formatDate(registration.signup_deadline) : ""
+                  }) has passed.`}{" "}
+              You can still view all sections and propose updates below, but any changes will remain{" "}
+              <strong>pending</strong> until approved by an Assessment Committee member.
+            </>
+          ) : (
+            <>
+              <strong>IMPORTANT:</strong> Course registration closes{" "}
+              {registration && formatDate(registration.signup_deadline)} at 11:59 PM. You must select and register 1 active course section.
+            </>
+          )}
         </div>
 
         {courses.length === 0 ? (
@@ -401,7 +636,11 @@ export default function E01CourseSelection() {
             onClick={handleConfirmClass}
             disabled={saving || courses.length === 0 || selectedCourseId === ""}
           >
-            {saving ? "Saving..." : "Confirm Class and Select Observation Date"}
+            {saving
+              ? "Saving..."
+              : requiresApprovalForChanges
+              ? "Select Dates for Change Request"
+              : "Confirm Class and Select Observation Date"}
           </button>
         </div>
       </section>
@@ -409,10 +648,15 @@ export default function E01CourseSelection() {
       {/* Calendar Section */}
       {showCalendarSection && confirmedCourse && (
         <section ref={bottomRef} className="dashboard-phase" style={{ marginTop: "2rem" }}>
-          <h3>Select Proposed Observation Dates</h3>
+          <h3>
+            {requiresApprovalForChanges
+              ? "Select Proposed Observation Dates for Change Request"
+              : "Select Proposed Observation Dates"}
+          </h3>
 
           <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall on or before {registration && formatDate(registration.observation_deadline)}. Select 4 to 8 dates.
+            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall on or before{" "}
+            {registration && formatDate(registration.observation_deadline)}. Select 4 to 8 dates.
           </div>
 
           {calendarError && (
@@ -421,18 +665,66 @@ export default function E01CourseSelection() {
             </p>
           )}
 
-          <div
-            className="table-container theme-orange"
-            style={{ padding: "1.5rem" }}
-          >
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", justifyContent: "center" }}>
-                <h3 style={{ fontSize: "1.15rem", marginBottom: "0.15rem", color: "inherit" }}>Your Registered Course Preview</h3>
-                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Course:</strong> {courseName(confirmedCourse)}</p>
-                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Section:</strong> {confirmedCourse.section}</p>
-                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Meeting Time:</strong> {confirmedCourse.schedule}</p>
-                <p style={{ margin: 0, lineHeight: "1.4" }}><strong>Classroom:</strong> {confirmedCourse.classroom || "Not provided"}</p>
-                
+          <div className="table-container theme-orange" style={{ padding: "1.5rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: "2rem",
+                alignItems: "center",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.6rem",
+                  justifyContent: "center",
+                }}
+              >
+                <h3 style={{ fontSize: "1.15rem", marginBottom: "0.15rem", color: "inherit" }}>
+                  {requiresApprovalForChanges
+                    ? "Requested Course Change Preview"
+                    : "Your Registered Course Preview"}
+                </h3>
+                <p style={{ margin: 0, lineHeight: "1.4" }}>
+                  <strong>Course:</strong> {courseName(confirmedCourse)}
+                </p>
+                <p style={{ margin: 0, lineHeight: "1.4" }}>
+                  <strong>Section:</strong> {confirmedCourse.section}
+                </p>
+                <p style={{ margin: 0, lineHeight: "1.4" }}>
+                  <strong>Meeting Time:</strong> {confirmedCourse.schedule}
+                </p>
+                <p style={{ margin: 0, lineHeight: "1.4" }}>
+                  <strong>Classroom:</strong> {confirmedCourse.classroom || "Not provided"}
+                </p>
+
+                {requiresApprovalForChanges && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <label
+                      htmlFor="changeReasonInput"
+                      style={{
+                        display: "block",
+                        fontSize: "0.85rem",
+                        fontWeight: 600,
+                        marginBottom: "0.35rem",
+                      }}
+                    >
+                      Reason for Course Change (Optional)
+                    </label>
+                    <input
+                      id="changeReasonInput"
+                      type="text"
+                      className="styled-text-input"
+                      placeholder="e.g., Section time conflict or teaching reassignment"
+                      value={changeReason}
+                      onChange={(e) => setChangeReason(e.target.value)}
+                      style={{ width: "100%", padding: "0.5rem 0.75rem", borderRadius: "6px" }}
+                    />
+                  </div>
+                )}
+
                 <div style={{ marginTop: "0.5rem" }}>
                   <p style={{ margin: "0 0 0.35rem 0", fontSize: "0.85rem", opacity: 0.75 }}>
                     <em>Selected Dates: {selectedDates.length} / 8 (minimum 4 required)</em>
@@ -440,9 +732,16 @@ export default function E01CourseSelection() {
                   {selectedDates.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
                       {[...selectedDates].sort().map((dateStr, idx) => {
-                        const formatted = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                        const formatted = new Date(`${dateStr}T00:00:00`).toLocaleDateString(
+                          "en-US",
+                          { month: "short", day: "numeric" }
+                        );
                         return (
-                          <span key={idx} className="version-pill font-semibold" style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}>
+                          <span
+                            key={idx}
+                            className="version-pill font-semibold"
+                            style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                          >
                             {formatted}
                           </span>
                         );
@@ -477,7 +776,11 @@ export default function E01CourseSelection() {
               onClick={handleFinalSave}
               disabled={saving || selectedDates.length < 4}
             >
-              {saving ? "Saving..." : "Confirm Selected Dates and Continue"}
+              {saving
+                ? "Saving..."
+                : requiresApprovalForChanges
+                ? "Submit Course Change Request"
+                : "Confirm Selected Dates and Continue"}
             </button>
           </div>
         </section>

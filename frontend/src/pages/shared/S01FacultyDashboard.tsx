@@ -6,10 +6,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg";
 import alerts_and_notifications_card from "../../assets/alerts_and_notifications_card.jpg";
-import post_evaluation_survey_card from "../../assets/post_evaluation_survey_card.jpg";
 import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg";
 import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg";
-import active_observations_card from "../../assets/active_observations_card.jpg";
 import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg";
 import observation_record_management_card from "../../assets/observation_record_management_card.jpg";
 
@@ -104,18 +102,10 @@ export default function S01FacultyDashboard() {
     );
   }
 
-  // Use simulated today from registration status, falling back to local date
-  const todayStr = registration?.today || new Date().toISOString().split("T")[0];
-  const [todayYear, todayMonth, todayDay] = todayStr.split("-").map(Number);
-  const todayDate = new Date(todayYear, todayMonth - 1, todayDay);
-  todayDate.setHours(0, 0, 0, 0);
-
   const observationDeadlineStr = dashboard?.cycle.observation_deadline || "2026-11-30";
   const [deadYear, deadMonth, deadDay] = observationDeadlineStr.split("-").map(Number);
   const observationDeadlineDate = new Date(deadYear, deadMonth - 1, deadDay);
   observationDeadlineDate.setHours(0, 0, 0, 0);
-
-  const isLocked = todayDate < observationDeadlineDate;
 
   const observationEnd = dashboard
     ? observationDeadlineDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
@@ -125,8 +115,18 @@ export default function S01FacultyDashboard() {
     <div className="dashboard-container">
       <h2>Faculty Dashboard</h2>
 
+      {/* Current Registration Section */}
       <section className="dashboard-phase">
         <h3>Current Registration</h3>
+
+        <div className="yellow-banner" role="status">
+          <strong>Important Notice:</strong>{" "}
+          {dashboardLoading
+            ? "Checking evaluation cycle deadlines..."
+            : dashboard?.is_registered
+            ? `You are registered for the current cycle. Observation deadline is ${observationEnd.toUpperCase()}.`
+            : "Action Required: Please register and select your course section before the cycle deadline."}
+        </div>
 
         {dashboardLoading && <p>Loading registration status...</p>}
 
@@ -145,8 +145,6 @@ export default function S01FacultyDashboard() {
           </div>
         )}
       </section>
-      
-      {roleLoading && <p>Checking account permissions...</p>}
 
       {/* General Modules Section */}
       <section className="dashboard-phase">
@@ -169,24 +167,13 @@ export default function S01FacultyDashboard() {
             </Link>
           </article>
 
-          {canUseFacultyModules && (
-            <article className="dashboard-card">
-              <Link
-                to="/shared/current-past-observations"
-                onClick={(e) => {
-                  if (isLocked) e.preventDefault();
-                }}
-                style={isLocked ? { pointerEvents: "none" } : undefined}
-              >
-                <img src={post_evaluation_survey_card} alt="Post-Evaluation Survey" />
-                <h4>Post-Evaluation Survey</h4>
-                <p>Open a completed observation to complete its post-evaluation survey.</p>
-                {isLocked && (
-                  <span className="card-status">LOCKED UNTIL {observationEnd.toUpperCase()}</span>
-                )}
-              </Link>
-            </article>
-          )}
+          <article className="dashboard-card">
+            <Link to="/shared/current-past-observations">
+              <img src={current_and_past_observations_card} alt="Current and Past Observations" />
+              <h4>Current and Past Observations</h4>
+              <p>View observation status</p>
+            </Link>
+          </article>
         </div>
       </section>
 
@@ -196,15 +183,11 @@ export default function S01FacultyDashboard() {
           <section className="dashboard-phase">
             <h3>Observee Modules</h3>
 
-            <div className="card-grid">
-              <article className="dashboard-card">
-                <Link to="/shared/current-past-observations">
-                  <img src={current_and_past_observations_card} alt="Current and Past Observations" />
-                  <h4>Current and Past Observations</h4>
-                  <p>View observation status</p>
-                </Link>
-              </article>
+            <div className="yellow-banner" role="status">
+              <strong>Observee Reminder:</strong> Ensure your course section and proposed observation dates are submitted before inviting observers.
+            </div>
 
+            <div className="card-grid">
               <article className="dashboard-card">
                 <Link to="/observee/course-selection">
                   <img src={course_and_section_selection_card} alt="Course and Section Selection" />
@@ -227,15 +210,11 @@ export default function S01FacultyDashboard() {
           <section className="dashboard-phase">
             <h3>Observer Modules</h3>
 
-            <div className="card-grid">
-              <article className="dashboard-card">
-                <Link to="/observer/active-observations">
-                  <img src={active_observations_card} alt="Active Observations" />
-                  <h4>Active Observations</h4>
-                  <p>Upload forms and view confirmations</p>
-                </Link>
-              </article>
+            <div className="yellow-banner" role="status">
+              <strong>Observer Reminder:</strong> Respond to incoming peer observation requests within 48 hours and upload completed evaluation forms promptly.
+            </div>
 
+            <div className="card-grid">
               <article className="dashboard-card">
                 <Link to="/observer/observation-request">
                   <img src={observation_record_management_card} alt="Observation Requests" />

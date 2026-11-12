@@ -60,6 +60,15 @@ async function signInAs(persona: DemoPersona) {
   window.location.assign(persona.role === "admin" ? "/committee/dashboard" : "/shared/faculty-dashboard");
 }
 
+async function signOutUser() {
+  try {
+    await authApi.logout();
+  } catch {
+    // Ignore logout errors if already logged out
+  }
+  window.location.reload();
+}
+
 async function setToday(date: string) {
   await demoApi.setDate(date || null);
   window.location.reload();
@@ -102,7 +111,7 @@ export default function DevBar() {
   }
 
   useEffect(() => {
-    authApi.session().then((result) => setUser(result.professor?.email ?? "")).catch(() => {});
+    authApi.session().then((result) => setUser(result.professor?.email ?? "")).catch(() => setUser(""));
     demoApi.personas().then(setPersonas).catch(() => {});
     observationApi.list()
       .then(setObservationRecords)
@@ -304,13 +313,18 @@ export default function DevBar() {
               <label className="dev-label">Act As</label>
               <select
                 className="dev-select"
-                value={user}
+                value={user || "signed_out"}
                 onChange={(event) => {
-                  const persona = personas.find((item) => item.email === event.target.value);
-                  if (persona) void signInAs(persona);
+                  const val = event.target.value;
+                  if (val === "signed_out") {
+                    void signOutUser();
+                  } else {
+                    const persona = personas.find((item) => item.email === val);
+                    if (persona) void signInAs(persona);
+                  }
                 }}
               >
-                <option value="" disabled>{personas.length ? "Signed Out" : "No demo accounts"}</option>
+                <option value="signed_out">Signed Out (Guest)</option>
                 {personas.map((persona) => (
                   <option key={persona.email} value={persona.email}>
                     {persona.name} ({persona.role})

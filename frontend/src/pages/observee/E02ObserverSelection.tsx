@@ -4,6 +4,10 @@ import { matchingApi, facultyApi } from "../../api/endpoints";
 import type { Candidate, Invitation, Course } from "../../api/types";
 import { Link } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
+import {
+  getPendingCourseChangeRequest,
+  type PendingCourseChangeRequest,
+} from "./E01CourseSelection";
 
 interface CandidateRow {
   id: string;
@@ -32,16 +36,29 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return new Date(value).toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
-function toResponseRows(invitations: Invitation[], names: Record<number, string>): ResponseRecord[] {
+function toResponseRows(
+  invitations: Invitation[],
+  names: Record<number, string>
+): ResponseRecord[] {
   return invitations.map((invitation) => {
-    const chosen = invitation.proposed_dates.find((date) => date.status === "accepted");
+    const chosen = invitation.proposed_dates.find(
+      (date) => date.status === "accepted"
+    );
     return {
       id: invitation.invitation_id,
       observerId: invitation.recipient_id,
-      observerName: names[invitation.recipient_id] || `Observer #${invitation.recipient_id}`,
+      observerName:
+        names[invitation.recipient_id] ||
+        `Observer #${invitation.recipient_id}`,
       status: invitation.status,
       date: chosen ? formatDateTime(chosen.datetime) : "",
       expiresAt: invitation.status === "pending" ? invitation.expires_at : null,
@@ -63,20 +80,32 @@ function localDateString(value: string): string {
 
 export default function E02ObserverSelection() {
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
-  const [candidateDates, setCandidateDates] = useState<Record<string, string[]>>({});
+  const [candidateDates, setCandidateDates] = useState<
+    Record<string, string[]>
+  >({});
   const [candidateData, setCandidateData] = useState<CandidateRow[]>([]);
   const [responseData, setResponseData] = useState<ResponseRecord[]>([]);
-  const [selectedInvitationId, setSelectedInvitationId] = useState<number | null>(null);
+  const [selectedInvitationId, setSelectedInvitationId] = useState<
+    number | null
+  >(null);
   const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
   const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
   const [released, setReleased] = useState(false);
   const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
-  const [observationDeadline, setObservationDeadline] = useState<string | null>(null);
+  const [observationDeadline, setObservationDeadline] = useState<string | null>(
+    null
+  );
+  const [pendingCourseChange, setPendingCourseChange] =
+    useState<PendingCourseChangeRequest | null>(() =>
+      getPendingCourseChangeRequest()
+    );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState("");
   const [success, setSuccess] = useState("");
-  const [messageArea, setMessageArea] = useState<"page" | "invite" | "responses">("page");
+  const [messageArea, setMessageArea] = useState<
+    "page" | "invite" | "responses"
+  >("page");
 
   useEffect(() => {
     let cancelled = false;
@@ -85,19 +114,14 @@ export default function E02ObserverSelection() {
       setLoading(true);
 
       try {
-        const [
-          matches,
-          invitations,
-          profile,
-          availability,
-          registration,
-        ] = await Promise.all([
-          matchingApi.matches(),
-          matchingApi.sentInvitations(),
-          facultyApi.profile(),
-          facultyApi.availability(),
-          facultyApi.registrationStatus(),
-        ]);
+        const [matches, invitations, profile, availability, registration] =
+          await Promise.all([
+            matchingApi.matches(),
+            matchingApi.sentInvitations(),
+            facultyApi.profile(),
+            facultyApi.availability(),
+            facultyApi.registrationStatus(),
+          ]);
 
         if (cancelled) return;
 
@@ -105,12 +129,19 @@ export default function E02ObserverSelection() {
 
         setAvailableDateTimes(savedDateTimes);
 
-        const savedDates = [...new Set(savedDateTimes.map(localDateString).filter(Boolean))].sort();
+        const savedDates = [
+          ...new Set(savedDateTimes.map(localDateString).filter(Boolean)),
+        ].sort();
         setSelectedDatesList(savedDates);
         setReleased(Boolean(matches.released));
-        
+
         setCandidateDates(
-          Object.fromEntries((matches.candidates ?? []).map((candidate) => [String(candidate.id), []]))
+          Object.fromEntries(
+            (matches.candidates ?? []).map((candidate) => [
+              String(candidate.id),
+              [],
+            ])
+          )
         );
 
         setCandidateData(
@@ -124,16 +155,25 @@ export default function E02ObserverSelection() {
 
         setRegisteredCourse(profile.selected_course);
         setObservationDeadline(registration.observation_deadline);
+        setPendingCourseChange(getPendingCourseChangeRequest());
 
         setResponseData(
           toResponseRows(
             invitations,
-            Object.fromEntries((matches.candidates ?? []).map((candidate) => [candidate.id, candidate.name]))
+            Object.fromEntries(
+              (matches.candidates ?? []).map((candidate) => [
+                candidate.id,
+                candidate.name,
+              ])
+            )
           )
         );
       } catch (err) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "Unable to load observer candidates and invitations.";
+          const msg =
+            err instanceof Error
+              ? err.message
+              : "Unable to load observer candidates and invitations.";
           window.alert(msg);
         }
       } finally {
@@ -143,8 +183,16 @@ export default function E02ObserverSelection() {
 
     void loadObserverSelection();
 
+    const syncPendingRequest = () =>
+      setPendingCourseChange(getPendingCourseChangeRequest());
+    window.addEventListener("course-change-request-updated", syncPendingRequest);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(
+        "course-change-request-updated",
+        syncPendingRequest
+      );
     };
   }, []);
 
@@ -161,7 +209,8 @@ export default function E02ObserverSelection() {
     }
 
     if (availableDateTimes.length === 0) {
-      const msg = "No saved observation date/times were found. Return to Course Selection and save your availability.";
+      const msg =
+        "No saved observation date/times were found. Return to Course Selection and save your availability.";
       setValidationError(msg);
       window.alert(msg);
       return;
@@ -172,7 +221,8 @@ export default function E02ObserverSelection() {
     );
 
     if (candidatesWithoutDates.length > 0) {
-      const msg = "Select at least four proposed dates for every observer you want to invite.";
+      const msg =
+        "Select at least four proposed dates for every observer you want to invite.";
       setValidationError(msg);
       window.alert(msg);
       return;
@@ -184,8 +234,8 @@ export default function E02ObserverSelection() {
       for (const observerId of selectedCandidates) {
         const datesForObserver = candidateDates[observerId] ?? [];
 
-        const proposedDateTimes = availableDateTimes.filter(
-          (dateTime) => datesForObserver.includes(localDateString(dateTime))
+        const proposedDateTimes = availableDateTimes.filter((dateTime) =>
+          datesForObserver.includes(localDateString(dateTime))
         );
 
         if (proposedDateTimes.length === 0) {
@@ -203,7 +253,9 @@ export default function E02ObserverSelection() {
       const invitations = await matchingApi.sentInvitations();
 
       setResponseData(toResponseRows(invitations, observerNames));
-      setSuccess(`Sent ${selectedCandidates.length} invitation(s). Their responses appear below.`);
+      setSuccess(
+        `Sent ${selectedCandidates.length} invitation(s). Their responses appear below.`
+      );
       setSelectedCandidates([]);
     } catch (err) {
       window.alert(
@@ -277,13 +329,22 @@ export default function E02ObserverSelection() {
         const activeDates = candidateDates[row.id] || [];
 
         return (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.35rem",
+              alignItems: "center",
+            }}
+          >
             {selectedDatesList.map((dateStr, idx) => {
               const isSelected = activeDates.includes(dateStr);
-              const formattedDate = new Date(`${dateStr}T00:00:00`).toLocaleDateString(
-                "en-US",
-                { month: "short", day: "numeric" }
-              );
+              const formattedDate = new Date(
+                `${dateStr}T00:00:00`
+              ).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              });
 
               return (
                 <button
@@ -296,7 +357,9 @@ export default function E02ObserverSelection() {
                     fontWeight: "700",
                     borderRadius: "6px",
                     cursor: "pointer",
-                    border: isSelected ? "1px solid #1d4ed8" : "1px solid #d1d5db",
+                    border: isSelected
+                      ? "1px solid #1d4ed8"
+                      : "1px solid #d1d5db",
                     backgroundColor: isSelected ? "#2563eb" : "#f3f4f6",
                     color: isSelected ? "#ffffff" : "#111827",
                     whiteSpace: "nowrap",
@@ -310,7 +373,9 @@ export default function E02ObserverSelection() {
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isSelected ? "#2563eb" : "#f3f4f6";
+                    e.currentTarget.style.backgroundColor = isSelected
+                      ? "#2563eb"
+                      : "#f3f4f6";
                   }}
                 >
                   {formattedDate}
@@ -324,7 +389,10 @@ export default function E02ObserverSelection() {
   ];
 
   const observerNames = Object.fromEntries(
-    candidateData.map((candidate) => [Number(candidate.id), candidate.observerName])
+    candidateData.map((candidate) => [
+      Number(candidate.id),
+      candidate.observerName,
+    ])
   );
 
   const responseColumns: Column<ResponseRecord>[] = [
@@ -335,7 +403,10 @@ export default function E02ObserverSelection() {
         <span>
           {STATUS_LABELS[row.status] ?? row.status}
           {row.expiresAt && (
-            <span className="font-slate font-sm"> (expires {formatDateTime(row.expiresAt)})</span>
+            <span className="font-slate font-sm">
+              {" "}
+              (expires {formatDateTime(row.expiresAt)})
+            </span>
           )}
         </span>
       ),
@@ -353,7 +424,12 @@ export default function E02ObserverSelection() {
             >
               {selectedInvitationId === row.id ? "Selected" : "Select"}
             </button>
-            <button type="button" className="btn-secondary" onClick={() => void handleReject(row.id)} disabled={saving}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void handleReject(row.id)}
+              disabled={saving}
+            >
               Reject
             </button>
           </span>
@@ -373,7 +449,10 @@ export default function E02ObserverSelection() {
     setResponseData(toResponseRows(invitations, observerNames));
   };
 
-  const runAction = async (action: () => Promise<unknown>, message: string) => {
+  const runAction = async (
+    action: () => Promise<unknown>,
+    message: string
+  ) => {
     setSuccess("");
     setMessageArea("responses");
     setSaving(true);
@@ -384,17 +463,27 @@ export default function E02ObserverSelection() {
       setSuccess(message);
       await reloadResponses();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Unable to update the invitation.");
+      window.alert(
+        err instanceof Error
+          ? err.message
+          : "Unable to update the invitation."
+      );
     } finally {
       setSaving(false);
     }
   };
 
   const handleReject = (invitationId: number) =>
-    runAction(() => matchingApi.reject(invitationId), "Response rejected. You can invite this observer again.");
+    runAction(
+      () => matchingApi.reject(invitationId),
+      "Response rejected. You can invite this observer again."
+    );
 
   const handleRejectAll = () =>
-    runAction(() => matchingApi.rejectAll(), "All open invitations were withdrawn.");
+    runAction(
+      () => matchingApi.rejectAll(),
+      "All open invitations were withdrawn."
+    );
 
   const hasOpenInvitations = responseData.some(
     (row) => row.status === "pending" || row.status === "accepted"
@@ -448,7 +537,9 @@ export default function E02ObserverSelection() {
         <p className="observation-card-text">
           <strong>Course Number and Title:</strong>{" "}
           {registeredCourse
-            ? `${registeredCourse.department_code} ${registeredCourse.course_number} - ${registeredCourse.title || "Course Title Unavailable"}`
+            ? `${registeredCourse.department_code} ${registeredCourse.course_number} - ${
+                registeredCourse.title || "Course Title Unavailable"
+              }`
             : "No course selected"}
         </p>
 
@@ -467,10 +558,32 @@ export default function E02ObserverSelection() {
           {registeredCourse?.classroom || "Not available"}
         </p>
 
+        {pendingCourseChange && (
+          <div
+            className="yellow-banner"
+            style={{
+              marginTop: "0.75rem",
+              marginBottom: "0.25rem",
+              fontSize: "0.875rem",
+            }}
+          >
+            <strong>PENDING COURSE CHANGE REQUEST:</strong> You requested to
+            switch to{" "}
+            <strong>
+              {pendingCourseChange.requested_course_label} (Sec.{" "}
+              {pendingCourseChange.requested_section})
+            </strong>
+            . Your current course remains active until an Assessment Committee
+            member approves the change.
+          </div>
+        )}
+
         {/* Integrated Badge Bar */}
         <div className="committee-section">
           <div className="section-header-bar">
-            <strong>Selected Proposed Observation Dates ({selectedDatesList.length})</strong>
+            <strong>
+              Selected Proposed Observation Dates ({selectedDatesList.length})
+            </strong>
             <Link to="/observee/course-selection" className="registration-link">
               Edit Dates →
             </Link>
@@ -479,10 +592,17 @@ export default function E02ObserverSelection() {
           {selectedDatesList.length === 0 ? (
             <p className="font-slate font-sm">No observation dates selected.</p>
           ) : (
-            <div className="search-input-wrapper button-margin-top" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+            <div
+              className="search-input-wrapper button-margin-top"
+              style={{ flexWrap: "wrap", gap: "0.5rem" }}
+            >
               {selectedDatesList.map((dateStr, idx) => {
                 const d = new Date(`${dateStr}T00:00:00`);
-                const formatted = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                const formatted = d.toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                });
                 return (
                   <span key={idx} className="version-pill font-semibold">
                     {formatted}
@@ -501,12 +621,21 @@ export default function E02ObserverSelection() {
         <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
           <strong>IMPORTANT:</strong>{" "}
           {observationDeadline
-            ? `Please make sure all proposed observation dates fall before ${new Date(`${observationDeadline}T00:00:00`).toLocaleDateString()}.`
+            ? `Please make sure all proposed observation dates fall before ${new Date(
+                `${observationDeadline}T00:00:00`
+              ).toLocaleDateString()}.`
             : "The observation deadline could not be loaded. Please verify the allowed observation period."}
         </div>
 
         {messageArea === "invite" && validationError && (
-          <p style={{ color: "#ef4444", fontWeight: 600, fontSize: "0.9rem", margin: "0 0 1rem 0" }}>
+          <p
+            style={{
+              color: "#ef4444",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              margin: "0 0 1rem 0",
+            }}
+          >
             {validationError}
           </p>
         )}
@@ -515,16 +644,29 @@ export default function E02ObserverSelection() {
           themeColor="orange"
           instructionText="Select candidates to send an observation request for your registered course times."
           columns={candidateColumns}
-          emptyMessage={released ? "No observers were released to you." : "Waiting for the Assessment Committee to release your observers."}
+          emptyMessage={
+            released
+              ? "No observers were released to you."
+              : "Waiting for the Assessment Committee to release your observers."
+          }
           data={candidateData}
         />
 
         <div className="compact-actions-bar unregistered-actions-bar">
           <div className="bulk-btn-group">
-            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(invitableIds)} disabled={isFinalized}>
+            <button
+              type="button"
+              className="btn-select-toggle"
+              onClick={() => setSelectedCandidates(invitableIds)}
+              disabled={isFinalized}
+            >
               Select All
             </button>
-            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates([])}>
+            <button
+              type="button"
+              className="btn-select-toggle"
+              onClick={() => setSelectedCandidates([])}
+            >
               Deselect All
             </button>
           </div>
@@ -533,14 +675,23 @@ export default function E02ObserverSelection() {
             type="button"
             className="btn-primary"
             onClick={() => void handleSendInvitations()}
-            disabled={saving || loading || isFinalized || selectedCandidates.length === 0}
+            disabled={
+              saving ||
+              loading ||
+              isFinalized ||
+              selectedCandidates.length === 0
+            }
           >
             {saving ? "Sending..." : "Send Invitation Requests"}
           </button>
         </div>
 
         {messageArea === "invite" && success && (
-          <div role="status" className="feedback-banner-success" style={{ marginTop: "1rem" }}>
+          <div
+            role="status"
+            className="feedback-banner-success"
+            style={{ marginTop: "1rem" }}
+          >
             {success}
           </div>
         )}
@@ -551,13 +702,17 @@ export default function E02ObserverSelection() {
         <h3>Pending and Confirmed Observer Responses</h3>
 
         <div className="yellow-banner">
-          <strong>IMPORTANT:</strong> Accepting an Observer will lock in your choice and automatically decline remaining candidates.
+          <strong>IMPORTANT:</strong> Accepting an Observer will lock in your
+          choice and automatically decline remaining candidates.
         </div>
 
         {responseData.length > 0 && (
           <p className="font-slate font-sm">
             <strong>{responseData.length} invited</strong>
-            {statusCounts.map(([status, count]) => ` · ${count} ${(STATUS_LABELS[status] ?? status).toLowerCase()}`)}
+            {statusCounts.map(
+              ([status, count]) =>
+                ` · ${count} ${(STATUS_LABELS[status] ?? status).toLowerCase()}`
+            )}
           </p>
         )}
 
@@ -583,12 +738,20 @@ export default function E02ObserverSelection() {
             onClick={() => void handleConfirmPairing()}
             disabled={saving || isFinalized || selectedInvitationId === null}
           >
-            {saving ? "Confirming..." : isFinalized ? "Observer Confirmed" : "Confirm and Lock Changes"}
+            {saving
+              ? "Confirming..."
+              : isFinalized
+              ? "Observer Confirmed"
+              : "Confirm and Lock Changes"}
           </button>
         </div>
 
         {messageArea === "responses" && success && (
-          <div role="status" className="feedback-banner-success" style={{ marginTop: "1rem" }}>
+          <div
+            role="status"
+            className="feedback-banner-success"
+            style={{ marginTop: "1rem" }}
+          >
             {success}
           </div>
         )}

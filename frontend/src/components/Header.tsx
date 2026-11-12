@@ -32,22 +32,37 @@ export default function Header() {
   const [headerError, setHeaderError] = useState("");
   const [backendUnreadCount, setBackendUnreadCount] = useState(0);
 
+  const isLoggedIn = currentUser !== null;
+
   const closeAllMenus = () => {
     setIsMenuOpen(false);
     setIsNotifOpen(false);
     setIsProfileOpen(false);
   };
 
+  const handleProtectedAction = (targetPath: string, actionIfAuthenticated: () => void) => {
+    if (isLoggedIn) {
+      actionIfAuthenticated();
+    } else {
+      closeAllMenus();
+      navigate("/login/signin", { state: { redirectTo: targetPath } });
+    }
+  };
+
   const toggleNotifications = () => {
-    setIsNotifOpen((prev) => !prev);
-    setIsProfileOpen(false);
-    setIsMenuOpen(false);
+    handleProtectedAction("/shared/notifications", () => {
+      setIsNotifOpen((prev) => !prev);
+      setIsProfileOpen(false);
+      setIsMenuOpen(false);
+    });
   };
 
   const toggleProfile = () => {
-    setIsProfileOpen((prev) => !prev);
-    setIsNotifOpen(false);
-    setIsMenuOpen(false);
+    handleProtectedAction("/shared/profile", () => {
+      setIsProfileOpen((prev) => !prev);
+      setIsNotifOpen(false);
+      setIsMenuOpen(false);
+    });
   };
 
   const toggleMenu = () => {
@@ -56,25 +71,33 @@ export default function Header() {
     setIsProfileOpen(false);
   };
 
-  // Mark notification as read when clicked
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, targetPath: string) => {
+    closeAllMenus();
+    if (!isLoggedIn) {
+      e.preventDefault();
+      navigate("/login/signin", { state: { redirectTo: targetPath } });
+    }
+  };
+
   const handleNotificationClick = async (id: string) => {
     try {
       const notification = notifications.find((n) => n.id === id);
 
       if (notification?.unread) {
         await facultyApi.markRead(Number(id));
-        setBackendUnreadCount((count) => Math.max(0, count - 1));
+        
+        // Remove from manual unread list if present
+        try {
+          const manualUnreadIds: number[] = JSON.parse(
+            localStorage.getItem("manual_unread_notification_ids") || "[]"
+          );
+          const updated = manualUnreadIds.filter((mId) => mId !== Number(id));
+          localStorage.setItem("manual_unread_notification_ids", JSON.stringify(updated));
+        } catch {
+          // Ignore parse errors
+        }
 
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-        );
-
-        setHasUnreadNotifications((prev) => {
-          const remaining = notifications.filter(
-            (n) => n.id !== id && n.unread
-          ).length;
-          return remaining > 0 || (prev && remaining > 0);
-        });
+        window.dispatchEvent(new Event("notifications-changed"));
       }
     } catch {
       setHeaderError("Unable to mark this notification as read.");
@@ -96,8 +119,6 @@ export default function Header() {
       setHeaderError(
         err instanceof Error ? err.message : "Unable to sign out cleanly."
       );
-      // Still navigate away; the backend request may have failed because
-      // the session has already expired.
     } finally {
       closeAllMenus();
       setCurrentUser(null);
@@ -106,7 +127,6 @@ export default function Header() {
     }
   };
 
-  // Close dropdown popovers when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -134,7 +154,6 @@ export default function Header() {
         if (cancelled) return;
 
         if (!professor) {
-          // Being signed out is normal; clear any previous user data.
           setHeaderError("");
           setNotifications([]);
           setHasUnreadNotifications(false);
@@ -150,23 +169,45 @@ export default function Header() {
 
         if (cancelled) return;
 
-        const previews = (notificationResponse.notifications ?? []).slice(0, 3);
+        let clearedIds: number[] = [];
+        let manualUnreadIds: number[] = [];
+        try {
+          clearedIds = JSON.parse(localStorage.getItem("cleared_notification_ids") || "[]");
+          manualUnreadIds = JSON.parse(localStorage.getItem("manual_unread_notification_ids") || "[]");
+        } catch {
+          // Fallback if parsing fails
+        }
+
+        const rawList: Notification[] = notificationResponse.notifications ?? [];
+        const activeList = rawList
+          .filter((n) => !clearedIds.includes(n.notification_id))
+          .map((n) => ({
+            ...n,
+            is_read: manualUnreadIds.includes(n.notification_id) ? false : n.is_read,
+          }));
+
+        const totalUnread = activeList.filter((n) => !n.is_read).length;
+        const previews = activeList.slice(0, 3);
 
         setNotifications(
-          previews.map((n: Notification) => ({
+          previews.map((n) => ({
             id: String(n.notification_id),
             title: n.title,
-            time: new Date(n.created_at).toLocaleString(),
+            time: new Date(n.created_at).toLocaleString([], {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
             unread: !n.is_read,
           }))
         );
 
-        setHasUnreadNotifications(notificationResponse.unread_count > 0);
-        setBackendUnreadCount(notificationResponse.unread_count);
+        setHasUnreadNotifications(totalUnread > 0);
+        setBackendUnreadCount(totalUnread);
         setCurrentUser(profileResponse.professor);
         setHeaderError("");
       } catch {
-        // Only display this when loading actually fails.
         if (!cancelled) {
           setHeaderError("Some header information could not be loaded.");
         }
@@ -193,19 +234,17 @@ export default function Header() {
             {headerError}
           </p>
         )}
-        {/* Brand Header */}
+
         <div id="logo">
           <Logo alt="UTD Logo" className="header-logo" />
           <h1>UTD Assessment Helper</h1>
         </div>
 
         <nav id="user-shortcuts">
-          {/* Home Link */}
           <Link to="/" title="Go to Home" onClick={closeAllMenus}>
             <img className="icon" src={home} alt="Home" />
           </Link>
 
-          {/* Notifications Dropdown Container */}
           <div ref={notifRef} className="header-popover-container">
             <button
               type="button"
@@ -220,7 +259,6 @@ export default function Header() {
               />
             </button>
 
-            {/* Notifications Popover Menu */}
             {isNotifOpen && (
               <div className="notif-popover">
                 <div className="notif-header">
@@ -263,7 +301,6 @@ export default function Header() {
                     View All Notifications
                   </button>
 
-                  {/* Simulator Toggle for Demo Testing */}
                   <div className="notif-sim-row">
                     <label className="notif-sim-label">
                       <input
@@ -286,7 +323,6 @@ export default function Header() {
             )}
           </div>
 
-          {/* Profile Quick Menu Container */}
           <div ref={profileRef} className="header-popover-container">
             <button
               type="button"
@@ -297,10 +333,8 @@ export default function Header() {
               <img className="icon" src={profileIcon} alt="Profile" />
             </button>
 
-            {/* Profile Popover Menu */}
             {isProfileOpen && (
               <div className="profile-popover">
-                {/* User Header Section */}
                 <div className="profile-user-summary">
                   <img
                     src={profileIcon}
@@ -319,7 +353,6 @@ export default function Header() {
                   </div>
                 </div>
 
-                {/* Account Section Menu Links */}
                 <div className="profile-links-section">
                   <span className="profile-links-header">
                     ACCOUNT
@@ -348,7 +381,6 @@ export default function Header() {
             )}
           </div>
 
-          {/* Hamburger Menu Toggle Button */}
           <button
             type="button"
             className="hamburger-btn"
@@ -360,7 +392,6 @@ export default function Header() {
         </nav>
       </header>
 
-      {/* Slide-over Drawer Menu */}
       {isMenuOpen && (
         <div className="menu-overlay" onClick={closeAllMenus}>
           <div className="menu-drawer" onClick={(e) => e.stopPropagation()}>
@@ -372,64 +403,106 @@ export default function Header() {
             </div>
 
             <div className="menu-body">
-              {/* Quick Role / Dashboard Switcher */}
               <div className="menu-section">
                 <h4>Switch Dashboards</h4>
-                <Link to="/committee/dashboard" onClick={closeAllMenus}>
+                <Link
+                  to="/committee/dashboard"
+                  onClick={(e) => handleLinkClick(e, "/committee/dashboard")}
+                >
                   Assessment Committee Dashboard
                 </Link>
-                <Link to="/shared/faculty-dashboard" onClick={closeAllMenus}>
+                <Link
+                  to="/shared/faculty-dashboard"
+                  onClick={(e) => handleLinkClick(e, "/shared/faculty-dashboard")}
+                >
                   Faculty Dashboard
                 </Link>
               </div>
 
-              {/* Committee Shortcuts */}
               <div className="menu-section">
                 <h4>Committee Workflows</h4>
-                <Link to="/committee/faculty-matching" onClick={closeAllMenus}>
+                <Link
+                  to="/committee/faculty-matching"
+                  onClick={(e) => handleLinkClick(e, "/committee/faculty-matching")}
+                >
                   Faculty Matching
                 </Link>
-                <Link to="/committee/unmatched-observees" onClick={closeAllMenus}>
+                <Link
+                  to="/committee/unmatched-observees"
+                  onClick={(e) => handleLinkClick(e, "/committee/unmatched-observees")}
+                >
                   Unmatched Observees
                 </Link>
-                <Link to="/committee/faculty-roster" onClick={closeAllMenus}>
+                <Link
+                  to="/committee/faculty-roster"
+                  onClick={(e) => handleLinkClick(e, "/committee/faculty-roster")}
+                >
                   Faculty Roster Management
                 </Link>
-                <Link to="/committee/form-editor" onClick={closeAllMenus}>
+                <Link
+                  to="/committee/form-editor"
+                  onClick={(e) => handleLinkClick(e, "/committee/form-editor")}
+                >
                   Form Editor
                 </Link>
               </div>
 
-              {/* Observee & Observer Shortcuts */}
               <div className="menu-section">
                 <h4>Observee &amp; Observer Modules</h4>
 
-                <Link to="/observee/course-selection" onClick={closeAllMenus}>
+                <Link
+                  to="/observee/course-selection"
+                  onClick={(e) => handleLinkClick(e, "/observee/course-selection")}
+                >
                   Course Section Selection
                 </Link>
 
-                <Link to="/observee/observer-selection" onClick={closeAllMenus}>
+                <Link
+                  to="/observee/observer-selection"
+                  onClick={(e) => handleLinkClick(e, "/observee/observer-selection")}
+                >
                   Observer Selection
                 </Link>
 
-                <Link to="/shared/current-past-observations" onClick={closeAllMenus}>
+                <Link
+                  to="/shared/current-past-observations"
+                  onClick={(e) => handleLinkClick(e, "/shared/current-past-observations")}
+                >
                   Current / Past Observations
                 </Link>
 
-                <Link to="/observer/observation-request" onClick={closeAllMenus}>
+                <Link
+                  to="/observer/observation-request"
+                  onClick={(e) => handleLinkClick(e, "/observer/observation-request")}
+                >
                   Observation Requests
                 </Link>
               </div>
 
-              {/* Account / Session Links */}
               <div className="menu-section">
                 <h4>Account</h4>
-                <Link to="/shared/profile" onClick={closeAllMenus}>
+                <Link
+                  to="/shared/profile"
+                  onClick={(e) => handleLinkClick(e, "/shared/profile")}
+                >
                   Profile Settings
                 </Link>
-                <Link to="/login/signin" onClick={() => void handleSignOut()} className="menu-signout">
-                  Sign Out
-                </Link>
+                {isLoggedIn ? (
+                  <Link
+                    to="/login/signin"
+                    onClick={() => void handleSignOut()}
+                    className="menu-signout"
+                  >
+                    Sign Out
+                  </Link>
+                ) : (
+                  <Link
+                    to="/login/signin"
+                    onClick={closeAllMenus}
+                  >
+                    Sign In
+                  </Link>
+                )}
               </div>
             </div>
           </div>
