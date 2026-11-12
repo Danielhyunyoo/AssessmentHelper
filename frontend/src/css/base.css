@@ -48,3 +48,32 @@ html.dark-mode p,
 html.dark-mode label {
   color: #a1a1aa;
 }
+
+/* Permanent Yellow Status Banner */
+.yellow-banner {
+  background-color: #fef9c3;
+  border: 1px solid #facc15;
+  border-left: 4px solid #eab308;
+  color: #854d0e;
+  padding: 0.85rem 1.15rem;
+  border-radius: 6px;
+  font-size: 0.925rem;
+  line-height: 1.45;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.yellow-banner strong {
+  color: #713f12;
+}
+
+html.dark-mode .yellow-banner {
+  background-color: #422006;
+  border-color: #854d0e;
+  border-left-color: #eab308;
+  color: #fef08a;
+}
+
+html.dark-mode .yellow-banner strong {
+  color: #fde047;
+}

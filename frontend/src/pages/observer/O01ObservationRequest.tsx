@@ -179,11 +179,11 @@ export default function O01ObservationRequest() {
       {loading && <p>Loading incoming invitations...</p>}
 
       {loadError && (
-        <div role="alert" className="yellow-banner">{loadError}</div>
+        <div role="alert" className="empty-state-banner">{loadError}</div>
       )}
 
       {!loading && !invitation && (
-        <div className="yellow-banner">You have no pending observation invitations.</div>
+        <div className="empty-state-banner">You currently have no observation invitations.</div>
       )}
 
       {statusMessage && (
@@ -196,163 +196,168 @@ export default function O01ObservationRequest() {
             marginBottom: "1.5rem",
           }}
         >
-          {statusMessage.type === "success" ? "🟢" : "🔴"} <strong>Status:</strong> {statusMessage.text}
+          <strong>Status:</strong> {statusMessage.text}
         </div>
       )}
 
-      {/* Faculty Request Card Section */}
-      <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
-        <div className="yellow-banner" style={{ marginBottom: "1.25rem" }}>
-          <strong>NOTE:</strong> {answeredText ?? "Current Invitation Expires in 48 Hours!"}
-        </div>
+      {/* Render card content only when invitations exist */}
+      {!loading && invitation && (
+        <>
+          {/* Faculty Request Card Section */}
+          <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
+            <div className="yellow-banner" style={{ marginBottom: "1.25rem" }}>
+              <strong>NOTE:</strong> {answeredText ?? "Current Invitation Expires in 48 Hours!"}
+            </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "2rem", alignItems: "center" }}>
-          <div>
-            <h3 className="request" style={{ fontSize: "1.5rem", fontWeight: "800", marginBottom: "1rem" }}>
-              This faculty member is requesting you to be their observer.
-            </h3>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", fontSize: "0.95rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "2rem", alignItems: "center" }}>
               <div>
-                <strong>
-                  {invitation?.sender
-                    ? `${invitation.sender.first_name} ${invitation.sender.last_name}`.trim() ||
-                      invitation.sender.username
-                    : "Faculty details unavailable"}
-                </strong>
+                <h3 className="request" style={{ fontSize: "1.5rem", fontWeight: "800", marginBottom: "1rem" }}>
+                  This faculty member is requesting you to be their observer.
+                </h3>
 
-                <p>
-                  {invitation?.sender?.academic_level || "Academic level not provided"}
-                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", fontSize: "0.95rem" }}>
+                  <div>
+                    <strong>
+                      {invitation?.sender
+                        ? `${invitation.sender.first_name} ${invitation.sender.last_name}`.trim() ||
+                          invitation.sender.username
+                        : "Faculty details unavailable"}
+                    </strong>
+
+                    <p>
+                      {invitation?.sender?.academic_level || "Academic level not provided"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <strong>Course and Section</strong>
+                    <p style={{ margin: 0, color: "#334155" }}>
+                      {invitation?.course
+                        ? `${invitation.course.department_code} ${invitation.course.course_number}.${invitation.course.section}`
+                        : "Course details unavailable"}
+                    </p>
+
+                    {invitation?.course?.title && (
+                      <p style={{ margin: 0, color: "#334155" }}>
+                        {invitation.course.title}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <strong>Meeting Days and Times</strong>
+                    <p style={{ margin: 0, color: "#334155" }}>
+                      {invitation?.course?.schedule || "Schedule not provided"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <strong>Classroom Location</strong>
+                    <p style={{ margin: 0, color: "#334155" }}>
+                      {invitation?.course?.classroom || "Not provided"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <strong>Course and Section</strong>
-                <p style={{ margin: 0, color: "#334155" }}>
-                  {invitation?.course
-                    ? `${invitation.course.department_code} ${invitation.course.course_number}.${invitation.course.section}`
-                    : "Course details unavailable"}
-                </p>
-
-                {invitation?.course?.title && (
-                  <p style={{ margin: 0, color: "#334155" }}>
-                    {invitation.course.title}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <strong>Meeting Days and Times</strong>
-                <p style={{ margin: 0, color: "#334155" }}>
-                  {invitation?.course?.schedule || "Schedule not provided"}
-                </p>
-              </div>
-
-              <div>
-                <strong>Classroom Location</strong>
-                <p style={{ margin: 0, color: "#334155" }}>
-                  {invitation?.course?.classroom || "Not provided"}
-                </p>
+              {/* Profile Avatar Silhouette */}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <img
+                  src={profileIcon}
+                  alt="Faculty Avatar"
+                  style={{
+                    width: "140px",
+                    height: "140px",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    backgroundColor: "#f1f5f9",
+                    border: "2px solid #cbd5e1",
+                  }}
+                />
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Profile Avatar Silhouette */}
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <img
-              src={profileIcon}
-              alt="Faculty Avatar"
-              style={{
-                width: "140px",
-                height: "140px",
-                borderRadius: "50%",
-                objectFit: "cover",
-                backgroundColor: "#f1f5f9",
-                border: "2px solid #cbd5e1",
-              }}
-            />
-          </div>
-        </div>
-      </section>
+          {answeredText && (
+            <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
+              <h3>Your Response</h3>
+              <div className="yellow-banner">
+                <strong>{answeredText}</strong>
+                {invitation?.status === "accepted" && " Waiting for the observee to confirm the visit."}
+              </div>
+            </section>
+          )}
 
-      {answeredText && (
-        <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
-          <h3>Your Response</h3>
-          <div className="yellow-banner">
-            <strong>{answeredText}</strong>
-            {invitation?.status === "accepted" && " Waiting for the observee to confirm the visit."}
-          </div>
-        </section>
-      )}
+          {!answeredText && (
+            <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
+              <h3>Observation Date and Time Selection</h3>
 
-      {!answeredText && (
-      <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
-        <h3>Observation Date and Time Selection</h3>
+              <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
+                <strong>NOTE:</strong> Accepting this invitation confirms your availability and locks the visit date once approved by faculty.
+              </div>
 
-        <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-          <strong>NOTE:</strong> Accepting this invitation confirms your availability and locks the visit date once approved by faculty.
-        </div>
+              <div className="table-container theme-orange">
+                <div className="table-instruction">
+                  Select ONE date/time in which you can attend their class.
+                </div>
 
-        <div className="table-container theme-orange">
-          <div className="table-instruction">
-            Select ONE date/time in which you can attend their class.
-          </div>
+                <div className="table-scroll-wrapper">
+                  <table className="custom-data-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: "80px" }}>Select</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proposedDates.map((slot) => (
+                        <tr key={slot.id}>
+                          <td>
+                            <input
+                              type="radio"
+                              name="observationDateSlot"
+                              value={slot.id}
+                              checked={selectedSlotId === slot.id}
+                              onChange={() => setSelectedSlotId(slot.id)}
+                            />
+                          </td>
+                          <td>{slot.date}</td>
+                          <td>{slot.time}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-          <div className="table-scroll-wrapper">
-            <table className="custom-data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "80px" }}>Select</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {proposedDates.map((slot) => (
-                  <tr key={slot.id}>
-                    <td>
-                      <input
-                        type="radio"
-                        name="observationDateSlot"
-                        value={slot.id}
-                        checked={selectedSlotId === slot.id}
-                        onChange={() => setSelectedSlotId(slot.id)}
-                      />
-                    </td>
-                    <td>{slot.date}</td>
-                    <td>{slot.time}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              {/* Action Buttons Row */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1.5rem" }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleDeclineInvitation}
+                  disabled={saving || !invitation}
+                >
+                  Decline Invitation
+                </button>
 
-        {/* Action Buttons Row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1.5rem" }}>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleDeclineInvitation}
-            disabled={saving || !invitation}
-          >
-            Decline Invitation
-          </button>
-
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={handleAcceptSelectedDate}
-            disabled={!selectedSlotId || saving || !invitation}
-          >
-            {saving ? "Saving..." : "Accept Selected Date"}
-          </button>
-        </div>
-      </section>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleAcceptSelectedDate}
+                  disabled={!selectedSlotId || saving || !invitation}
+                >
+                  {saving ? "Saving..." : "Accept Selected Date"}
+                </button>
+              </div>
+            </section>
+          )}
+        </>
       )}
 
       {/* Bottom Centered Return Button */}
-      <div className="dashboard-center-action">
+      <div className="dashboard-center-action" style={{ marginTop: "2rem" }}>
         <Link to="/shared/faculty-dashboard" className="btn-secondary">
           Return to Dashboard
         </Link>

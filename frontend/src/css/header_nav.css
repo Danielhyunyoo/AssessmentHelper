@@ -78,6 +78,38 @@ header .icon,
   padding: 0.75rem;
 }
 
+/* Add to header-nav.css */
+.notif-popover-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notif-popover-toggle-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+}
+
+.notif-popover-toggle-btn:hover {
+  background-color: #dbeafe;
+  text-decoration: underline;
+}
+
+html.dark-mode .notif-popover-toggle-btn {
+  color: #60a5fa;
+}
+
+html.dark-mode .notif-popover-toggle-btn:hover {
+  background-color: #1e3a8a;
+}
+
 .notif-header {
   padding: 0.5rem 0.5rem 0.75rem;
   border-bottom: 1px solid #f1f5f9;

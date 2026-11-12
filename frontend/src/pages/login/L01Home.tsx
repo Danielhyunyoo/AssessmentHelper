@@ -61,6 +61,14 @@ export default function L01Home() {
     }
   };
 
+  const handleProtectedNavigate = (targetPath: string) => {
+    if (isLoggedIn) {
+      navigate(targetPath);
+    } else {
+      navigate("/login/signin", { state: { redirectTo: targetPath } });
+    }
+  };
+
   return (
     <div className="home-container">
       <div className="home-main-card">
@@ -68,9 +76,7 @@ export default function L01Home() {
           <div className="home-text">
             <div className="home-badge-pill">UT Dallas Faculty Portal</div>
             <h1 className="home-title">
-              Sign into UTD<br />
-              Assessment<br />
-              Helper
+              Sign into UTD Assessment Helper
             </h1>
             <p className="home-subtitle">
               Register your courses, review observation requests, and submit evaluation records in one secure workspace.
@@ -115,27 +121,39 @@ export default function L01Home() {
           <img src={course_and_section_selection_card} alt="Course Registration" className="home-box-img" />
           <h4>Course & Section Registration</h4>
           <p>Select active course sections and submit proposed observation dates aligned with departmental deadlines.</p>
-          <Link to="/observee/course-selection" className="btn-secondary home-box-btn">
+          <button
+            type="button"
+            onClick={() => handleProtectedNavigate("/observee/course-selection")}
+            className="btn-secondary home-box-btn"
+          >
             Select Courses
-          </Link>
+          </button>
         </div>
 
         <div className="home-info-box">
-          <img src={observation_record_management_card} alt="Peer Observations" className="home-box-img" />
-          <h4>Peer Observations & Records</h4>
-          <p>Coordinate observer matching, review observation requests, and upload completed evaluation documents.</p>
-          <Link to="/observer/active-observations" className="btn-secondary home-box-btn">
-            View Observations
-          </Link>
+          <img src={observation_record_management_card} alt="Observation Requests" className="home-box-img" />
+          <h4>Observation Requests</h4>
+          <p>Review incoming peer observation assignments, accept requests, and manage evaluation schedules.</p>
+          <button
+            type="button"
+            onClick={() => handleProtectedNavigate("/observer/observation-request")}
+            className="btn-secondary home-box-btn"
+          >
+            Review Requests
+          </button>
         </div>
 
         <div className="home-info-box">
           <img src={current_and_past_observations_card} alt="Historical Archives" className="home-box-img" />
           <h4>Historical Archives</h4>
           <p>Access past evaluation records and track institutional progress securely across evaluation cycles.</p>
-          <Link to="/shared/current-past-observations" className="btn-secondary home-box-btn">
+          <button
+            type="button"
+            onClick={() => handleProtectedNavigate("/shared/current-past-observations")}
+            className="btn-secondary home-box-btn"
+          >
             Access Past Records
-          </Link>
+          </button>
         </div>
       </div>
     </div>
