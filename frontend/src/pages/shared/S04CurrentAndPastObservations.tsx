@@ -85,6 +85,21 @@ function formatPersonName(person: any, fallback: string): string {
   return full || person.username || fallback;
 }
 
+function buildVisitKey(
+  observerId: number | null,
+  observeeId: number | null,
+  confirmedDatetime: string | null,
+  fallbackId: number
+): string {
+  const timeKey = confirmedDatetime
+    ? String(new Date(confirmedDatetime).getTime())
+    : "no-date";
+  if (observerId && observeeId) {
+    return `${observerId}-${observeeId}-${timeKey}`;
+  }
+  return `pairing-${fallbackId}`;
+}
+
 function normalizeScheduledVisit(raw: any, index: number): NormalizedVisit {
   const courseObj = raw.course ?? {};
   const dept =
@@ -181,20 +196,24 @@ export default function S04CurrentAndPastObservations() {
         setLiveRecords(Array.isArray(records) ? records : []);
         setRegistration(registrationData);
 
-        // 1. Unwrap scheduled visits (handles [...] or { visits: [...] })
         const rawVisitList = Array.isArray(scheduledRaw)
           ? scheduledRaw
           : Array.isArray((scheduledRaw as any)?.visits)
           ? (scheduledRaw as any).visits
           : [];
 
-        const visitsMap = new Map<number, NormalizedVisit>();
+        const visitsMap = new Map<string, NormalizedVisit>();
         rawVisitList.forEach((v: any, idx: number) => {
           const normalized = normalizeScheduledVisit(v, idx);
-          visitsMap.set(normalized.pairingId, normalized);
+          const key = buildVisitKey(
+            normalized.observerId,
+            normalized.observeeId,
+            normalized.confirmedDatetime,
+            normalized.pairingId
+          );
+          visitsMap.set(key, normalized);
         });
 
-        // 2. Fallback: confirmed pairings from sentInvitations (Observee side)
         const candidateNameMap = Object.fromEntries(
           (matchesData?.candidates ?? []).map((c) => [c.id, c.name])
         );
@@ -204,14 +223,18 @@ export default function S04CurrentAndPastObservations() {
           .filter((inv: any) => inv.status === "confirmed")
           .forEach((inv: any) => {
             const pId = Number(inv.pairing_id ?? inv.invitation_id);
-            if (!visitsMap.has(pId)) {
-              const acceptedSlot = (inv.proposed_dates ?? []).find(
-                (d: any) => d.status === "accepted"
-              );
-              visitsMap.set(pId, {
+            const acceptedSlot = (inv.proposed_dates ?? []).find(
+              (d: any) => d.status === "accepted"
+            );
+            const obsId = Number(inv.recipient_id) || null;
+            const dt = acceptedSlot?.datetime ?? null;
+            const key = buildVisitKey(obsId, userId, dt, pId);
+
+            if (!visitsMap.has(key)) {
+              visitsMap.set(key, {
                 pairingId: pId,
-                confirmedDatetime: acceptedSlot?.datetime ?? null,
-                observerId: Number(inv.recipient_id) || null,
+                confirmedDatetime: dt,
+                observerId: obsId,
                 observerName:
                   candidateNameMap[inv.recipient_id] ||
                   `Observer #${inv.recipient_id}`,
@@ -230,23 +253,26 @@ export default function S04CurrentAndPastObservations() {
             }
           });
 
-        // 3. Fallback: confirmed pairings from incomingInvitations (Observer side)
         (Array.isArray(incomingInvites) ? incomingInvites : [])
           .filter((inv: any) => inv.status === "confirmed")
           .forEach((inv: any) => {
             const pId = Number(inv.pairing_id ?? inv.invitation_id);
-            if (!visitsMap.has(pId)) {
-              const acceptedSlot = (inv.proposed_dates ?? []).find(
-                (d: any) => d.status === "accepted"
-              );
+            const acceptedSlot = (inv.proposed_dates ?? []).find(
+              (d: any) => d.status === "accepted"
+            );
+            const observeeId =
+              getNumericId(inv.sender) ?? (Number(inv.sender_id) || null);
+            const dt = acceptedSlot?.datetime ?? null;
+            const key = buildVisitKey(userId, observeeId, dt, pId);
+
+            if (!visitsMap.has(key)) {
               const invCourse = inv.course;
-              visitsMap.set(pId, {
+              visitsMap.set(key, {
                 pairingId: pId,
-                confirmedDatetime: acceptedSlot?.datetime ?? null,
+                confirmedDatetime: dt,
                 observerId: userId,
                 observerName: userFullName,
-                observeeId:
-                  getNumericId(inv.sender) ?? (Number(inv.sender_id) || null),
+                observeeId,
                 observeeName: formatPersonName(
                   inv.sender,
                   "Assigned Observee"
@@ -320,7 +346,6 @@ export default function S04CurrentAndPastObservations() {
     return false;
   };
 
-  // Records belonging to the signed-in user (both as observer and observee)
   const userRecords = liveRecords.filter((record) => {
     if (currentUserId === null) return true;
     return (
@@ -337,14 +362,29 @@ export default function S04CurrentAndPastObservations() {
     (record) => record.status === "completed" || record.status === "cancelled"
   );
 
-  // Exclude scheduled visits that already have an active or past ObservationRecord
   const existingRecordPairingIds = new Set(
     userRecords.map((r) => Number(r.pairing_id))
+  );
+  const existingRecordKeys = new Set(
+    userRecords.map((r) =>
+      buildVisitKey(
+        getNumericId(r.observer),
+        getNumericId(r.observee),
+        r.confirmed_datetime,
+        Number(r.pairing_id)
+      )
+    )
   );
 
   const activeScheduledVisits = normalizedVisits.filter((visit) => {
     if (existingRecordPairingIds.has(visit.pairingId)) return false;
-    // Items directly from observationApi.scheduled() are already scoped to the current user
+    const visitKey = buildVisitKey(
+      visit.observerId,
+      visit.observeeId,
+      visit.confirmedDatetime,
+      visit.pairingId
+    );
+    if (existingRecordKeys.has(visitKey)) return false;
     if (visit.fromScheduledEndpoint) return true;
     if (currentUserId === null) return true;
     return (
@@ -352,7 +392,6 @@ export default function S04CurrentAndPastObservations() {
     );
   });
 
-  // Group past observations by semester
   const pastRecordsBySemester = pastRecords.reduce<
     Record<string, ObservationRecord[]>
   >((groups, record) => {
@@ -444,13 +483,7 @@ export default function S04CurrentAndPastObservations() {
               </div>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-                gap: "1.25rem",
-              }}
-            >
+            <div className="ongoing-observations-grid">
               {/* Confirmed / Scheduled Visits (Before Record Opens) */}
               {activeScheduledVisits.map((visit) => {
                 const asObserver = isUserObserver(
@@ -471,25 +504,10 @@ export default function S04CurrentAndPastObservations() {
                     key={`visit-${visit.pairingId}`}
                     className={`table-container ${
                       asObserver ? "theme-green" : "theme-orange"
-                    } summary-card-padding`}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      gap: "0.85rem",
-                    }}
+                    } ongoing-observation-card`}
                   >
                     <div>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                          marginBottom: "0.75rem",
-                          flexWrap: "wrap",
-                        }}
-                      >
+                      <div className="ongoing-card-top-row">
                         <span
                           className={`pill-badge ${
                             asObserver ? "pill-observer" : "pill-observee"
@@ -498,38 +516,20 @@ export default function S04CurrentAndPastObservations() {
                           Role: {asObserver ? "Observer" : "Observee"}
                         </span>
 
-                        <span
-                          className="version-pill font-semibold"
-                          style={{ fontSize: "0.75rem" }}
-                        >
+                        <span className="version-pill font-semibold ongoing-status-pill">
                           {visit.statusLabel}
                         </span>
                       </div>
 
-                      <h4
-                        style={{
-                          fontSize: "1.1rem",
-                          margin: "0 0 0.65rem 0",
-                          lineHeight: 1.35,
-                        }}
-                      >
-                        {fullCourseHeader}
-                      </h4>
+                      <h4 className="ongoing-card-title">{fullCourseHeader}</h4>
 
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "0.4rem",
-                          fontSize: "0.925rem",
-                        }}
-                      >
-                        <p style={{ margin: 0 }}>
+                      <div className="ongoing-card-details">
+                        <p>
                           <strong>Scheduled Visit:</strong>{" "}
                           {formatObservationDate(visit.confirmedDatetime)}
                         </p>
 
-                        <p style={{ margin: 0 }}>
+                        <p>
                           <strong>
                             {asObserver ? "Observee:" : "Matched Observer:"}
                           </strong>{" "}
@@ -539,27 +539,20 @@ export default function S04CurrentAndPastObservations() {
                         </p>
 
                         {visit.courseSchedule && (
-                          <p style={{ margin: 0 }}>
+                          <p>
                             <strong>Class Schedule:</strong>{" "}
                             {visit.courseSchedule}
                           </p>
                         )}
 
-                        <p style={{ margin: 0 }}>
+                        <p>
                           <strong>Classroom:</strong>{" "}
                           {visit.courseClassroom || "Not provided"}
                         </p>
                       </div>
                     </div>
 
-                    <div
-                      style={{
-                        paddingTop: "0.75rem",
-                        borderTop: "1px solid rgba(148, 163, 184, 0.25)",
-                        fontSize: "0.82rem",
-                        opacity: 0.85,
-                      }}
-                    >
+                    <div className="ongoing-card-footer-note">
                       The evaluation form opens once the scheduled classroom
                       visit takes place.
                     </div>
@@ -587,25 +580,10 @@ export default function S04CurrentAndPastObservations() {
                     key={record.observation_id}
                     className={`table-container ${
                       asObserver ? "theme-green" : "theme-orange"
-                    } summary-card-padding`}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      gap: "0.85rem",
-                    }}
+                    } ongoing-observation-card`}
                   >
                     <div>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                          marginBottom: "0.75rem",
-                          flexWrap: "wrap",
-                        }}
-                      >
+                      <div className="ongoing-card-top-row">
                         <span
                           className={`pill-badge ${
                             asObserver ? "pill-observer" : "pill-observee"
@@ -614,41 +592,20 @@ export default function S04CurrentAndPastObservations() {
                           Role: {asObserver ? "Observer" : "Observee"}
                         </span>
 
-                        <span
-                          className="version-pill font-semibold"
-                          style={{
-                            fontSize: "0.75rem",
-                            textTransform: "capitalize",
-                          }}
-                        >
+                        <span className="version-pill font-semibold ongoing-status-pill">
                           {record.status.replaceAll("_", " ")}
                         </span>
                       </div>
 
-                      <h4
-                        style={{
-                          fontSize: "1.1rem",
-                          margin: "0 0 0.65rem 0",
-                          lineHeight: 1.35,
-                        }}
-                      >
-                        {fullCourseHeader}
-                      </h4>
+                      <h4 className="ongoing-card-title">{fullCourseHeader}</h4>
 
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "0.4rem",
-                          fontSize: "0.925rem",
-                        }}
-                      >
-                        <p style={{ margin: 0 }}>
+                      <div className="ongoing-card-details">
+                        <p>
                           <strong>Observation Date:</strong>{" "}
                           {formatObservationDate(record.confirmed_datetime)}
                         </p>
 
-                        <p style={{ margin: 0 }}>
+                        <p>
                           <strong>
                             {asObserver ? "Observee:" : "Matched Observer:"}
                           </strong>{" "}
@@ -658,28 +615,20 @@ export default function S04CurrentAndPastObservations() {
                         </p>
 
                         {record.course?.schedule && (
-                          <p style={{ margin: 0 }}>
+                          <p>
                             <strong>Class Schedule:</strong>{" "}
                             {record.course.schedule}
                           </p>
                         )}
 
                         {record.course?.classroom && (
-                          <p style={{ margin: 0 }}>
+                          <p>
                             <strong>Classroom:</strong>{" "}
                             {record.course.classroom}
                           </p>
                         )}
 
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "1rem",
-                            flexWrap: "wrap",
-                            marginTop: "0.35rem",
-                            fontSize: "0.85rem",
-                          }}
-                        >
+                        <div className="ongoing-signoff-row">
                           <span>
                             <strong>Observer Sign-off:</strong>{" "}
                             {record.observer_signed ? "Complete" : "Pending"}
@@ -692,14 +641,7 @@ export default function S04CurrentAndPastObservations() {
                       </div>
                     </div>
 
-                    <div
-                      style={{
-                        paddingTop: "0.75rem",
-                        borderTop: "1px solid rgba(148, 163, 184, 0.25)",
-                        display: "flex",
-                        justifyContent: "flex-end",
-                      }}
-                    >
+                    <div className="ongoing-card-footer-actions">
                       <Link
                         to={`/shared/observation-record/${record.observation_id}`}
                         className="btn-primary"

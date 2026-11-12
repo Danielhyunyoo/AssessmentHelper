@@ -96,12 +96,10 @@ export default function S03FacultyNotifications() {
 
     let updatedManualUnread: number[];
     if (isCurrentlyRead) {
-      // Adding to manual unread list
       updatedManualUnread = Array.from(
         new Set([...manualUnreadIds, notification.notification_id])
       );
     } else {
-      // Removing from manual unread list
       updatedManualUnread = manualUnreadIds.filter(
         (id) => id !== notification.notification_id
       );
@@ -156,6 +154,58 @@ export default function S03FacultyNotifications() {
     const titleLower = (notification.title || "").toLowerCase();
     const messageLower = (notification.message || "").toLowerCase();
 
+    // 1. High-priority content checks (prevents generic backend `type: "invitation"` from misrouting)
+    if (
+      titleLower.includes("observation confirmed") ||
+      titleLower.includes("pairing confirmed") ||
+      titleLower.includes("assignment confirmed") ||
+      messageLower.includes("observation assignment has been confirmed") ||
+      messageLower.includes("confirmed your observation")
+    ) {
+      return (
+        <Link
+          to="/shared/current-past-observations"
+          className="notif-action-link"
+        >
+          View Current &amp; Past Observations →
+        </Link>
+      );
+    }
+
+    if (
+      titleLower.includes("invitation response") ||
+      titleLower.includes("invitation accepted") ||
+      titleLower.includes("invitation declined") ||
+      titleLower.includes("invitation expired") ||
+      messageLower.includes("accepted your invitation") ||
+      messageLower.includes("accepted your observation") ||
+      messageLower.includes("declined your invitation") ||
+      messageLower.includes("declined your observation")
+    ) {
+      return (
+        <Link
+          to="/observee/observer-selection#responses"
+          className="notif-action-link"
+        >
+          Review Observer Response →
+        </Link>
+      );
+    }
+
+    if (
+      titleLower.includes("observer candidate") ||
+      titleLower.includes("matched observer") ||
+      messageLower.includes("ready for selection") ||
+      messageLower.includes("released")
+    ) {
+      return (
+        <Link to="/observee/observer-selection" className="notif-action-link">
+          Go to Observer Selection →
+        </Link>
+      );
+    }
+
+    // 2. Type-based routing
     switch (typeLower) {
       // E01 — Course and Section Selection
       case "registration":
@@ -171,18 +221,28 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // E02 — Observer Selection (Candidates Released & Invitation Responses)
+      // E02 — Observer Selection (Candidates Released)
       case "candidate_selection":
       case "observer_candidates":
       case "matches_released":
+        return (
+          <Link to="/observee/observer-selection" className="notif-action-link">
+            Go to Observer Selection →
+          </Link>
+        );
+
+      // E02 Bottom Section — Invitation Responses & Confirm Pairing
       case "invitation_accepted":
       case "invitation_declined":
       case "invitation_expired":
       case "invitation_response":
       case "confirm_pairing":
         return (
-          <Link to="/observee/observer-selection" className="notif-action-link">
-            Go to Observer Selection →
+          <Link
+            to="/observee/observer-selection#responses"
+            className="notif-action-link"
+          >
+            Review Observer Response →
           </Link>
         );
 
@@ -198,8 +258,10 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // S04 — Current and Past Observations (Confirmed Visits, S05 Observation Record, & S06 Post-Evaluation Survey)
+      // S04 — Current and Past Observations
       case "pairing_confirmed":
+      case "observation_confirmed":
+      case "assignment_confirmed":
       case "observation_scheduled":
       case "upcoming_observation":
       case "observation_reminder":
@@ -230,7 +292,7 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // A02 — Committee Faculty Matching (Course Change Requests)
+      // A02 — Committee Faculty Matching
       case "course_change_request":
         return (
           <Link to="/committee/matching" className="notif-action-link">
@@ -254,9 +316,8 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // Fallback matching by notification title/message keywords
+      // 3. Remaining keyword fallbacks
       default:
-        // 1. Incoming observer request -> O01
         if (
           titleLower.includes("observation invitation") ||
           titleLower.includes("observation request") ||
@@ -274,28 +335,6 @@ export default function S03FacultyNotifications() {
           );
         }
 
-        // 2. Observer candidates released or observer responded -> E02
-        if (
-          titleLower.includes("observer candidate") ||
-          titleLower.includes("matched observer") ||
-          titleLower.includes("invitation accepted") ||
-          titleLower.includes("invitation declined") ||
-          titleLower.includes("invitation expired") ||
-          messageLower.includes("released") ||
-          messageLower.includes("accepted your observation") ||
-          messageLower.includes("declined your observation")
-        ) {
-          return (
-            <Link
-              to="/observee/observer-selection"
-              className="notif-action-link"
-            >
-              Go to Observer Selection →
-            </Link>
-          );
-        }
-
-        // 3. Course change request for AC -> A02
         if (
           titleLower.includes("course change request") ||
           messageLower.includes("requested a course change")
@@ -307,7 +346,6 @@ export default function S03FacultyNotifications() {
           );
         }
 
-        // 4. Course registration / availability / change status -> E01
         if (
           titleLower.includes("registration") ||
           titleLower.includes("course selection") ||
@@ -322,7 +360,6 @@ export default function S03FacultyNotifications() {
           );
         }
 
-        // 5. Profile / cycle transfer / status -> S02
         if (
           titleLower.includes("profile") ||
           titleLower.includes("evaluation status") ||
@@ -335,9 +372,7 @@ export default function S03FacultyNotifications() {
           );
         }
 
-        // 6. Confirmed pairing / observation record / post-evaluation survey -> S04
         if (
-          titleLower.includes("confirmed") ||
           titleLower.includes("scheduled") ||
           titleLower.includes("survey") ||
           titleLower.includes("record") ||
@@ -354,7 +389,6 @@ export default function S03FacultyNotifications() {
           );
         }
 
-        // 7. General fallback -> S01 Dashboard
         return (
           <Link to="/shared/faculty-dashboard" className="notif-action-link">
             Go to Dashboard →
@@ -437,7 +471,7 @@ export default function S03FacultyNotifications() {
               )}
             </section>
 
-            <section className="notif-section" style={{ marginTop: "2rem" }}>
+            <section className="notif-section notif-section-spaced">
               <div className="notif-section-header">
                 <h3>Read ({readNotifications.length})</h3>
                 {readNotifications.length > 0 && (
@@ -472,7 +506,7 @@ export default function S03FacultyNotifications() {
         )
       )}
 
-      <div className="dashboard-center-action" style={{ marginTop: "2.5rem" }}>
+      <div className="dashboard-center-action notif-return-action">
         <Link to="/shared/faculty-dashboard" className="btn-secondary">
           Return to Dashboard
         </Link>
