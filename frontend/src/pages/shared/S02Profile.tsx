@@ -11,6 +11,7 @@ export default function S02Profile(): React.ReactElement {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -44,6 +45,7 @@ export default function S02Profile(): React.ReactElement {
         const professor = result.professor;
         const first = professor.first_name || "";
         const last = professor.last_name || "";
+        setProfilePhoto(professor.profile_photo || defaultProfile);
         
         setEvaluationCycle(result.evaluation_cycle || "Current Cycle");
         setEvaluationStatus(
@@ -87,11 +89,48 @@ export default function S02Profile(): React.ReactElement {
     };
   }, []);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setProfilePhoto(imageUrl);
+    const input = e.currentTarget;
+
+    if (!file) return;
+
+    setProfileError("");
+    setSaveMessage("");
+
+    if (!file.type.startsWith("image/")) {
+      setProfileError("Please select a valid image file.");
+      input.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileError("Profile photos cannot exceed 5 MB.");
+      input.value = "";
+      return;
+    }
+
+    setPhotoSaving(true);
+
+    try {
+      const result = await facultyApi.updateProfilePhoto(file);
+
+      setProfilePhoto(
+        result.professor.profile_photo || defaultProfile
+      );
+
+      setSaveMessage("Profile photo saved successfully.");
+    } catch (err) {
+      setProfileError(
+        err instanceof Error
+          ? err.message
+          : "Unable to upload profile photo."
+      );
+    } finally {
+      setPhotoSaving(false);
+      input.value = "";
     }
   };
 
@@ -284,10 +323,15 @@ export default function S02Profile(): React.ReactElement {
             <button
               type="button"
               className="btn-secondary"
-              style={{ fontSize: "0.85rem", padding: "0.5rem 0.75rem", width: "100%" }}
+              style={{
+                fontSize: "0.85rem",
+                padding: "0.5rem 0.75rem",
+                width: "100%"
+              }}
               onClick={() => fileInputRef.current?.click()}
+              disabled={photoSaving}
             >
-              Update Profile Photo
+              {photoSaving ? "Uploading..." : "Update Profile Photo"}
             </button>
           </div>
         </div>

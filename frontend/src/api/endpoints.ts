@@ -18,6 +18,7 @@ export const demoApi = {
 export const facultyApi = {
   profile: () => get<ProfileResponse>("/me/"),
   updateProfile: (data: { first_name: string; last_name: string; phone: string; }) => patch<ProfileResponse>("/me/", data),
+  updateProfilePhoto: (file: File) => { const body = new FormData(); body.append("profile_photo", file); return request<ProfileResponse>("/me/", { method: "PATCH", body, }); },
   courses: () => get<Course[]>("/me/courses/"),
   dashboard: () => get<FacultyDashboard>("/dashboard/"),
   registrationStatus: () => get<RegistrationStatus>("/registration/status/"),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { authApi, demoApi, facultyApi } from "../api/endpoints";
-import type { DemoPersona, RegistrationStatus } from "../api/types";
+import { authApi, demoApi, facultyApi, observationApi, surveyApi, } from "../api/endpoints";
+import type { DemoPersona, RegistrationStatus, ObservationRecord, Survey, } from "../api/types";
 
 // Grouped page options with category headers for the dropdown
 const PAGE_GROUPS: { group: string; items: [string, string][] }[] = [
@@ -81,6 +81,8 @@ export default function DevBar() {
   const [user, setUser] = useState("");
   const [personas, setPersonas] = useState<DemoPersona[]>([]);
   const [today, setTodayValue] = useState("");
+  const [observationRecords, setObservationRecords] = useState< ObservationRecord[] >([]);
+  const [surveys, setSurveys] = useState<Survey[]>([]);
   const [, setSimulated] = useState(false);
   const [cycle, setCycle] = useState<RegistrationStatus | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -102,6 +104,12 @@ export default function DevBar() {
   useEffect(() => {
     authApi.session().then((result) => setUser(result.professor?.email ?? "")).catch(() => {});
     demoApi.personas().then(setPersonas).catch(() => {});
+    observationApi.list()
+      .then(setObservationRecords)
+      .catch(() => setObservationRecords([]));
+    surveyApi.list()
+      .then(setSurveys)
+      .catch(() => setSurveys([]));
     demoApi.date().then(async (result) => {
       if (!result.simulated_date && !today) {
         const currentYear = new Date().getFullYear();
@@ -194,6 +202,97 @@ export default function DevBar() {
                 >
                   Next →
                 </button>
+              </div>
+
+              <div className="dev-field-row">
+                <label className="dev-label">
+                  Open Observation Record (S05)
+                </label>
+
+                <select
+                  className="dev-select"
+                  value=""
+                  onChange={(event) => {
+                    const observationId = event.target.value;
+
+                    if (observationId) {
+                      navigate(`/shared/observation-record/${observationId}`);
+                    }
+                  }}
+                >
+                  <option value="">Select an observation record...</option>
+
+                  {observationRecords.map((record) => (
+                    <option
+                      key={record.observation_id}
+                      value={record.observation_id}
+                    >
+                      #{record.observation_id} - {record.observer.name}
+                      {" / "}
+                      {record.observee.name}
+                      {" - "}
+                      {record.status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="dev-field-row">
+                <label className="dev-label">
+                  Open Process Survey (S06)
+                </label>
+
+                <select
+                  className="dev-select"
+                  value=""
+                  onChange={(event) => {
+                    const selected = event.target.value;
+
+                    if (selected.startsWith("survey:")) {
+                      const surveyId = selected.slice(7);
+
+                      navigate(`/shared/post-evaluation-survey/${surveyId}`);
+                    } else if (selected.startsWith("pairing:")) {
+                      const pairingId = selected.slice(8);
+
+                      navigate(
+                        `/shared/post-evaluation-survey?pairingId=${pairingId}`
+                      );
+                    }
+                  }}
+                >
+                  <option value="">Select a process survey...</option>
+
+                  {surveys.map((survey) => (
+                    <option
+                      key={`survey-${survey.survey_id}`}
+                      value={`survey:${survey.survey_id}`}
+                    >
+                      Survey #{survey.survey_id}
+                      {" - "}
+                      {survey.respondent_type}
+                      {" - "}
+                      {survey.status}
+                    </option>
+                  ))}
+
+                  {observationRecords
+                    .filter(
+                      (record) =>
+                        record.status === "completed" &&
+                        !surveys.some(
+                          (survey) => survey.pairing_id === record.pairing_id
+                        )
+                    )
+                    .map((record) => (
+                      <option
+                        key={`pairing-${record.pairing_id}`}
+                        value={`pairing:${record.pairing_id}`}
+                      >
+                        New survey - Pairing #{record.pairing_id}
+                      </option>
+                    ))}
+                </select>
               </div>
             </div>
           </div>

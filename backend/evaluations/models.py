@@ -41,6 +41,12 @@ class User(AbstractUser):
         blank=True
     )
 
+    profile_photo = models.ImageField(
+        upload_to="profile_photos/",
+        null=True,
+        blank=True
+    )
+
     last_evaluated_semester = models.CharField(
         max_length=20,
         blank=True

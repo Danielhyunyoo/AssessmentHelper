@@ -362,15 +362,19 @@ export default function A02FacultyMatching() {
 
       {/* 1. Review & Approve (Automatic Matching Section First) */}
       <section className="dashboard-phase section-margin-top">
-        <h3>Review and Approve Existing Observer-Observee Matched Lists</h3>
+        <h3>Review and Approve Suggested Observer Candidates</h3>
 
         <div className="yellow-banner">
-          <strong>NOTE:</strong> Course registration closes on {displayEndDate}. Below are the system-generated matched observer lists ready for review, manual override, and notification dispatch to Observees.
+          <strong>NOTE:</strong> The system provides an initial list of faculty candidates
+          from the observee's department. These candidates require committee review
+          before matches are approved and released.
         </div>
 
         <div className="table-container theme-blue summary-card-padding">
           <p className="section-intro-text">
-            Each observee's suggested observers are pre-selected. Adjust the list if needed, then release it to notify the observee.
+            Up to five candidates are pre-selected for each observee. Review their
+            eligibility, adjust the selections if needed, and release the approved
+            matches to notify the observee.
           </p>
 
           <div className="pairing-grid">
@@ -462,8 +466,7 @@ export default function A02FacultyMatching() {
             onChange={(e) => setShowManualMatching(e.target.checked)}
           />
           <span>
-            <strong>Demo Display:</strong> Show the manual matching section
-            (does not create unmatched faculty)
+            <strong>Demo Sandbox:</strong> Show the manual matching and override controls.
           </span>
         </label>
       </div>
@@ -471,10 +474,14 @@ export default function A02FacultyMatching() {
       {/* 2. Manual Matching Section (Hidden until toggled on) */}
       {showManualMatching && (
         <section ref={manualSectionRef} className="dashboard-phase section-margin-top">
-          <h3>Manual Observer-Observee Matching</h3>
+          <h3>Manual Observer Selection and Override</h3>
 
           <div className="yellow-banner">
-            <strong>IMPORTANT:</strong> The following Observees have either 0 or insufficient Observers currently matched to them. Select 1 to 5 eligible Observers for each Observee from the dropdowns below.
+            <strong>IMPORTANT:</strong> Use these controls to manually adjust observer
+            selections. The available candidates are preliminary department-level
+            suggestions, not confirmed eligible observers. Verify academic rank,
+            course-level rules, recent teaching history, and scheduling conflicts
+            before approving matches.
           </div>
 
           <div className="table-container theme-green summary-card-padding">

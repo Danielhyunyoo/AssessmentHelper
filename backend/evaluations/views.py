@@ -205,7 +205,10 @@ def my_professor(request):
         serializer.is_valid(raise_exception=True)
 
         for field, value in serializer.validated_data.items():
-            setattr(professor, field, value.strip())
+            if isinstance(value, str):
+                value = value.strip()
+
+            setattr(professor, field, value)
 
         professor.save(
             update_fields=list(serializer.validated_data.keys())
