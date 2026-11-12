@@ -60,8 +60,14 @@ class SampleDataTests(APITestCase):
         self.assertEqual(background.count(), 100)
         self.assertFalse(background.filter(department__department_code="CS").exists())
 
-    def test_demo_tools_list_only_the_named_personas(self):
-        self.assertEqual(len(self.client.get("/api/demo/personas/").data), 9)
+    def test_demo_tools_include_named_and_workflow_sample_personas(self):
+        personas = self.client.get("/api/demo/personas/").data
+
+        emails = {persona["email"] for persona in personas}
+
+        self.assertGreaterEqual(len(personas), 9)
+        self.assertIn("professora@utdallas.edu", emails)
+        self.assertIn("committee@utdallas.edu", emails)
 
     def test_background_professors_stay_out_of_professor_a_candidate_pool(self):
         self.client.defaults["HTTP_X_DEMO_USERNAME"] = "professor_a"

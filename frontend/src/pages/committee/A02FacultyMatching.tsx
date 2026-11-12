@@ -83,8 +83,7 @@ export default function A02FacultyMatching() {
   );
   const [releasedAt, setReleasedAt] = useState<Record<number, string>>({});
 
-  // Demo Sandbox State
-  const [showManualMatching, setShowManualMatching] = useState<boolean>(false);
+  // Manual matching section navigation
   const manualSectionRef = useRef<HTMLDivElement>(null);
 
   const handleOpenModal = () => setIsModalOpen(true);
@@ -551,6 +550,18 @@ export default function A02FacultyMatching() {
 
   const departments = [...new Set(observeeList.map((person) => person.department).filter(Boolean))].sort() as string[];
   const shownDepartment = departments.includes(departmentFilter) ? departmentFilter : "";
+  const manualReviewCount = observeeList.filter((person) => {
+    const signupId = person.signup_id;
+
+    if (signupId == null) return false;
+
+    const candidates = candidateOptions[signupId] ?? [];
+
+    return (
+      candidates.length === 0 ||
+      candidates.every((candidate) => candidate.eligible === false)
+    );
+  }).length;
 
   return (
     <div className="dashboard-container">
@@ -820,15 +831,13 @@ export default function A02FacultyMatching() {
         </button>
       </section>
 
-      {showManualMatching && (
-        <button
-          type="button"
-          className="btn-secondary button-margin-top"
-          onClick={scrollToManualMatching}
-        >
-          Jump to Manual Matching Section ↓
-        </button>
-      )}
+      <button
+        type="button"
+        className="btn-secondary button-margin-top"
+        onClick={scrollToManualMatching}
+      >
+        Jump to Manual Matching Section ↓
+      </button>
 
       {/* 1. Review & Approve (Automatic Matching Section First) */}
       <section className="dashboard-phase section-margin-top">
@@ -1088,112 +1097,97 @@ export default function A02FacultyMatching() {
         </div>
       </section>
 
-      {/* S04-style Demo Toggle Box placed strictly under the automatic matching section */}
-      <div className="demo-toggle-section button-margin-top">
-        <label className="checkbox-row-label">
-          <input
-            type="checkbox"
-            checked={showManualMatching}
-            onChange={(e) => setShowManualMatching(e.target.checked)}
-          />
-          <span>
-            <strong>Demo Sandbox:</strong> Show the manual matching and override controls.
-          </span>
-        </label>
-      </div>
+      {/* 2. Manual Matching Section */}
+      <section
+        ref={manualSectionRef}
+        className="dashboard-phase section-margin-top"
+      >
+        <h3>Manual Observer Selection and Override</h3>
 
-      {/* 2. Manual Matching Section (Hidden until toggled on) */}
-      {showManualMatching && (
-        <section
-          ref={manualSectionRef}
-          className="dashboard-phase section-margin-top"
-        >
-          <h3>Manual Observer Selection and Override</h3>
+        <div className="yellow-banner">
+          <strong>MANUAL REVIEW:</strong>{" "}
+          {manualReviewCount > 0
+            ? `${manualReviewCount} observee(s) currently have no eligible suggested candidates.`
+            : "Review the suggested candidates and manually adjust observer selections when necessary."}
+          {" "}Verify academic rank, course-level rules, recent teaching history,
+          and scheduling conflicts before approving matches.
+        </div>
 
-          <div className="yellow-banner">
-            <strong>IMPORTANT:</strong> Use these controls to manually adjust observer
-            selections. The available candidates are preliminary department-level
-            suggestions, not confirmed eligible observers. Verify academic rank,
-            course-level rules, recent teaching history, and scheduling conflicts
-            before approving matches.
-          </div>
+        <div className="table-container theme-green summary-card-padding">
+          <div className="pairing-grid">
+            {observeeList.map((observee) => {
+              const signupId = observee.signup_id!;
 
-          <div className="table-container theme-green summary-card-padding">
-            <div className="pairing-grid">
-              {observeeList.map((observee) => {
-                const signupId = observee.signup_id!;
+              return (
+                <div key={signupId} className="manual-observee-card">
+                  <h4>Observee Name</h4>
+                  <p className="observee-name-text">{observee.name}</p>
 
-                return (
-                  <div key={signupId} className="manual-observee-card">
-                    <h4>Observee Name</h4>
-                    <p className="observee-name-text">{observee.name}</p>
+                  <p>
+                    <strong>
+                      {observee.course
+                        ? `${observee.course.department_code} ${observee.course.course_number}.${observee.course.section}`
+                        : "Course not selected"}
+                    </strong>
+                  </p>
 
-                    <p>
-                      <strong>
-                        {observee.course
-                          ? `${observee.course.department_code} ${observee.course.course_number}.${observee.course.section}`
-                          : "Course not selected"}
-                      </strong>
-                    </p>
+                  <strong>List of Available Observers</strong>
 
-                    <strong>List of Available Observers</strong>
-
-                    <div className="observer-select-list">
-                      {[0, 1, 2, 3, 4].map((slotIndex) => (
-                        <select
-                          key={slotIndex}
-                          value={selectedObservers[signupId]?.[slotIndex] ?? ""}
-                          onChange={(event) =>
-                            handleObserverChange(
-                              signupId,
-                              slotIndex,
-                              Number(event.target.value)
-                            )
-                          }
-                          className="slot-select-input"
-                        >
-                          <option value="">
-                            Select observer {slotIndex + 1}...
-                          </option>
-                          {(candidateOptions[signupId] ?? []).map(
-                            (candidate) => (
-                              <option
-                                key={candidate.id}
-                                value={candidate.id}
-                                disabled={(
-                                  selectedObservers[signupId] ?? []
-                                ).some(
-                                  (id, index) =>
-                                    id === candidate.id && index !== slotIndex
-                                )}
-                              >
-                                {candidate.name} ({candidate.academic_level})
-                              </option>
-                            )
-                          )}
-                        </select>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="btn-secondary btn-block button-margin-top"
-                      onClick={() =>
-                        void handleConfirmMatches(signupId, observee.name)
-                      }
-                      disabled={savingSignupId === signupId}
-                    >
-                      {savingSignupId === signupId
-                        ? "Saving..."
-                        : "Confirm Matches"}
-                    </button>
+                  <div className="observer-select-list">
+                    {[0, 1, 2, 3, 4].map((slotIndex) => (
+                      <select
+                        key={slotIndex}
+                        value={selectedObservers[signupId]?.[slotIndex] ?? ""}
+                        onChange={(event) =>
+                          handleObserverChange(
+                            signupId,
+                            slotIndex,
+                            Number(event.target.value)
+                          )
+                        }
+                        className="slot-select-input"
+                      >
+                        <option value="">
+                          Select observer {slotIndex + 1}...
+                        </option>
+                        {(candidateOptions[signupId] ?? []).map(
+                          (candidate) => (
+                            <option
+                              key={candidate.id}
+                              value={candidate.id}
+                              disabled={(
+                                selectedObservers[signupId] ?? []
+                              ).some(
+                                (id, index) =>
+                                  id === candidate.id && index !== slotIndex
+                              )}
+                            >
+                              {candidate.name} ({candidate.academic_level})
+                            </option>
+                          )
+                        )}
+                      </select>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+
+                  <button
+                    type="button"
+                    className="btn-secondary btn-block button-margin-top"
+                    onClick={() =>
+                      void handleConfirmMatches(signupId, observee.name)
+                    }
+                    disabled={savingSignupId === signupId}
+                  >
+                    {savingSignupId === signupId
+                      ? "Saving..."
+                      : "Confirm Matches"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* Bottom Centered Return Button */}
       <div className="dashboard-center-action">

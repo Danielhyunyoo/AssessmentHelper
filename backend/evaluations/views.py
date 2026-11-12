@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.authentication import SessionAuthentication
 
-from .models import Course, Cycle, Signup, Notification, Invitation
+from .models import Course, Cycle, Signup, Notification, Invitation, Observation
 from .proposal_kpis import PROBLEM_TEXT, recommendation_problems
 from . import clock
 from .evaluation_status import evaluation_status_for
@@ -137,14 +137,62 @@ def demo_reset(request):
 @authentication_classes([SessionAuthentication])
 @permission_classes([AllowAny])
 def demo_personas(request):
-    """List the seeded demo accounts in seed order."""
+    """List named demo accounts and selected background workflow examples."""
     require_demo_mode()
+
     usernames = [person["username"] for person in [*FACULTY, COMMITTEE]]
-    accounts = sorted(User.objects.filter(username__in=usernames), key=lambda user: usernames.index(user.username))
-    return Response([
+    accounts = sorted(
+        User.objects.filter(username__in=usernames),
+        key=lambda user: usernames.index(user.username),
+    )
+
+    personas = [
         {"name": user.get_full_name(), "email": user.email, "role": user.role}
         for user in accounts
-    ])
+    ]
+
+    # Add one distinct background professor for each available observation state.
+    # This lets the demo team inspect real records without bypassing permissions.
+    sample_states = [
+        ("draft", "Draft observation"),
+        ("awaiting_observee_signature", "Awaiting observee signature"),
+        ("completed", "Completed observation"),
+        ("cancelled", "Cancelled observation"),
+    ]
+
+    included_user_ids = set()
+
+    for observation_status, label in sample_states:
+        records = (
+            Observation.objects.filter(
+                status=observation_status,
+                pairing__cycle__status="active",
+                pairing__observee__username__startswith="bg_",
+            )
+            .select_related("pairing__observee")
+            .order_by("observation_id")
+        )
+
+        sample_record = next(
+            (
+                record
+                for record in records
+                if record.pairing.observee_id not in included_user_ids
+            ),
+            None,
+        )
+
+        if sample_record:
+            user = sample_record.pairing.observee
+            included_user_ids.add(user.pk)
+
+            personas.append({
+                "name": f"{user.get_full_name()} ({label})",
+                "email": user.email,
+                "role": user.role,
+            })
+
+    return Response(personas)
 
 def demo_mode_enabled():
     public_demo = getattr(settings, "ASSESSMENT_HELPER_PUBLIC_DEMO", False)

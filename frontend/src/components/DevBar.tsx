@@ -98,6 +98,21 @@ export default function DevBar() {
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [resetError, setResetError] = useState("");
 
+  async function refreshInspectionData() {
+    try {
+      const [records, surveyResults] = await Promise.all([
+        observationApi.list(),
+        surveyApi.list(),
+      ]);
+
+      setObservationRecords(records);
+      setSurveys(surveyResults);
+    } catch {
+      setObservationRecords([]);
+      setSurveys([]);
+    }
+  }
+
   async function resetData() {
     setResetting(true);
     setResetError("");
@@ -304,6 +319,14 @@ export default function DevBar() {
                     ))}
                 </select>
               </div>
+
+              <button
+                type="button"
+                className="dev-btn dev-btn-secondary"
+                onClick={() => void refreshInspectionData()}
+              >
+                ↻ Refresh Records and Surveys
+              </button>
             </div>
           </div>
 

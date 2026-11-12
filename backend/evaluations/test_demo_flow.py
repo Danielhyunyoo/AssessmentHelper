@@ -197,7 +197,7 @@ class DemoDateTests(APITestCase):
         response = self.client.post("/api/demo/reset/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(self.client.get("/api/demo/personas/").data), 9)
+        self.assertEqual(len(self.client.get("/api/demo/personas/").data), 13)
         self.assertTrue(Cycle.objects.filter(status="active").exists())
 
     def test_reset_works_with_a_stale_session_cookie(self):
