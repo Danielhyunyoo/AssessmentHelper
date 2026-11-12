@@ -19,6 +19,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authentication import SessionAuthentication
 
 from .models import Course, Cycle, Signup, Notification, Invitation
+from .proposal_kpis import PROBLEM_TEXT, recommendation_problems
 from . import clock
 from .evaluation_status import evaluation_status_for
 from .management.commands.seed_demo import COMMITTEE, FACULTY
@@ -724,13 +725,24 @@ def committee_candidate_pool(request, signup_id):
     if not signup.course_id:
         raise ValidationError({"detail": "Observee has not selected a course."})
     people = User.objects.filter(is_active=True, role="faculty", department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
+    courses = Course.objects.filter(instructor__in=people, semester=signup.course.semester, year=signup.course.year)
+    courses_by_instructor = {}
+    for course in courses:
+        courses_by_instructor.setdefault(course.instructor_id, []).append(course)
+    screened = [
+        (u, recommendation_problems(signup.user, signup.course, u, courses_by_instructor.get(u.pk, [])))
+        for u in people
+    ]
+    screened.sort(key=lambda pair: bool(pair[1]))
     return Response({
         "signup_id": signup.pk,
         "screening_only": True,
         "warning": "Review academic rank, course-level rules, recent teaching history and scheduling conflicts manually before approval.",
         "candidates": [
-            {"id": u.pk, "name": u.get_full_name() or u.username, "academic_level": u.academic_level, "department_id": u.department_id}
-            for u in people
+            {"id": u.pk, "name": u.get_full_name() or u.username, "academic_level": u.academic_level,
+             "department_id": u.department_id, "eligible": not problems,
+             "problems": [PROBLEM_TEXT[problem] for problem in problems]}
+            for u, problems in screened
         ],
         "released_observer_ids": list(
             MatchCandidate.objects.filter(signup=signup)

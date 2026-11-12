@@ -26,9 +26,10 @@ export interface CycleTransferRecord {
 
 export default function A02FacultyMatching() {
   const [observeeList, setObserveeList] = useState<FacultyRow[]>([]);
+  const [departmentFilter, setDepartmentFilter] = useState("Computer Science");
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [candidateOptions, setCandidateOptions] = useState<
-    Record<number, { id: number; name: string; academic_level: string }[]>
+    Record<number, { id: number; name: string; academic_level: string; eligible?: boolean; problems?: string[] }[]>
   >({});
   const [selectedObservers, setSelectedObservers] = useState<
     Record<number, number[]>
@@ -236,6 +237,8 @@ export default function A02FacultyMatching() {
             id: number;
             name: string;
             academic_level: string;
+            eligible?: boolean;
+            problems?: string[];
           }[];
           releasedObserverIds: number[];
           releasedAt: string | null;
@@ -252,6 +255,8 @@ export default function A02FacultyMatching() {
                   id: number;
                   name: string;
                   academic_level: string;
+                  eligible?: boolean;
+                  problems?: string[];
                 }[])
               : [];
 
@@ -295,7 +300,10 @@ export default function A02FacultyMatching() {
             signupId,
             result.releasedAt
               ? result.releasedObserverIds
-              : result.candidates.slice(0, 5).map((candidate) => candidate.id),
+              : result.candidates
+                  .filter((candidate) => candidate.eligible !== false)
+                  .slice(0, 5)
+                  .map((candidate) => candidate.id),
           ])
         )
       );
@@ -540,6 +548,9 @@ export default function A02FacultyMatching() {
     : new Date();
   const deadlineDate = new Date(`${endDate}T23:59:59`);
   const isOpen = effectiveToday <= deadlineDate;
+
+  const departments = [...new Set(observeeList.map((person) => person.department).filter(Boolean))].sort() as string[];
+  const shownDepartment = departments.includes(departmentFilter) ? departmentFilter : "";
 
   return (
     <div className="dashboard-container">
@@ -836,8 +847,20 @@ export default function A02FacultyMatching() {
             matches to notify the observee.
           </p>
 
+          <label>
+            Department:{" "}
+            <select value={shownDepartment} onChange={(event) => setDepartmentFilter(event.target.value)}>
+              <option value="">All departments</option>
+              {departments.map((department) => (
+                <option key={department} value={department}>{department}</option>
+              ))}
+            </select>
+          </label>
+
           <div className="pairing-grid">
-            {observeeList.map((person) => {
+            {observeeList
+              .filter((person) => !shownDepartment || person.department === shownDepartment)
+              .map((person) => {
               const signupId = person.signup_id;
 
               if (signupId == null) return null;
@@ -1000,6 +1023,11 @@ export default function A02FacultyMatching() {
                               <span className="font-slate">
                                 ({candidate.academic_level})
                               </span>
+                              {candidate.eligible === false && (
+                                <span className="font-slate">
+                                  {" "}Not eligible: {candidate.problems?.join(", ")}
+                                </span>
+                              )}
                             </span>
                           </label>
                         ))}

@@ -12,6 +12,13 @@ User = get_user_model()
 
 SCHEDULE = re.compile(r"^\s*([MTWRFSU]+)\s+(\d{1,2}:\d{2}\s*[AP]M)\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)", re.I)
 
+PROBLEM_TEXT = {
+    "self": "is the observee",
+    "department": "is in another department",
+    "level": "does not teach a course at this level",
+    "schedule": "teaches at the same time",
+}
+
 DEFINITIONS = {
     "eligibility_accuracy": (
         "KPI-01 Eligibility Accuracy",

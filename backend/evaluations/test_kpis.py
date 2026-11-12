@@ -126,3 +126,14 @@ class ProposalKpiTests(APITestCase):
         self.assertFalse(overlaps("MW 10:00 AM - 11:15 AM", "TR 10:00 AM - 11:15 AM"))
         self.assertFalse(overlaps("MW 10:00 AM - 11:15 AM", "MW 11:15 AM - 12:30 PM"))
         self.assertFalse(overlaps("MW 10:00 AM - 11:15 AM", "To be announced"))
+
+    def test_candidate_pool_lists_eligible_observers_first_with_reasons(self):
+        signup = self.signup("A")
+
+        pool = self.client.get(f"/api/committee/signups/{signup.pk}/candidate-pool/").data["candidates"]
+
+        eligible = [c["name"] for c in pool if c["eligible"]]
+        professor_c = next(c for c in pool if c["name"] == "Professor C")
+        self.assertEqual(eligible, ["Professor B", "Professor D"])
+        self.assertEqual([c["name"] for c in pool[:2]], eligible)
+        self.assertEqual(professor_c["problems"], ["does not teach a course at this level"])
