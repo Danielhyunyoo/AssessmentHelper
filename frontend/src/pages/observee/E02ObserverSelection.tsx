@@ -1,8 +1,8 @@
 // src/pages/observee/E02ObserverSelection.tsx
 import { useEffect, useState } from "react";
 import { matchingApi, facultyApi } from "../../api/endpoints";
-import type { Candidate, Invitation, Course } from "../../api/types";
-import { Link } from "react-router-dom";
+import type { Invitation, Course } from "../../api/types";
+import { Link, useLocation } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
 import { formatDate } from "../../api/format";
 import {
@@ -80,6 +80,7 @@ function localDateString(value: string): string {
 }
 
 export default function E02ObserverSelection() {
+  const location = useLocation();
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [candidateDates, setCandidateDates] = useState<
     Record<string, string[]>
@@ -198,6 +199,14 @@ export default function E02ObserverSelection() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!loading && location.hash === "#responses") {
+      document
+        .getElementById("responses")
+        ?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [loading, location.hash]);
+
   const handleSendInvitations = async () => {
     setSuccess("");
     setValidationError("");
@@ -297,6 +306,9 @@ export default function E02ObserverSelection() {
       .map((row) => [row.observerId, row.status])
   );
   const isFinalized = responseData.some((row) => row.status === "confirmed");
+  const hasAcceptedOrConfirmed = responseData.some(
+    (row) => row.status === "accepted" || row.status === "confirmed"
+  );
   const invitableIds = candidateData
     .map((candidate) => candidate.id)
     .filter((id) => !openInvitationStatus[Number(id)]);
@@ -334,14 +346,7 @@ export default function E02ObserverSelection() {
         const activeDates = candidateDates[row.id] || [];
 
         return (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0.35rem",
-              alignItems: "center",
-            }}
-          >
+          <div className="candidate-date-pills">
             {selectedDatesList.map((dateStr, idx) => {
               const isSelected = activeDates.includes(dateStr);
               const formattedDate = new Date(
@@ -356,32 +361,9 @@ export default function E02ObserverSelection() {
                   key={idx}
                   type="button"
                   onClick={() => toggleCandidateDate(row.id, dateStr)}
-                  style={{
-                    padding: "0.25rem 0.55rem",
-                    fontSize: "0.8rem",
-                    fontWeight: "700",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    border: isSelected
-                      ? "1px solid #1d4ed8"
-                      : "1px solid #d1d5db",
-                    backgroundColor: isSelected ? "#2563eb" : "#f3f4f6",
-                    color: isSelected ? "#ffffff" : "#111827",
-                    whiteSpace: "nowrap",
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = "#dbeafe";
-                    } else {
-                      e.currentTarget.style.backgroundColor = "#1d4ed8";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isSelected
-                      ? "#2563eb"
-                      : "#f3f4f6";
-                  }}
+                  className={`candidate-date-pill-btn ${
+                    isSelected ? "is-selected" : ""
+                  }`}
                 >
                   {formattedDate}
                 </button>
@@ -537,19 +519,9 @@ export default function E02ObserverSelection() {
       <h2>Observer Selection</h2>
 
       {loading && <p>Loading matched observers and invitations...</p>}
-        {messageArea === "page" && validationError && (
-          <p
-            role="alert"
-            style={{
-              color: "#ef4444",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              margin: "1rem 0 0 0",
-            }}
-          >
-            {validationError}
-          </p>
-        )}
+      {messageArea === "page" && validationError && (
+        <p role="alert" className="observer-validation-error">{validationError}</p>
+      )}
 
       {/* Top Section: Course Details & Clean Badge Bar */}
       <section className="table-container theme-orange summary-card-padding">
@@ -579,14 +551,7 @@ export default function E02ObserverSelection() {
         </p>
 
         {pendingCourseChange && (
-          <div
-            className="yellow-banner"
-            style={{
-              marginTop: "0.75rem",
-              marginBottom: "0.25rem",
-              fontSize: "0.875rem",
-            }}
-          >
+          <div className="yellow-banner observer-pending-change-banner">
             <strong>PENDING COURSE CHANGE REQUEST:</strong> You requested to
             switch to{" "}
             <strong>
@@ -612,10 +577,7 @@ export default function E02ObserverSelection() {
           {selectedDatesList.length === 0 ? (
             <p className="font-slate font-sm">No observation dates selected.</p>
           ) : (
-            <div
-              className="search-input-wrapper button-margin-top"
-              style={{ flexWrap: "wrap", gap: "0.5rem" }}
-            >
+            <div className="search-input-wrapper button-margin-top proposed-dates-pill-list">
               {selectedDatesList.map((dateStr, idx) => {
                 const d = new Date(`${dateStr}T00:00:00`);
                 const formatted = d.toLocaleDateString("en-US", {
@@ -634,92 +596,81 @@ export default function E02ObserverSelection() {
         </div>
       </section>
 
-      {/* Section 2: Select from Matched Observer Candidates List */}
-      <section className="dashboard-phase section-margin-top">
-        <h3>Select from Matched Observer Candidates List</h3>
+      {/* Section 2: Select from Matched Observer Candidates List (Hidden once an observer accepts or is confirmed) */}
+      {!hasAcceptedOrConfirmed && (
+        <section className="dashboard-phase section-margin-top">
+          <h3>Select from Matched Observer Candidates List</h3>
 
-        <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-          <strong>IMPORTANT:</strong>{" "}
-          {observationDeadline
-            ? `Please make sure all proposed observation dates fall on or before ${formatDate(observationDeadline)}.`
-            : "The observation deadline could not be loaded. Please verify the allowed observation period."}
-        </div>
-
-        {messageArea === "invite" && validationError && (
-          <p
-            role="alert"
-            style={{
-              color: "#ef4444",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              margin: "0 0 1rem 0",
-            }}
-          >
-            {validationError}
-          </p>
-        )}
-
-        <DataTable
-          themeColor="orange"
-          instructionText="Select candidates to send an observation request for your registered course times."
-          columns={candidateColumns}
-          emptyMessage={
-            released
-              ? "No observers were released to you."
-              : "Waiting for the Assessment Committee to release your observers."
-          }
-          data={candidateData}
-        />
-
-        {!isFinalized && invitableIds.length > 0 && (
-        <div className="compact-actions-bar unregistered-actions-bar">
-          <div className="bulk-btn-group">
-            <button
-              type="button"
-              className="btn-select-toggle"
-              onClick={() => setSelectedCandidates(invitableIds)}
-              disabled={isFinalized}
-            >
-              Select All
-            </button>
-            <button
-              type="button"
-              className="btn-select-toggle"
-              onClick={() => setSelectedCandidates([])}
-            >
-              Deselect All
-            </button>
+          <div className="yellow-banner observer-deadline-banner">
+            <strong>IMPORTANT:</strong>{" "}
+            {observationDeadline
+              ? `Please make sure all proposed observation dates fall on or before ${formatDate(observationDeadline)}.`
+              : "The observation deadline could not be loaded. Please verify the allowed observation period."}
           </div>
 
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void handleSendInvitations()}
-            disabled={
-              saving ||
-              loading ||
-              isFinalized ||
-              selectedCandidates.length === 0
+          {messageArea === "invite" && validationError && (
+            <p role="alert" className="observer-validation-error">{validationError}</p>
+          )}
+
+          <DataTable
+            themeColor="orange"
+            instructionText="Select candidates to send an observation request for your registered course times."
+            columns={candidateColumns}
+            emptyMessage={
+              released
+                ? "No observers were released to you."
+                : "Waiting for the Assessment Committee to release your observers."
             }
-          >
-            {saving ? "Sending..." : "Send Invitation Requests"}
-          </button>
-        </div>
-        )}
+            data={candidateData}
+          />
 
-        {messageArea === "invite" && success && (
-          <div
-            role="status"
-            className="feedback-banner-success"
-            style={{ marginTop: "1rem" }}
-          >
-            {success}
+          <div className="compact-actions-bar unregistered-actions-bar">
+            <div className="bulk-btn-group">
+              <button
+                type="button"
+                className="btn-select-toggle"
+                onClick={() => setSelectedCandidates(invitableIds)}
+                disabled={isFinalized}
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                className="btn-select-toggle"
+                onClick={() => setSelectedCandidates([])}
+              >
+                Deselect All
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void handleSendInvitations()}
+              disabled={
+                saving ||
+                loading ||
+                isFinalized ||
+                selectedCandidates.length === 0
+              }
+            >
+              {saving ? "Sending..." : "Send Invitation Requests"}
+            </button>
           </div>
-        )}
-      </section>
+
+          {messageArea === "invite" && success && (
+            <div
+              role="status"
+              className="feedback-banner-success observer-feedback-banner"
+            >
+              {success}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Section 3: Pending and Confirmed Observer Responses */}
-      <section className="dashboard-phase phase-spacing">
+      <section id="responses" className="dashboard-phase phase-spacing">
         <h3>Pending and Confirmed Observer Responses</h3>
 
         <div className="yellow-banner">
@@ -766,24 +717,13 @@ export default function E02ObserverSelection() {
         )}
 
         {messageArea === "responses" && validationError && (
-          <p
-            role="alert"
-            style={{
-              color: "#ef4444",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              margin: "1rem 0 0 0",
-            }}
-          >
-            {validationError}
-          </p>
+          <p role="alert" className="observer-validation-error">{validationError}</p>
         )}
 
         {messageArea === "responses" && success && (
           <div
             role="status"
-            className="feedback-banner-success"
-            style={{ marginTop: "1rem" }}
+            className="feedback-banner-success observer-feedback-banner"
           >
             {success}
           </div>
