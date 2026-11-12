@@ -173,3 +173,10 @@ class Command(BaseCommand):
         EvaluationCarryForward.objects.filter(Q(source_signup__in=signups) | Q(created_by__in=cast)).delete()
         signups.delete()
         Notification.objects.filter(user__in=cast).delete()
+        Template.objects.exclude(
+            pk__in=Observation.objects.values_list("template_id", flat=True)
+        ).exclude(
+            pk__in=Survey.objects.exclude(template__isnull=True).values_list(
+                "template_id", flat=True
+            )
+        ).delete()

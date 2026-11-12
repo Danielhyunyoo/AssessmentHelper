@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Course, Cycle, Invitation, Notification, Signup
+from .models import Course, Cycle, Invitation, Notification, Signup, Template
 
 User = get_user_model()
 
@@ -132,6 +132,27 @@ class DemoFlowTests(APITestCase):
         self.assertEqual(released.status_code, status.HTTP_200_OK, released.data)
         self.assertEqual(sent.status_code, status.HTTP_201_CREATED, sent.data)
         self.assertEqual(Invitation.objects.get(sender=self.professor_a).proposed_dates.count(), 4)
+
+    def test_reset_deletes_unused_forms_and_restores_default_observation_form(self):
+        Template.objects.create(
+            name="Temporary Survey Form",
+            type="survey",
+            status="draft",
+            questions=[],
+        )
+
+        self.client.post("/api/demo/reset/")
+
+        self.assertFalse(
+            Template.objects.filter(name="Temporary Survey Form").exists()
+        )
+
+        self.assertTrue(
+            Template.objects.filter(
+                type="observation",
+                status="published",
+            ).exists()
+        )
 
 
 @override_settings(DEBUG=True)
