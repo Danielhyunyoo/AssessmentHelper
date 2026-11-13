@@ -158,7 +158,9 @@ export default function A06SurveyTracking() {
                   <tr>
                     <td colSpan={7}>
                       {surveyData.surveys_open === false
-                        ? "Surveys open after the observation deadline."
+                        ? surveyData.observation_deadline
+                          ? `Surveys open after ${formatDate(surveyData.observation_deadline)}.`
+                          : "Surveys open after the observation deadline."
                         : "No missing surveys."}
                     </td>
                   </tr>

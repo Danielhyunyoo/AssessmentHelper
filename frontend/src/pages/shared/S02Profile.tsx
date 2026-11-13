@@ -294,7 +294,7 @@ export default function S02Profile(): React.ReactElement {
 
     return {
       header:
-        [fullCode, title].filter(Boolean).join(" — ") ||
+        [fullCode, title].filter(Boolean).join(": ") ||
         "Registered Course Section",
       meta: [
         course.meeting_days || course.days,
@@ -543,7 +543,7 @@ export default function S02Profile(): React.ReactElement {
           <div className="profile-assignment-box">
             <div className="profile-assignment-header">
               <span className="status-label">
-                Registered Course — As Observee
+                Registered Course (As Observee)
               </span>
               <Link
                 to="/observee/course-selection"
@@ -581,7 +581,7 @@ export default function S02Profile(): React.ReactElement {
           <div className="profile-assignment-box">
             <div className="profile-assignment-header">
               <span className="status-label">
-                Observing Assignments — As Observer
+                Observing Assignments (As Observer)
               </span>
               <Link
                 to="/observer/active-observations"
@@ -599,7 +599,7 @@ export default function S02Profile(): React.ReactElement {
                     visit.course_title || visit.course_name,
                   ]
                     .filter(Boolean)
-                    .join(" — ");
+                    .join(": ");
 
                   return (
                     <div

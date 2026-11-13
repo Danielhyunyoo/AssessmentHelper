@@ -783,6 +783,7 @@ def committee_candidate_pool(request, signup_id):
         for u in people
     ]
     screened.sort(key=lambda pair: bool(pair[1]))
+    confirmed = Pairing.objects.filter(cycle=signup.cycle, observee=signup.user, status="confirmed").select_related("observer")
     return Response({
         "signup_id": signup.pk,
         "screening_only": True,
@@ -798,6 +799,8 @@ def committee_candidate_pool(request, signup_id):
             .values_list("observer_id", flat=True)
         ),
         "matches_released_at": signup.matches_released_at,
+        "confirmed_observer_ids": [p.observer_id for p in confirmed],
+        "confirmed_observer_names": [p.observer.get_full_name() or p.observer.username for p in confirmed],
     })
 
 
@@ -1731,7 +1734,7 @@ def committee_pending_surveys(request):
                 completed.append({**item, "survey_id": response.pk, "submitted_at": response.submitted_at})
             elif clock.surveys_open(cycle):
                 missing.append(item)
-    return Response({"cycle_id": cycle.pk, "surveys_open": clock.surveys_open(cycle), "missing_count": len(missing),
+    return Response({"cycle_id": cycle.pk, "surveys_open": clock.surveys_open(cycle), "observation_deadline": cycle.observation_deadline, "missing_count": len(missing),
                      "completed_count": len(completed), "missing": missing, "completed": completed})
 
 

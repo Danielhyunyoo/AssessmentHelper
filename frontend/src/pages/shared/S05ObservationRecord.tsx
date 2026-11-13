@@ -354,6 +354,15 @@ export default function S05ObservationRecord() {
           {success}
         </div>
       )}
+      {!record.can_edit && !record.locked && record.status !== "cancelled" && (
+        <div className="yellow-banner" role="status">
+          {!record.observer_signed
+            ? `Only ${record.observer.name} can edit this record. You can sign after they sign.`
+            : record.can_sign
+            ? `${record.observer.name} signed. Review and sign.`
+            : `Waiting for ${record.observee.name} to sign.`}
+        </div>
+      )}
 
       {/* Pairing Summary Card */}
       <section className="table-container theme-orange summary-card-padding">

@@ -2,53 +2,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
-  authApi,
-  facultyApi,
-  matchingApi,
   observationApi,
   surveyApi,
 } from "../../api/endpoints";
 import type { ObservationRecord, Survey, Template } from "../../api/types";
-
-const DEMO_SURVEY_TEMPLATE: Template = {
-  template_id: 1,
-  name: "Post-Observation Process Survey",
-  type: "survey",
-  version: 1,
-  status: "published",
-  instructions:
-    "Please share your feedback on the peer classroom observation process. Your responses remain confidential to the Assessment Committee and help improve future evaluation cycles.",
-  questions: [
-    {
-      id: "s1_overall",
-      text: "Overall satisfaction with the peer observation scheduling and evaluation process",
-      type: "rating",
-      required: true,
-      min: 1,
-      max: 5,
-    },
-    {
-      id: "s2_clarity",
-      text: "How clear and helpful were the observation rubric and instructions?",
-      type: "rating",
-      required: true,
-      min: 1,
-      max: 5,
-    },
-    {
-      id: "s3_pain_points",
-      text: "What challenges or pain points did you encounter during this cycle?",
-      type: "text",
-      required: false,
-    },
-    {
-      id: "s4_improvements",
-      text: "What improvements would you recommend for future peer observation cycles?",
-      type: "text",
-      required: false,
-    },
-  ],
-};
 
 export default function S06PostEvaluationSurvey() {
   const { surveyId } = useParams();
@@ -67,8 +24,6 @@ export default function S06PostEvaluationSurvey() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isDemoPreview, setIsDemoPreview] = useState(false);
-  const [demoSubmitted, setDemoSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -100,12 +55,13 @@ export default function S06PostEvaluationSurvey() {
             result.template ? normalizeSurveyTemplate(result.template) : null
           );
           setResponses(result.responses ?? {});
-          setIsDemoPreview(false);
           return;
         }
 
-        const effectivePairingId =
-          Number.isInteger(pairingId) && pairingId > 0 ? pairingId : 1;
+        if (!Number.isInteger(pairingId) || pairingId <= 0) {
+          throw new Error("Open a survey from Past Evaluations.");
+        }
+        const effectivePairingId = pairingId;
 
         const [surveys, records] = await Promise.all([
           surveyApi.list(),
@@ -125,7 +81,6 @@ export default function S06PostEvaluationSurvey() {
               : null
           );
           setResponses(existingSurvey.responses ?? {});
-          setIsDemoPreview(false);
           return;
         }
 
@@ -141,99 +96,8 @@ export default function S06PostEvaluationSurvey() {
         const result = await surveyApi.templateForPairing(effectivePairingId);
         setRespondentType(result.respondent_type);
         setTemplate(result.template);
-        setIsDemoPreview(false);
-      } catch {
-        const [session, profile, incoming, sent] = await Promise.all([
-          authApi.session().catch(() => ({ professor: null })),
-          facultyApi.profile().catch(() => null),
-          matchingApi.incomingInvitations().catch(() => []),
-          matchingApi.sentInvitations().catch(() => []),
-        ]);
-
-        const currentUser = session?.professor;
-        const currentName = currentUser
-          ? `${currentUser.first_name} ${currentUser.last_name}`.trim() ||
-            currentUser.username
-          : "Professor C";
-
-        const activeIncoming = (Array.isArray(incoming) ? incoming : []).find(
-          (i) => i.status === "confirmed" || i.status === "accepted"
-        );
-        const activeSent = (Array.isArray(sent) ? sent : []).find(
-          (i) => i.status === "confirmed" || i.status === "accepted"
-        );
-
-        let observerName = "Professor A";
-        let observeeName = "Professor C";
-        let role: "observer" | "observee" = "observee";
-        let courseData = profile?.selected_course ?? null;
-        let visitDate: string | null = null;
-
-        if (activeIncoming) {
-          observerName = currentName;
-          observeeName = activeIncoming.sender
-            ? `${activeIncoming.sender.first_name} ${activeIncoming.sender.last_name}`.trim()
-            : "Professor C";
-          role = "observer";
-          courseData = activeIncoming.course ?? courseData;
-          visitDate =
-            activeIncoming.proposed_dates?.find((d) => d.status === "accepted")
-              ?.datetime ?? null;
-        } else if (activeSent) {
-          observerName = `Observer #${activeSent.recipient_id}`;
-          observeeName = currentName;
-          role = "observee";
-          visitDate =
-            activeSent.proposed_dates?.find((d) => d.status === "accepted")
-              ?.datetime ?? null;
-        }
-
-        const effectivePairingId =
-          Number.isInteger(pairingId) && pairingId > 0 ? pairingId : 1;
-
-        setRecord({
-          observation_id: effectivePairingId,
-          pairing_id: effectivePairingId,
-          cycle_id: 1,
-          observer: { id: 1, name: observerName },
-          observee: { id: 3, name: observeeName },
-          course: {
-            course_id: courseData?.course_id ?? 1,
-            department_id: courseData?.department_id ?? 1,
-            department_name: courseData?.department_name ?? "Computer Science",
-            department_code: courseData?.department_code ?? "CS",
-            instructor_id: courseData?.instructor_id ?? 3,
-            course_number: courseData?.course_number ?? "3345",
-            course_level: courseData?.course_level ?? 3000,
-            section: courseData?.section ?? "001",
-            schedule: courseData?.schedule ?? "MWF 10:00 AM - 10:50 AM",
-            title:
-              courseData?.title ?? "Data Structures and Algorithmic Analysis",
-            classroom: courseData?.classroom ?? "ECSS 2.415",
-          },
-          confirmed_datetime: visitDate ?? new Date().toISOString(),
-          template: {
-            id: 1,
-            name: "Peer Classroom Observation Form",
-            version: 1,
-            instructions: "",
-            questions: [],
-          },
-          responses: {},
-          status: "completed",
-          cancellation_reason: "",
-          observer_signed: true,
-          observer_signed_at: new Date().toISOString(),
-          observee_signed: true,
-          observee_signed_at: new Date().toISOString(),
-          locked: true,
-          can_edit: false,
-          can_sign: false,
-          can_cancel: false,
-        });
-        setRespondentType(role);
-        setTemplate(DEMO_SURVEY_TEMPLATE);
-        setIsDemoPreview(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Survey not available.");
       } finally {
         setLoading(false);
       }
@@ -245,16 +109,6 @@ export default function S06PostEvaluationSurvey() {
   async function saveSurvey(submit: boolean) {
     if (!template) {
       setError("No published survey template is available.");
-      return;
-    }
-
-    if (isDemoPreview) {
-      if (submit) {
-        setDemoSubmitted(true);
-        setMessage("Demo preview: Survey submitted successfully.");
-      } else {
-        setMessage("Demo preview: Survey draft saved locally.");
-      }
       return;
     }
 
@@ -321,9 +175,7 @@ export default function S06PostEvaluationSurvey() {
   const displayObservee = survey?.observee ?? record?.observee;
   const displayCourse = survey?.course ?? record?.course;
   const displayDate = survey?.observation_datetime ?? record?.confirmed_datetime;
-  const canEdit = isDemoPreview
-    ? !demoSubmitted
-    : survey
+  const canEdit = survey
     ? survey.can_edit
     : Boolean(record && template);
 
@@ -366,14 +218,6 @@ export default function S06PostEvaluationSurvey() {
           </span>
         )}
       </div>
-
-      {isDemoPreview && (
-        <div className="yellow-banner" role="status">
-          <strong>Demo Preview Mode:</strong> Interactive preview of the
-          Post-Evaluation Survey while the backend observation sign-off is
-          pending.
-        </div>
-      )}
 
       {error && (
         <div className="empty-state-banner" role="alert">

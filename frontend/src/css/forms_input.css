@@ -104,6 +104,17 @@ html.dark-mode .form-textarea-input.fixed-textarea:focus {
   border-color: #a1a1aa;
 }
 
+.fixed-height-textarea:disabled {
+  background-color: #f1f5f9;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+html.dark-mode .fixed-height-textarea:disabled {
+  background-color: #27272a;
+  color: #a1a1aa;
+}
+
 /* Rating Controls */
 .rating-button-group,
 .rating-btn-row {
@@ -199,4 +210,21 @@ html.dark-mode input[type="number"]:focus,
 html.dark-mode select:focus,
 html.dark-mode textarea:focus {
   border-color: #a1a1aa;
+}
+.rating-score-btn:disabled {
+  cursor: not-allowed;
+}
+
+.rating-score-btn:disabled:not(.selected) {
+  opacity: 0.45;
+}
+
+.rating-score-btn:disabled:not(.selected):hover {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+}
+
+html.dark-mode .rating-score-btn:disabled:not(.selected):hover {
+  background-color: #18181b;
+  border-color: #27272a;
 }

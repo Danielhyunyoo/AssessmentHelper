@@ -514,7 +514,7 @@ export default function S04CurrentAndPastObservations() {
                   visit.courseTitle,
                 ]
                   .filter(Boolean)
-                  .join(" — ");
+                  .join(": ");
 
                 return (
                   <article
@@ -598,7 +598,7 @@ export default function S04CurrentAndPastObservations() {
                   record.course?.title,
                 ]
                   .filter(Boolean)
-                  .join(" — ");
+                  .join(": ");
 
                 return (
                   <article
@@ -729,7 +729,7 @@ export default function S04CurrentAndPastObservations() {
                             record.course?.title,
                           ]
                             .filter(Boolean)
-                            .join(" — ");
+                            .join(": ");
 
                           return (
                             <article
@@ -738,7 +738,7 @@ export default function S04CurrentAndPastObservations() {
                             >
                               <div className="observation-card-header">
                                 <strong className="observation-card-title">
-                                  {courseHeader} —{" "}
+                                  {courseHeader} ·{" "}
                                   {formatObservationDate(
                                     record.confirmed_datetime
                                   )}

@@ -1041,8 +1041,14 @@ export default function A02FacultyMatching() {
     Boolean(findRequestForObservee(p))
   ).length;
 
-  const departments = [...new Set(activeObservees.map((person) => person.department).filter(Boolean))].sort() as string[];
+  const departments = [...new Set(validObservees.map((person) => person.department).filter(Boolean))].sort() as string[];
   const shownDepartment = departments.includes(departmentFilter) ? departmentFilter : "";
+  const shownActive = activeObservees.filter(
+    (person) => !shownDepartment || person.department === shownDepartment
+  );
+  const shownConfirmed = confirmedObservees.filter(
+    (person) => !shownDepartment || person.department === shownDepartment
+  );
 
   const filteredObservees = activeObservees.filter((person) => {
     const signupId = person.signup_id!;
@@ -1303,7 +1309,7 @@ export default function A02FacultyMatching() {
                               {availableCourses.map((c) => (
                                 <option key={c.course_id} value={c.course_id}>
                                   {c.department_code} {c.course_number}.
-                                  {c.section} — {c.title} ({c.schedule})
+                                  {c.section}: {c.title} ({c.schedule})
                                 </option>
                               ))}
                             </select>
@@ -1494,7 +1500,7 @@ export default function A02FacultyMatching() {
             </div>
           </div>
 
-          {activeObservees.length === 0 ? (
+          {shownActive.length === 0 ? (
             <p className="font-slate font-sm a02-zero-margin">
               All active observees have confirmed their observer matches.
             </p>
@@ -1612,7 +1618,7 @@ export default function A02FacultyMatching() {
                             <p className="a02-inspector-subtitle">
                               {selectedPerson.academic_rank}
                               {selectedPerson.course
-                                ? ` · ${selectedPerson.course.department_code} ${selectedPerson.course.course_number}.${selectedPerson.course.section} — ${selectedPerson.course.title}`
+                                ? ` · ${selectedPerson.course.department_code} ${selectedPerson.course.course_number}.${selectedPerson.course.section}: ${selectedPerson.course.title}`
                                 : ""}
                             </p>
                             {selectedPerson.course?.schedule && (
@@ -1647,7 +1653,7 @@ export default function A02FacultyMatching() {
                                 Transferred to{" "}
                                 <strong>{transferInfo.target_cycle}</strong>
                                 {transferInfo.note
-                                  ? ` — ${transferInfo.note}`
+                                  ? `: ${transferInfo.note}`
                                   : ""}
                               </p>
                             )}
@@ -1799,7 +1805,7 @@ export default function A02FacultyMatching() {
       </section>
 
       {/* 4. Confirmed Observer Matches (Locked Read-Only Section) */}
-      {confirmedObservees.length > 0 && (
+      {shownConfirmed.length > 0 && (
         <section className="dashboard-phase section-margin-top">
           <div className="a02-section-header-bar">
             <div className="a02-section-title-group">
@@ -1807,14 +1813,14 @@ export default function A02FacultyMatching() {
                 Confirmed Observer Matches
               </h3>
               <span className="status-chip chip-draft">
-                {confirmedObservees.length} CONFIRMED
+                {shownConfirmed.length} CONFIRMED
               </span>
             </div>
           </div>
 
           <div className="table-container theme-blue summary-card-padding">
             <div className="a02-confirmed-list">
-              {confirmedObservees.map((person) => {
+              {shownConfirmed.map((person) => {
                 const sid = person.signup_id!;
                 const confirmedInfo = confirmedBySignupId[sid];
                 const candidates = candidateOptions[sid] ?? [];
@@ -1836,7 +1842,7 @@ export default function A02FacultyMatching() {
                         </span>
                         <span className="a02-confirmed-course">
                           {person.course
-                            ? `${person.course.department_code} ${person.course.course_number}.${person.course.section} — ${person.course.title}`
+                            ? `${person.course.department_code} ${person.course.course_number}.${person.course.section}: ${person.course.title}`
                             : person.academic_rank}
                         </span>
                       </div>

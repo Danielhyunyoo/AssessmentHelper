@@ -15,6 +15,12 @@ function formatAcademicRank(rank: string | null | undefined): string {
   return rank ? rankLabels[rank] || rank : "Not specified";
 }
 
+const PROGRESS_LABELS: Record<string, string> = {
+  not_registered: "Not registered",
+  registered_no_course: "Registered, no course",
+  course_selected: "Course selected",
+};
+
 export default function A04FacultyRoster() {
   const [roster, setRoster] = useState<FacultyRoster | null>(null);
   const [unregistered, setUnregistered] = useState<FacultyRow[]>([]);
@@ -183,10 +189,7 @@ export default function A04FacultyRoster() {
                     </td>
 
                     <td>
-                      {member.progress_status
-                        ? member.progress_status.charAt(0).toUpperCase() +
-                          member.progress_status.slice(1)
-                        : "Not available"}
+                      {PROGRESS_LABELS[member.progress_status] ?? "Not available"}
                     </td>
 
                     <td className="align-center">
