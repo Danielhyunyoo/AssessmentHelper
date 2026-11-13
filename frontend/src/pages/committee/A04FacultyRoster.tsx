@@ -45,12 +45,6 @@ const PROGRESS_LABELS: Record<string, string> = {
 };
 
 function getMemberAvatar(member: FacultyRow): string | null {
-  const rec = member as unknown as Record<string, unknown>;
-  for (const key of ["avatar_url", "photo_url", "profile_picture", "avatar"]) {
-    if (typeof rec[key] === "string" && rec[key].trim()) {
-      return rec[key] as string;
-    }
-  }
   try {
     const byId = localStorage.getItem(`profile_photo_${member.user_id}`);
     if (byId) return byId;
@@ -60,6 +54,13 @@ function getMemberAvatar(member: FacultyRow): string | null {
     }
   } catch {
     // Ignore storage errors
+  }
+
+  const rec = member as unknown as Record<string, unknown>;
+  for (const key of ["profile_photo", "avatar_url", "photo_url", "profile_picture", "avatar"]) {
+    if (typeof rec[key] === "string" && (rec[key] as string).trim()) {
+      return rec[key] as string;
+    }
   }
   return null;
 }
@@ -108,6 +109,14 @@ export default function A04FacultyRoster() {
 
   useEffect(() => {
     void loadFaculty();
+
+    const handleProfileChange = () => {
+      void loadFaculty();
+    };
+    window.addEventListener("profile-changed", handleProfileChange);
+    return () => {
+      window.removeEventListener("profile-changed", handleProfileChange);
+    };
   }, [search, sort]);
 
   function openMemberProfile(member: FacultyRow) {

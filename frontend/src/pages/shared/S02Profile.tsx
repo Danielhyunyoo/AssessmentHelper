@@ -3,11 +3,17 @@ import React, { useEffect, useState, useRef } from "react";
 import { facultyApi, observationApi } from "../../api/endpoints";
 import type { Course, ScheduledVisit } from "../../api/types";
 import { Link } from "react-router-dom";
-import defaultProfile from "../../assets/profile_icon.png";
 
 function formatLabel(value: string) {
   if (!value) return "Not provided";
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 export default function S02Profile(): React.ReactElement {
@@ -17,6 +23,7 @@ export default function S02Profile(): React.ReactElement {
   const [profileError, setProfileError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [photoSaving, setPhotoSaving] = useState(false);
+  const [photoRemoving, setPhotoRemoving] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -34,7 +41,7 @@ export default function S02Profile(): React.ReactElement {
   const [isRegisteredObservee, setIsRegisteredObservee] = useState(false);
   const [observerVisits, setObserverVisits] = useState<ScheduledVisit[]>([]);
 
-  const [profilePhoto, setProfilePhoto] = useState<string>(defaultProfile);
+  const [profilePhoto, setProfilePhoto] = useState<string>("");
 
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editFirstName, setEditFirstName] = useState("");
@@ -61,10 +68,16 @@ export default function S02Profile(): React.ReactElement {
 
         if (cancelled) return;
 
-        const professor = result.professor;
+        const professor = result.professor as any;
         const first = professor.first_name || "";
         const last = professor.last_name || "";
-        setProfilePhoto(professor.profile_photo || defaultProfile);
+        
+        const profId = professor.user_id ?? professor.id;
+        let cachedPhoto = professor.profile_photo;
+        if (!cachedPhoto && profId) {
+          cachedPhoto = localStorage.getItem(`profile_photo_${profId}`) || localStorage.getItem(`profile_photo_${professor.email}`) || "";
+        }
+        setProfilePhoto(cachedPhoto || "");
 
         setEvaluationCycle(result.evaluation_cycle || "Current Cycle");
         setEvaluationStatus(
@@ -111,7 +124,6 @@ export default function S02Profile(): React.ReactElement {
         );
         setIsRegisteredObservee(registeredFlag);
 
-        // 1. Check if a nested course object already exists on any response
         const directCourse =
           regObj?.course ||
           regObj?.registered_course ||
@@ -123,7 +135,6 @@ export default function S02Profile(): React.ReactElement {
           dashObj?.signup?.course ||
           null;
 
-        // 2. Gather every candidate ID across registrationStatus, availability, and dashboard
         const candidateIds = [
           regObj?.course_id,
           regObj?.section_id,
@@ -154,7 +165,6 @@ export default function S02Profile(): React.ReactElement {
           });
           setRegisteredCourse(matched || null);
         } else if (registeredFlag && courseList.length > 0) {
-          // Check if one of the courses in myCourses has an active/registered flag
           const flaggedCourse = courseList.find(
             (c) => c.is_registered || c.registered || c.is_selected || c.selected
           );
@@ -163,8 +173,7 @@ export default function S02Profile(): React.ReactElement {
           setRegisteredCourse(null);
         }
 
-        // Filter scheduled visits where this user is the Observer
-        const myId = (professor as any).user_id ?? (professor as any).id;
+        const myId = profId;
         const visitList = Array.isArray(scheduledVisits)
           ? scheduledVisits
           : Array.isArray((scheduledVisits as any)?.visits)
@@ -223,12 +232,25 @@ export default function S02Profile(): React.ReactElement {
 
     try {
       const result = await facultyApi.updateProfilePhoto(file);
+      const updatedUrl = result.professor.profile_photo || "";
 
-      setProfilePhoto(
-        result.professor.profile_photo || defaultProfile
-      );
+      setProfilePhoto(updatedUrl);
 
-      setSaveMessage("Profile photo saved successfully.");
+      try {
+        const prof = result.professor as any;
+        const profId = prof.user_id ?? prof.id;
+        if (profId) {
+          localStorage.setItem(`profile_photo_${profId}`, updatedUrl);
+        }
+        if (prof.email) {
+          localStorage.setItem(`profile_photo_${prof.email}`, updatedUrl);
+        }
+      } catch {
+        // Ignore storage errors
+      }
+
+      window.dispatchEvent(new Event("profile-changed"));
+      setSaveMessage("Profile photo updated across your account.");
     } catch (err) {
       setProfileError(
         err instanceof Error
@@ -238,6 +260,42 @@ export default function S02Profile(): React.ReactElement {
     } finally {
       setPhotoSaving(false);
       input.value = "";
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setProfileError("");
+    setSaveMessage("");
+    setPhotoRemoving(true);
+
+    try {
+      // Clear profile photo on the backend so it persists across page refreshes
+      await facultyApi.updateProfile({ profile_photo: "" } as any).catch(() => {});
+
+      const sessionResp = await facultyApi.profile().catch(() => null);
+      const prof = sessionResp?.professor as any;
+      const profId = prof?.user_id ?? prof?.id;
+
+      try {
+        if (profId) {
+          localStorage.removeItem(`profile_photo_${profId}`);
+        }
+        if (prof?.email) {
+          localStorage.removeItem(`profile_photo_${prof.email}`);
+        }
+      } catch {
+        // Ignore storage errors
+      }
+
+      setProfilePhoto("");
+      window.dispatchEvent(new Event("profile-changed"));
+      setSaveMessage("Profile photo removed. Reverted to initials.");
+    } catch (err) {
+      setProfileError(
+        err instanceof Error ? err.message : "Unable to remove profile photo."
+      );
+    } finally {
+      setPhotoRemoving(false);
     }
   };
 
@@ -253,7 +311,7 @@ export default function S02Profile(): React.ReactElement {
         phone: editPhone.trim(),
       });
 
-      const professor = result.professor;
+      const professor = result.professor as any;
 
       setFirstName(professor.first_name || "");
       setLastName(professor.last_name || "");
@@ -263,6 +321,7 @@ export default function S02Profile(): React.ReactElement {
       setEditPhone(professor.phone || "");
 
       setIsEditingInfo(false);
+      window.dispatchEvent(new Event("profile-changed"));
       setSaveMessage("Profile changes saved successfully.");
     } catch (err) {
       setProfileError(
@@ -306,18 +365,36 @@ export default function S02Profile(): React.ReactElement {
     };
   };
 
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
   return (
     <div className="dashboard-container">
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
-        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
+        <Link className="back-dashboard-link" to="/shared/faculty-dashboard">
           ← Back to Dashboard
         </Link>
       </div>
 
-      <h2 className="profile-page-title">Profile and Evaluation Status</h2>
+      {/* Upgraded Page Header */}
+      <div className="a01-page-header">
+        <div>
+          <h2 className="profile-page-title">Profile &amp; Evaluation Status</h2>
+          <p className="s01-subtitle">
+            Manage your faculty contact details, profile photo, and cycle assignments.
+          </p>
+        </div>
 
-      {profileLoading && <p>Loading your profile...</p>}
+        {evaluationCycle && (
+          <span className="a01-cycle-badge">
+            Cycle: {evaluationCycle}
+          </span>
+        )}
+      </div>
+
+      {profileLoading && (
+        <div className="a07-state-box">Loading your profile...</div>
+      )}
 
       {profileError && (
         <div role="alert" className="empty-state-banner">
@@ -331,7 +408,7 @@ export default function S02Profile(): React.ReactElement {
         </div>
       )}
 
-      {/* Main Profile Section */}
+      {/* Main Profile Card */}
       <section className="profile-main-card">
         <div className="profile-card-grid">
           <div className="profile-info-col">
@@ -341,29 +418,34 @@ export default function S02Profile(): React.ReactElement {
                   <h3 className="profile-user-name">
                     {firstName} {lastName}
                   </h3>
+                  {academicRank && academicRank !== "Not provided" && (
+                    <span className="profile-role-badge">
+                      {formatLabel(academicRank)}
+                    </span>
+                  )}
                 </div>
 
-                <div className="profile-details-grid">
-                  <div className="profile-detail-row">
+                <ul className="profile-details-list">
+                  <li className="profile-detail-item">
                     <span className="profile-detail-label">Department</span>
                     <span className="profile-detail-value">{department}</span>
-                  </div>
+                  </li>
 
-                  <div className="profile-detail-row">
+                  <li className="profile-detail-item">
                     <span className="profile-detail-label">Academic Rank</span>
                     <span className="profile-detail-value">
                       {formatLabel(academicRank)}
                     </span>
-                  </div>
+                  </li>
 
-                  <div className="profile-detail-row">
-                    <span className="profile-detail-label">Email ID</span>
+                  <li className="profile-detail-item">
+                    <span className="profile-detail-label">University Email</span>
                     <span className="profile-detail-value">
                       {email || "Not provided"}
                     </span>
-                  </div>
+                  </li>
 
-                  <div className="profile-detail-row">
+                  <li className="profile-detail-item">
                     <span className="profile-detail-label">Phone Number</span>
                     <span
                       className={`profile-detail-value ${
@@ -372,8 +454,8 @@ export default function S02Profile(): React.ReactElement {
                     >
                       {phone || "Not provided"}
                     </span>
-                  </div>
-                </div>
+                  </li>
+                </ul>
 
                 <div className="profile-email-note">
                   <svg
@@ -480,12 +562,17 @@ export default function S02Profile(): React.ReactElement {
           </div>
 
           <div className="profile-photo-col">
-            <div className="profile-avatar-container">
-              <img
-                src={profilePhoto}
-                alt={`${firstName} ${lastName}`}
-                className="profile-avatar-img"
-              />
+            <div className="profile-avatar-container" style={{ display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: profilePhoto ? "transparent" : "#2563eb", color: "#ffffff", fontWeight: 700, fontSize: "2.25rem" }}>
+              {profilePhoto ? (
+                <img
+                  src={profilePhoto}
+                  alt={fullName}
+                  className="profile-avatar-img"
+                  onError={() => setProfilePhoto("")}
+                />
+              ) : (
+                <span>{getInitials(fullName || "User")}</span>
+              )}
             </div>
 
             <input
@@ -500,32 +587,46 @@ export default function S02Profile(): React.ReactElement {
               type="button"
               className="btn-secondary profile-photo-btn"
               onClick={() => fileInputRef.current?.click()}
-              disabled={photoSaving}
+              disabled={photoSaving || photoRemoving}
             >
               {photoSaving ? "Uploading..." : "Update Profile Photo"}
             </button>
+
+            {profilePhoto && (
+              <button
+                type="button"
+                className="btn-secondary profile-photo-btn profile-remove-btn"
+                onClick={handleRemovePhoto}
+                disabled={photoSaving || photoRemoving}
+              >
+                {photoRemoving ? "Removing..." : "Remove Photo"}
+              </button>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Evaluation Status Card */}
+      {/* Evaluation Status Section */}
       <section className="profile-status-card">
-        <h3>Evaluation Status</h3>
+        <div className="profile-section-title-row">
+          <span className="a01-phase-pill">Cycle Standing</span>
+          <h3>Evaluation Status</h3>
+        </div>
 
-        <div className="profile-status-grid">
-          <div className="profile-status-box">
+        <div className="profile-metrics-grid">
+          <div className="profile-metric-box">
             <span className="status-label">Last Completed Observation</span>
             <span className="status-value">{lastEvaluated}</span>
           </div>
 
-          <div className="profile-status-box">
+          <div className="profile-metric-box">
             <span className="status-label">Current Cycle Status</span>
             <div>
               <span className="status-pill-active">{formattedCycleStatus}</span>
             </div>
           </div>
 
-          <div className="profile-status-box">
+          <div className="profile-metric-box">
             <span className="status-label">Next Semester Due</span>
             <span className="status-value muted-placeholder">
               Pending cycle assignment
@@ -534,21 +635,21 @@ export default function S02Profile(): React.ReactElement {
         </div>
       </section>
 
-      {/* Registered Class & Peer Observation Assignments */}
+      {/* Course & Observation Assignments Section */}
       <section className="profile-status-card">
-        <h3>Course and Observation Assignments</h3>
+        <div className="profile-section-title-row">
+          <span className="a01-phase-pill">Schedule</span>
+          <h3>Course &amp; Observation Assignments</h3>
+        </div>
 
         <div className="profile-assignments-grid">
           {/* Observee Class Registration */}
-          <div className="profile-assignment-box">
+          <div className="profile-assignment-card">
             <div className="profile-assignment-header">
               <span className="status-label">
                 Registered Course (As Observee)
               </span>
-              <Link
-                to="/observee/course-selection"
-                className="notif-action-link"
-              >
+              <Link className="notif-action-link" to="/observee/course-selection">
                 Manage →
               </Link>
             </div>
@@ -578,15 +679,12 @@ export default function S02Profile(): React.ReactElement {
           </div>
 
           {/* Observer Assignments */}
-          <div className="profile-assignment-box">
+          <div className="profile-assignment-card">
             <div className="profile-assignment-header">
               <span className="status-label">
                 Observing Assignments (As Observer)
               </span>
-              <Link
-                to="/observer/active-observations"
-                className="notif-action-link"
-              >
+              <Link className="notif-action-link" to="/observer/active-observations">
                 View All →
               </Link>
             </div>
@@ -639,7 +737,7 @@ export default function S02Profile(): React.ReactElement {
 
       {/* Bottom Centered Return Button */}
       <div className="dashboard-center-action">
-        <Link to="/shared/faculty-dashboard" className="btn-secondary">
+        <Link className="btn-secondary" to="/shared/faculty-dashboard">
           Return to Dashboard
         </Link>
       </div>

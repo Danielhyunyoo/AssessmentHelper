@@ -33,6 +33,8 @@ export default function Header() {
   const [backendUnreadCount, setBackendUnreadCount] = useState(0);
 
   const isLoggedIn = currentUser !== null;
+  const userAvatarSrc = currentUser?.profile_photo || profileIcon;
+  const hasCustomAvatar = Boolean(currentUser?.profile_photo);
 
   const closeAllMenus = () => {
     setIsMenuOpen(false);
@@ -85,8 +87,7 @@ export default function Header() {
 
       if (notification?.unread) {
         await facultyApi.markRead(Number(id));
-        
-        // Remove from manual unread list if present
+
         try {
           const manualUnreadIds: number[] = JSON.parse(
             localStorage.getItem("manual_unread_notification_ids") || "[]"
@@ -217,10 +218,12 @@ export default function Header() {
     void loadHeaderData();
 
     window.addEventListener("notifications-changed", loadHeaderData);
+    window.addEventListener("profile-changed", loadHeaderData);
 
     return () => {
       cancelled = true;
       window.removeEventListener("notifications-changed", loadHeaderData);
+      window.removeEventListener("profile-changed", loadHeaderData);
     };
   }, [location.pathname]);
 
@@ -330,16 +333,26 @@ export default function Header() {
               title="Profile Settings"
               className="header-icon-btn"
             >
-              <img className="icon" src={profileIcon} alt="Profile" />
+              <img
+                className={`icon ${hasCustomAvatar ? "header-user-avatar" : ""}`}
+                src={userAvatarSrc}
+                alt="Profile"
+                onError={(e) => {
+                  e.currentTarget.src = profileIcon;
+                }}
+              />
             </button>
 
             {isProfileOpen && (
               <div className="profile-popover">
                 <div className="profile-user-summary">
                   <img
-                    src={profileIcon}
+                    src={userAvatarSrc}
                     alt="User Avatar"
                     className="profile-popover-avatar"
+                    onError={(e) => {
+                      e.currentTarget.src = profileIcon;
+                    }}
                   />
                   <div>
                     <h4 className="profile-popover-name">
