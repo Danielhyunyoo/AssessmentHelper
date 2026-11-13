@@ -1,3 +1,4 @@
+// src/pages/committee/A08FormEditor.tsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { committeeApi } from "../../api/endpoints";
@@ -8,8 +9,12 @@ export default function A08FormEditor() {
     useState<"observation" | "survey">("observation");
 
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
+    null
+  );
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null
+  );
 
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -27,7 +32,8 @@ export default function A08FormEditor() {
 
       if (result.templates.length > 0) {
         const draftOrLatest =
-          result.templates.find((t) => t.can_edit) ?? result.templates[result.templates.length - 1];
+          result.templates.find((t) => t.can_edit) ??
+          result.templates[result.templates.length - 1];
 
         setSelectedTemplateId(draftOrLatest.template_id);
         setSelectedTemplate(draftOrLatest);
@@ -37,12 +43,16 @@ export default function A08FormEditor() {
       } else {
         setSelectedTemplateId(null);
         setSelectedTemplate(null);
-        setName(type === "observation" ? "New Observation Form" : "New Survey Form");
+        setName(
+          type === "observation" ? "New Observation Form" : "New Survey Form"
+        );
         setInstructions("");
         setQuestions([]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load templates.");
+      setError(
+        err instanceof Error ? err.message : "Unable to load templates."
+      );
     }
   }
 
@@ -89,9 +99,23 @@ export default function A08FormEditor() {
     ]);
   }
 
+  function moveQuestion(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= questions.length) return;
+
+    setQuestions((previous) => {
+      const updated = [...previous];
+      const [moved] = updated.splice(index, 1);
+      updated.splice(targetIndex, 0, moved);
+      return updated.map((q, idx) => ({ ...q, order: idx }));
+    });
+  }
+
   function deleteQuestion(id: string) {
     setQuestions((previous) =>
-      previous.filter((question) => question.id !== id)
+      previous
+        .filter((question) => question.id !== id)
+        .map((q, idx) => ({ ...q, order: idx }))
     );
   }
 
@@ -121,7 +145,9 @@ export default function A08FormEditor() {
               question.min >= question.max)
         )
       ) {
-        setError("Every rating question must have a minimum below its maximum.");
+        setError(
+          "Every rating question must have a minimum below its maximum."
+        );
         return;
       }
 
@@ -143,7 +169,9 @@ export default function A08FormEditor() {
       }
 
       if (!selectedTemplate?.can_edit) {
-        setError("This template is published and locked. Click 'Clone as New Version' to make changes.");
+        setError(
+          "This template is published and locked. Click 'Clone as New Version' to make changes."
+        );
         return;
       }
 
@@ -166,9 +194,13 @@ export default function A08FormEditor() {
       const created = await committeeApi.cloneTemplate(selectedTemplateId);
       await loadTemplates(activeFormType);
       await selectTemplate(created.template_id);
-      setMessage(`Cloned successfully! You are now editing Version ${created.version} as a new draft.`);
+      setMessage(
+        `Cloned successfully! You are now editing Version ${created.version} as a new draft.`
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to clone template.");
+      setError(
+        err instanceof Error ? err.message : "Unable to clone template."
+      );
     }
   }
 
@@ -180,7 +212,9 @@ export default function A08FormEditor() {
       await loadTemplates(activeFormType);
       setMessage("Template published successfully.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to publish template.");
+      setError(
+        err instanceof Error ? err.message : "Unable to publish template."
+      );
     }
   }
 
@@ -196,19 +230,26 @@ export default function A08FormEditor() {
         <h2>Edit Evaluation & Survey Forms</h2>
       </div>
 
-      {error && <p className="signin-error-banner" role="alert">{error}</p>}
-      {message && <p className="feedback-banner-success" role="status">{message}</p>}
+      {error && (
+        <p className="signin-error-banner" role="alert">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p className="feedback-banner-success" role="status">
+          {message}
+        </p>
+      )}
 
       {/* Top Control Banner */}
       <div className="editor-control-banner">
         <div className="editor-control-group">
-          <label>Form Type:</label>
+          <label htmlFor="a08-form-type">Form Type:</label>
           <select
+            id="a08-form-type"
             value={activeFormType}
             onChange={(event) =>
-              setActiveFormType(
-                event.target.value as "observation" | "survey"
-              )
+              setActiveFormType(event.target.value as "observation" | "survey")
             }
           >
             <option value="observation">Observation Form</option>
@@ -217,8 +258,9 @@ export default function A08FormEditor() {
         </div>
 
         <div className="editor-control-group">
-          <label>Template Select:</label>
+          <label htmlFor="a08-template-select">Template Select:</label>
           <select
+            id="a08-template-select"
             value={selectedTemplateId ?? ""}
             onChange={(event) => {
               if (event.target.value) {
@@ -226,20 +268,22 @@ export default function A08FormEditor() {
               }
             }}
           >
+            {templates.length === 0 && (
+              <option value="">No saved templates</option>
+            )}
             {templates.map((template) => (
-              <option
-                key={template.template_id}
-                value={template.template_id}
-              >
-                {template.name} (v{template.version} - {template.status.toUpperCase()})
+              <option key={template.template_id} value={template.template_id}>
+                {template.name} (v{template.version} -{" "}
+                {template.status.toUpperCase()})
               </option>
             ))}
           </select>
         </div>
 
         <div className="editor-control-group">
-          <label>Template Name:</label>
+          <label htmlFor="a08-template-name">Template Name:</label>
           <input
+            id="a08-template-name"
             type="text"
             value={name}
             disabled={!isEditable}
@@ -271,40 +315,44 @@ export default function A08FormEditor() {
 
       {/* Questions Section */}
       <section className="evaluation-form-wrapper">
-        <div className="evaluation-form-header">
-          <div className="header-left-col">
-            <div className="header-title-group">
-              <h3>{name || "Untitled Form"}</h3>
-              {selectedTemplate && (
-                <span className="version-pill">
-                  v{selectedTemplate.version}
-                </span>
-              )}
-            </div>
-
-            {selectedTemplateId !== null && (
-              <div className="header-sub-actions">
-                <button
-                  type="button"
-                  className="btn-secondary header-clone-btn"
-                  onClick={() => void cloneTemplate()}
-                >
-                  Clone as New Version
-                </button>
-              </div>
+        <div
+          className={`a08-form-header-card ${!isEditable ? "is-locked" : ""}`}
+        >
+          <div className="header-title-group">
+            <h3>{name || "Untitled Form"}</h3>
+            {selectedTemplate && (
+              <span className="version-pill">v{selectedTemplate.version}</span>
             )}
           </div>
 
-          <div className="header-badges">
-            <span className={isEditable ? "status-chip chip-draft" : "status-chip chip-locked"}>
+          <div className="a08-header-right-actions">
+            {selectedTemplateId !== null && (
+              <button
+                type="button"
+                className="btn-secondary header-clone-btn"
+                onClick={() => void cloneTemplate()}
+              >
+                Clone as New Version
+              </button>
+            )}
+            <span
+              className={
+                isEditable
+                  ? "status-chip chip-draft"
+                  : "status-chip chip-locked"
+              }
+            >
               {isEditable ? "Editable Draft" : "Published (Locked)"}
             </span>
           </div>
         </div>
 
         <div className="editor-question-card">
-          <label className="card-input-label">Instructions / Guidelines</label>
+          <label htmlFor="a08-instructions" className="card-input-label">
+            Instructions / Guidelines
+          </label>
           <textarea
+            id="a08-instructions"
             value={instructions}
             onChange={(event) => setInstructions(event.target.value)}
             disabled={!isEditable}
@@ -315,25 +363,81 @@ export default function A08FormEditor() {
         </div>
 
         <div className="form-section-group">
-          <h4 className="form-section-title">
-            {activeFormType === "observation" ? "Observation Questions" : "Survey Questions"}
-          </h4>
+          <div className="a08-questions-header-row">
+            <h4 className="form-section-title">
+              {activeFormType === "observation"
+                ? "Observation Questions"
+                : "Survey Questions"}
+            </h4>
+            <span className="a08-question-count-badge">
+              {questions.length}{" "}
+              {questions.length === 1 ? "Question" : "Questions"}
+            </span>
+          </div>
 
           {questions.length === 0 && (
             <div className="observation-empty-state">
-              No questions in this form yet. {isEditable && "Click below to add rating or text questions."}
+              No questions in this form yet.{" "}
+              {isEditable &&
+                "Click below to add rating or text questions."}
             </div>
           )}
 
           {questions.map((question, index) => (
             <div key={question.id} className="editor-question-card">
               <div className="card-question-header">
-                <span className="question-number">Question {index + 1}</span>
+                <div className="a08-question-title-group">
+                  <span className="question-number">Question {index + 1}</span>
+                  <span
+                    className={`status-chip a02-chip-xs ${
+                      question.type === "rating"
+                        ? "a05-chip-info"
+                        : "a02-chip-warning"
+                    }`}
+                  >
+                    {question.type === "rating"
+                      ? "Rating Scale"
+                      : "Written Response"}
+                  </span>
+                </div>
+
+                {isEditable && (
+                  <div className="a08-question-header-actions">
+                    <button
+                      type="button"
+                      className="a08-move-btn"
+                      disabled={index === 0}
+                      title="Move question up"
+                      aria-label={`Move question ${index + 1} up`}
+                      onClick={() => moveQuestion(index, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="a08-move-btn"
+                      disabled={index === questions.length - 1}
+                      title="Move question down"
+                      aria-label={`Move question ${index + 1} down`}
+                      onClick={() => moveQuestion(index, 1)}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger-sm"
+                      onClick={() => deleteQuestion(question.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="editor-question-row">
-                <label>Question Text</label>
+                <label htmlFor={`q-text-${question.id}`}>Question Text</label>
                 <input
+                  id={`q-text-${question.id}`}
                   type="text"
                   value={question.text}
                   disabled={!isEditable}
@@ -378,11 +482,16 @@ export default function A08FormEditor() {
                         >
                           −
                         </button>
-                        <span className="stepper-value-badge">{question.min ?? 1}</span>
+                        <span className="stepper-value-badge">
+                          {question.min ?? 1}
+                        </span>
                         <button
                           type="button"
                           className="stepper-btn"
-                          disabled={!isEditable || (question.min ?? 1) >= (question.max ?? 5) - 1}
+                          disabled={
+                            !isEditable ||
+                            (question.min ?? 1) >= (question.max ?? 5) - 1
+                          }
                           onClick={() =>
                             updateQuestion(question.id, {
                               min: (question.min ?? 1) + 1,
@@ -400,16 +509,24 @@ export default function A08FormEditor() {
                         <button
                           type="button"
                           className="stepper-btn"
-                          disabled={!isEditable || (question.max ?? 5) <= (question.min ?? 1) + 1}
+                          disabled={
+                            !isEditable ||
+                            (question.max ?? 5) <= (question.min ?? 1) + 1
+                          }
                           onClick={() =>
                             updateQuestion(question.id, {
-                              max: Math.max((question.min ?? 1) + 1, (question.max ?? 5) - 1),
+                              max: Math.max(
+                                (question.min ?? 1) + 1,
+                                (question.max ?? 5) - 1
+                              ),
                             })
                           }
                         >
                           −
                         </button>
-                        <span className="stepper-value-badge">{question.max ?? 5}</span>
+                        <span className="stepper-value-badge">
+                          {question.max ?? 5}
+                        </span>
                         <button
                           type="button"
                           className="stepper-btn"
@@ -427,18 +544,6 @@ export default function A08FormEditor() {
                   </div>
                 )}
               </div>
-
-              {isEditable && (
-                <div className="question-card-actions">
-                  <button
-                    type="button"
-                    className="btn-danger-sm"
-                    onClick={() => deleteQuestion(question.id)}
-                  >
-                    Remove Question
-                  </button>
-                </div>
-              )}
             </div>
           ))}
 
@@ -465,27 +570,29 @@ export default function A08FormEditor() {
       </section>
 
       {/* Footer Actions */}
-      <div className="form-editor-footer-actions">
-        {isEditable && (
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void saveDraft()}
-          >
-            Save Draft
-          </button>
-        )}
+      {(isEditable || selectedTemplate?.can_publish) && (
+        <div className="form-editor-footer-actions">
+          {isEditable && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void saveDraft()}
+            >
+              Save Draft
+            </button>
+          )}
 
-        {selectedTemplate?.can_publish && (
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void publishTemplate()}
-          >
-            Publish Template
-          </button>
-        )}
-      </div>
+          {selectedTemplate?.can_publish && (
+            <button
+              type="button"
+              className="btn-accent-blue"
+              onClick={() => void publishTemplate()}
+            >
+              Publish Template
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="dashboard-center-action">
         <Link to="/committee/dashboard" className="btn-secondary">

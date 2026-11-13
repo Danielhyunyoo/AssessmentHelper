@@ -15,10 +15,17 @@ const PENDING_COURSE_CHANGE_KEY = "pending_course_change_requests";
 const LEGACY_PENDING_COURSE_CHANGE_KEY = "pending_course_change_request";
 
 export interface CycleTransferRecord {
+  signup_id?: number | null;
+  faculty_id?: number | null;
   professor_name: string;
+  department?: string | null;
+  academic_rank?: string;
+  course_id?: number | null;
+  course_label?: string;
   target_cycle: string;
   note: string;
   transferred_at: string;
+  status?: "queued_for_a03" | "carried_forward";
 }
 
 export interface CourseChangeRequestItem {
@@ -123,8 +130,8 @@ function readAllPendingChangeRequests(): CourseChangeRequestItem[] {
       } else {
         const item = normalizeRequestItem(parsed, key, 0);
         if (item && item.request_id && !seenIds.has(item.request_id)) {
-            seenIds.add(item.request_id);
-            collected.push(item);
+          seenIds.add(item.request_id);
+          collected.push(item);
         }
       }
     }
@@ -207,10 +214,6 @@ function deletePendingChangeRequest(
   return next;
 }
 
-/**
- * Checks localStorage for any observee-approved observer invitation acceptances
- * (written when an observee approves an observer on E02).
- */
 function readLocalConfirmedObserverMap(): Record<string, ConfirmedMatchInfo> {
   const map: Record<string, ConfirmedMatchInfo> = {};
   try {
@@ -274,7 +277,16 @@ export default function A02FacultyMatching() {
   const [departmentFilter, setDepartmentFilter] = useState("Computer Science");
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [candidateOptions, setCandidateOptions] = useState<
-    Record<number, { id: number; name: string; academic_level: string; eligible?: boolean; problems?: string[] }[]>
+    Record<
+      number,
+      {
+        id: number;
+        name: string;
+        academic_level: string;
+        eligible?: boolean;
+        problems?: string[];
+      }[]
+    >
   >({});
   const [selectedObservers, setSelectedObservers] = useState<
     Record<number, number[]>
@@ -286,6 +298,7 @@ export default function A02FacultyMatching() {
   const [savingSignupId, setSavingSignupId] = useState<number | null>(null);
   const [matchError, setMatchError] = useState("");
   const [matchSuccess, setMatchSuccess] = useState("");
+  const [showA03LinkBanner, setShowA03LinkBanner] = useState(false);
 
   // Master-Detail active observee selection
   const [activeSignupId, setActiveSignupId] = useState<number | null>(null);
@@ -296,7 +309,10 @@ export default function A02FacultyMatching() {
   >("all");
   const [changeReqSearchQuery, setChangeReqSearchQuery] = useState("");
 
-  // Multiple pending course change requests & session visibility flag
+  // Confirmed Section Search & Department Filter states
+  const [confirmedSearchQuery, setConfirmedSearchQuery] = useState("");
+  const [confirmedDeptFilter, setConfirmedDeptFilter] = useState("");
+
   const [pendingChangeRequests, setPendingChangeRequests] = useState<
     CourseChangeRequestItem[]
   >(() => readAllPendingChangeRequests());
@@ -312,15 +328,11 @@ export default function A02FacultyMatching() {
   const [reassignedCourseByReq, setReassignedCourseByReq] = useState<
     Record<string, number | "">
   >({});
-  const [targetCycleByReq, setTargetCycleByReq] = useState<
-    Record<string, string>
-  >({});
   const [acNoteByReq, setAcNoteByReq] = useState<Record<string, string>>({});
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(
     null
   );
 
-  // Track transferred observees in current session
   const [transferredObservees, setTransferredObservees] = useState<
     Record<string, CycleTransferRecord>
   >(() => {
@@ -332,7 +344,6 @@ export default function A02FacultyMatching() {
     }
   });
 
-  // Allow AC to unlock and re-edit already released (unconfirmed) observer lists
   const [unlockedSignupIds, setUnlockedSignupIds] = useState<
     Record<number, boolean>
   >({});
@@ -707,8 +718,19 @@ export default function A02FacultyMatching() {
       );
       setConfirmedBySignupId(confirmedMap);
 
+      const queuedMap: Record<string, CycleTransferRecord> = (() => {
+        try {
+          const raw = localStorage.getItem(CYCLE_TRANSFER_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          return {};
+        }
+      })();
+
       const activePool = eligibleObservees.filter((f: FacultyRow) => {
         const sid = f.signup_id!;
+        const isQueuedForA03 = Boolean(queuedMap[f.name.toLowerCase()]);
+        if (isQueuedForA03) return false;
         const hasReq = currentReqs.some(
           (req) =>
             req.professor_name?.toLowerCase() === f.name.toLowerCase() ||
@@ -750,6 +772,12 @@ export default function A02FacultyMatching() {
       if (latest.length > 0) {
         setHadRequestsThisSession(true);
       }
+      try {
+        const rawTransfers = localStorage.getItem(CYCLE_TRANSFER_STORAGE_KEY);
+        setTransferredObservees(rawTransfers ? JSON.parse(rawTransfers) : {});
+      } catch {
+        // Ignore storage errors
+      }
     };
     window.addEventListener("course-change-request-updated", syncPending);
     window.addEventListener("notifications-changed", syncPending);
@@ -771,7 +799,6 @@ export default function A02FacultyMatching() {
       resolutionActionByReq[reqKey] ?? "approve_and_select_observers";
     const reassignedId =
       reassignedCourseByReq[reqKey] ?? req.requested_course_id;
-    const cycle = targetCycleByReq[reqKey] ?? "Next Evaluation Cycle";
     const note = acNoteByReq[reqKey] ?? "";
     const observeeName = req.professor_name || "Observee";
     const matchedObservee = observeeList.find(
@@ -781,6 +808,7 @@ export default function A02FacultyMatching() {
     setProcessingRequestId(reqKey);
     setMatchError("");
     setMatchSuccess("");
+    setShowA03LinkBanner(false);
 
     try {
       if (
@@ -891,17 +919,36 @@ export default function A02FacultyMatching() {
           }. Select and release their observers in the workspace below.`
         );
       } else if (action === "transfer_cycle") {
-        if (!cycle.trim()) {
-          setMatchError("Please specify the target evaluation cycle.");
-          setProcessingRequestId(null);
-          return;
-        }
+        const courseLabel = matchedObservee?.course
+          ? `${matchedObservee.course.department_code} ${matchedObservee.course.course_number}.${matchedObservee.course.section}: ${matchedObservee.course.title}`
+          : `${req.requested_course_label} (Sec. ${req.requested_section})`;
+
+        const defaultNote =
+          note.trim() ||
+          req.reason?.trim() ||
+          `Deferred from course change request (${req.requested_course_label} Sec. ${req.requested_section})`;
+
+        const observeeRecord = matchedObservee as
+          | (FacultyRow & { id?: number; faculty_id?: number })
+          | undefined;
 
         const transferRecord: CycleTransferRecord = {
+          signup_id: matchedObservee?.signup_id ?? null,
+          faculty_id:
+            observeeRecord?.id ??
+            observeeRecord?.faculty_id ??
+            req.professor_id ??
+            null,
           professor_name: observeeName,
-          target_cycle: cycle.trim(),
-          note: note.trim(),
+          department: matchedObservee?.department ?? null,
+          academic_rank: matchedObservee?.academic_rank ?? "Faculty",
+          course_id:
+            matchedObservee?.course?.course_id ?? req.requested_course_id,
+          course_label: courseLabel,
+          target_cycle: "Next Evaluation Cycle",
+          note: defaultNote,
           transferred_at: new Date().toISOString(),
+          status: "queued_for_a03",
         };
 
         const updatedTransfers = {
@@ -921,11 +968,11 @@ export default function A02FacultyMatching() {
         const remaining = deletePendingChangeRequest(req);
         setPendingChangeRequests(remaining);
         window.dispatchEvent(new Event("notifications-changed"));
+        window.dispatchEvent(new Event("cycle-transfers-updated"));
 
+        setShowA03LinkBanner(true);
         setMatchSuccess(
-          `Transferred ${observeeName} to ${cycle.trim()}${
-            note.trim() ? ` (${note.trim()})` : ""
-          }.`
+          `Moved ${observeeName} to Unmatched Observees (A03) so they can be transferred to the next evaluation cycle.`
         );
       } else if (action === "deny_request") {
         const remaining = deletePendingChangeRequest(req);
@@ -970,6 +1017,7 @@ export default function A02FacultyMatching() {
     setSavingSignupId(signupId);
     setMatchError("");
     setMatchSuccess("");
+    setShowA03LinkBanner(false);
 
     try {
       await committeeApi.releaseCandidates(signupId, observerIds);
@@ -1019,7 +1067,10 @@ export default function A02FacultyMatching() {
     );
   });
 
-  const validObservees = observeeList.filter((p) => p.signup_id != null);
+  const validObservees = observeeList.filter(
+    (p) =>
+      p.signup_id != null && !transferredObservees[p.name.toLowerCase()]
+  );
 
   const confirmedObservees = validObservees.filter((p) => {
     const sid = p.signup_id!;
@@ -1033,16 +1084,14 @@ export default function A02FacultyMatching() {
     return !confirmedBySignupId[sid] || hasPendingChange;
   });
 
-  const releasedCount = activeObservees.filter((p) =>
-    Boolean(releasedAt[p.signup_id!])
-  ).length;
-  const unreleasedCount = activeObservees.length - releasedCount;
-  const pendingChangeCount = activeObservees.filter((p) =>
-    Boolean(findRequestForObservee(p))
-  ).length;
-
-  const departments = [...new Set(validObservees.map((person) => person.department).filter(Boolean))].sort() as string[];
-  const shownDepartment = departments.includes(departmentFilter) ? departmentFilter : "";
+  const departments = [
+    ...new Set(
+      validObservees.map((person) => person.department).filter(Boolean)
+    ),
+  ].sort() as string[];
+  const shownDepartment = departments.includes(departmentFilter)
+    ? departmentFilter
+    : "";
   const shownActive = activeObservees.filter(
     (person) => !shownDepartment || person.department === shownDepartment
   );
@@ -1050,9 +1099,16 @@ export default function A02FacultyMatching() {
     (person) => !shownDepartment || person.department === shownDepartment
   );
 
-  const filteredObservees = activeObservees.filter((person) => {
+  const releasedCount = shownActive.filter((p) =>
+    Boolean(releasedAt[p.signup_id!])
+  ).length;
+  const unreleasedCount = shownActive.length - releasedCount;
+  const pendingChangeCount = shownActive.filter((p) =>
+    Boolean(findRequestForObservee(p))
+  ).length;
+
+  const filteredObservees = shownActive.filter((person) => {
     const signupId = person.signup_id!;
-    if (shownDepartment && person.department !== shownDepartment) return false;
     const isReleased = Boolean(releasedAt[signupId]);
     const isPendingChange = Boolean(findRequestForObservee(person));
 
@@ -1083,10 +1139,48 @@ export default function A02FacultyMatching() {
     );
   });
 
+  // Filtered Confirmed Observer Matches
+  const filteredConfirmedObservees = shownConfirmed.filter((person) => {
+    const sid = person.signup_id!;
+    const confirmedInfo = confirmedBySignupId[sid];
+    const candidates = candidateOptions[sid] ?? [];
+    const selectedIds = selectedObservers[sid] ?? [];
+    const displayObservers =
+      confirmedInfo?.confirmedObserverNames &&
+      confirmedInfo.confirmedObserverNames.length > 0
+        ? confirmedInfo.confirmedObserverNames
+        : candidates
+            .filter((c) => selectedIds.includes(c.id))
+            .map((c) => c.name);
+
+    if (confirmedDeptFilter && person.department !== confirmedDeptFilter) {
+      return false;
+    }
+
+    const q = confirmedSearchQuery.trim().toLowerCase();
+    if (!q) return true;
+
+    const courseText = person.course
+      ? `${person.course.department_code} ${person.course.course_number}.${person.course.section} ${person.course.title}`.toLowerCase()
+      : (person.academic_rank ?? "").toLowerCase();
+
+    const obsText = displayObservers.join(" ").toLowerCase();
+
+    return (
+      person.name.toLowerCase().includes(q) ||
+      courseText.includes(q) ||
+      obsText.includes(q)
+    );
+  });
+
   const selectedPerson =
     filteredObservees.find((p) => p.signup_id === activeSignupId) ??
     filteredObservees[0] ??
     null;
+
+  const queuedForA03Count = Object.values(transferredObservees).filter(
+    (t) => t.status !== "carried_forward"
+  ).length;
 
   const showChangeRequestsSection =
     pendingChangeRequests.length > 0 || hadRequestsThisSession;
@@ -1100,7 +1194,16 @@ export default function A02FacultyMatching() {
         </Link>
       </div>
 
-      <h2>Observer Selection and Matching</h2>
+      <div className="a02-section-header-bar">
+        <h2 className="a02-section-heading">
+          Observer Selection and Matching
+        </h2>
+        {queuedForA03Count > 0 && (
+          <Link to="/committee/unmatched" className="btn-secondary">
+            View Unmatched Observees ({queuedForA03Count} Queued) →
+          </Link>
+        )}
+      </div>
 
       {loadingMatches && (
         <p>Loading faculty and eligible observer candidates...</p>
@@ -1111,8 +1214,13 @@ export default function A02FacultyMatching() {
         </div>
       )}
       {matchSuccess && (
-        <div role="status" className="feedback-banner-success">
-          {matchSuccess}
+        <div role="status" className="feedback-banner-success a02-banner-row">
+          <span>{matchSuccess}</span>
+          {showA03LinkBanner && (
+            <Link to="/committee/unmatched" className="btn-secondary">
+              Go to Unmatched Observees (A03) →
+            </Link>
+          )}
         </div>
       )}
 
@@ -1162,8 +1270,6 @@ export default function A02FacultyMatching() {
                     "approve_and_select_observers";
                   const reassignedId =
                     reassignedCourseByReq[reqKey] ?? req.requested_course_id;
-                  const cycle =
-                    targetCycleByReq[reqKey] ?? "Next Evaluation Cycle";
                   const note = acNoteByReq[reqKey] ?? "";
                   const isNoteOpen = Boolean(expandedRequestIds[reqKey]);
                   const isProcessingThis = processingRequestId === reqKey;
@@ -1177,7 +1283,7 @@ export default function A02FacultyMatching() {
                     : action === "reassign_course"
                     ? "Reassign & Select Observers"
                     : action === "transfer_cycle"
-                    ? "Transfer to Next Cycle"
+                    ? "Move to Unmatched (A03)"
                     : "Deny Request";
 
                   return (
@@ -1282,7 +1388,7 @@ export default function A02FacultyMatching() {
                               observers
                             </option>
                             <option value="transfer_cycle">
-                              Transfer to next evaluation cycle
+                              Move to Unmatched Observees (A03) for next cycle
                             </option>
                             <option value="deny_request">
                               Deny request &amp; keep current course
@@ -1316,24 +1422,12 @@ export default function A02FacultyMatching() {
                           )}
 
                           {action === "transfer_cycle" && (
-                            <select
-                              aria-label="Select target evaluation cycle"
-                              className="slot-select-input a02-full-select"
-                              value={cycle}
-                              onChange={(e) =>
-                                setTargetCycleByReq((prev) => ({
-                                  ...prev,
-                                  [reqKey]: e.target.value,
-                                }))
-                              }
-                            >
-                              <option value="Next Evaluation Cycle">
-                                Next Evaluation Cycle
-                              </option>
-                              <option value="Spring 2027">Spring 2027</option>
-                              <option value="Fall 2027">Fall 2027</option>
-                              <option value="Spring 2028">Spring 2028</option>
-                            </select>
+                            <p className="font-slate font-sm a02-zero-margin">
+                              This observee will be removed from the active
+                              matching list and added to{" "}
+                              <strong>Unmatched Observees (A03)</strong> so you
+                              can transfer them to the next evaluation cycle.
+                            </p>
                           )}
 
                           {isNoteOpen && (
@@ -1456,7 +1550,9 @@ export default function A02FacultyMatching() {
               >
                 <option value="">All departments</option>
                 {departments.map((department) => (
-                  <option key={department} value={department}>{department}</option>
+                  <option key={department} value={department}>
+                    {department}
+                  </option>
                 ))}
               </select>
 
@@ -1474,7 +1570,7 @@ export default function A02FacultyMatching() {
                   )
                 }
               >
-                <option value="all">All ({activeObservees.length})</option>
+                <option value="all">All ({shownActive.length})</option>
                 <option value="unreleased">
                   Awaiting Release ({unreleasedCount})
                 </option>
@@ -1515,7 +1611,7 @@ export default function A02FacultyMatching() {
                 <div className="a02-column-header">
                   <span className="a02-column-title">Observee Roster</span>
                   <span className="a02-column-count">
-                    {filteredObservees.length} of {activeObservees.length}
+                    {filteredObservees.length} of {shownActive.length}
                   </span>
                 </div>
 
@@ -1650,8 +1746,7 @@ export default function A02FacultyMatching() {
                             )}
                             {transferInfo && (
                               <p className="a02-alert-info-text">
-                                Transferred to{" "}
-                                <strong>{transferInfo.target_cycle}</strong>
+                                Queued in Unmatched Observees (A03)
                                 {transferInfo.note
                                   ? `: ${transferInfo.note}`
                                   : ""}
@@ -1747,8 +1842,12 @@ export default function A02FacultyMatching() {
                                       </span>
                                     )}
                                     {candidate.eligible === false && (
-                                      <span className="font-slate font-sm" style={{ display: "block" }}>
-                                        Not eligible: {candidate.problems?.join(", ")}
+                                      <span
+                                        className="font-slate font-sm"
+                                        style={{ display: "block" }}
+                                      >
+                                        Not eligible:{" "}
+                                        {candidate.problems?.join(", ")}
                                       </span>
                                     )}
                                   </span>
@@ -1804,7 +1903,7 @@ export default function A02FacultyMatching() {
         </div>
       </section>
 
-      {/* 4. Confirmed Observer Matches (Locked Read-Only Section) */}
+      {/* 4. Confirmed Observer Matches (Upgraded Searchable Card Grid) */}
       {shownConfirmed.length > 0 && (
         <section className="dashboard-phase section-margin-top">
           <div className="a02-section-header-bar">
@@ -1813,70 +1912,113 @@ export default function A02FacultyMatching() {
                 Confirmed Observer Matches
               </h3>
               <span className="status-chip chip-draft">
-                {shownConfirmed.length} CONFIRMED
+                {filteredConfirmedObservees.length} of {shownConfirmed.length} CONFIRMED
               </span>
             </div>
           </div>
 
           <div className="table-container theme-blue summary-card-padding">
-            <div className="a02-confirmed-list">
-              {shownConfirmed.map((person) => {
-                const sid = person.signup_id!;
-                const confirmedInfo = confirmedBySignupId[sid];
-                const candidates = candidateOptions[sid] ?? [];
-                const selectedIds = selectedObservers[sid] ?? [];
-                const displayObservers =
-                  confirmedInfo?.confirmedObserverNames &&
-                  confirmedInfo.confirmedObserverNames.length > 0
-                    ? confirmedInfo.confirmedObserverNames
-                    : candidates
-                        .filter((c) => selectedIds.includes(c.id))
-                        .map((c) => c.name);
+            {/* Confirmed Search & Filter Toolbar */}
+            <div className="a02-match-toolbar a02-toolbar-flush">
+              <input
+                type="text"
+                className="styled-text-input a02-match-search"
+                placeholder="Search confirmed observee, course, or observer..."
+                value={confirmedSearchQuery}
+                onChange={(e) => setConfirmedSearchQuery(e.target.value)}
+              />
 
-                return (
-                  <div key={sid} className="a02-confirmed-row">
-                    <div className="a02-confirmed-main">
-                      <div className="a02-confirmed-title-line">
-                        <span className="a02-confirmed-name">
-                          {person.name}
-                        </span>
-                        <span className="a02-confirmed-course">
-                          {person.course
-                            ? `${person.course.department_code} ${person.course.course_number}.${person.course.section}: ${person.course.title}`
-                            : person.academic_rank}
-                        </span>
-                      </div>
+              <div className="a02-match-toolbar-actions">
+                <select
+                  aria-label="Filter confirmed matches by department"
+                  className="slot-select-input a02-status-filter"
+                  value={confirmedDeptFilter}
+                  onChange={(e) => setConfirmedDeptFilter(e.target.value)}
+                >
+                  <option value="">All departments</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
 
-                      <div className="a02-confirmed-observers">
-                        <span className="a02-confirmed-label">
-                          Confirmed Observer
-                          {displayObservers.length === 1 ? "" : "s"}:
-                        </span>
-                        {displayObservers.length > 0 ? (
-                          displayObservers.map((obsName) => (
-                            <span key={obsName} className="a02-observer-tag">
-                              <span className="a02-observer-tag-dot" />
-                              {obsName}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="font-slate font-sm">Accepted</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="a02-confirmed-meta">
-                      <span className="status-chip chip-draft a02-status-nowrap">
-                        Match Confirmed
-                        {confirmedInfo?.confirmedAt
-                          ? ` · ${formatDay(confirmedInfo.confirmedAt)}`
-                          : ""}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                {confirmedSearchQuery && (
+                  <button
+                    type="button"
+                    className="btn-select-toggle"
+                    onClick={() => setConfirmedSearchQuery("")}
+                  >
+                    Clear Search
+                  </button>
+                )}
+              </div>
             </div>
+
+            {filteredConfirmedObservees.length === 0 ? (
+              <p className="font-slate font-sm a02-zero-margin">
+                No confirmed observer matches match your current search or department filter.
+              </p>
+            ) : (
+              <div className="a02-confirmed-list">
+                {filteredConfirmedObservees.map((person) => {
+                  const sid = person.signup_id!;
+                  const confirmedInfo = confirmedBySignupId[sid];
+                  const candidates = candidateOptions[sid] ?? [];
+                  const selectedIds = selectedObservers[sid] ?? [];
+                  const displayObservers =
+                    confirmedInfo?.confirmedObserverNames &&
+                    confirmedInfo.confirmedObserverNames.length > 0
+                      ? confirmedInfo.confirmedObserverNames
+                      : candidates
+                          .filter((c) => selectedIds.includes(c.id))
+                          .map((c) => c.name);
+
+                  return (
+                    <div key={sid} className="a02-confirmed-row">
+                      <div className="a02-confirmed-main">
+                        <div className="a02-confirmed-title-line">
+                          <span className="a02-confirmed-name">
+                            {person.name}
+                          </span>
+                          <span className="a02-confirmed-course">
+                            {person.course
+                              ? `${person.course.department_code} ${person.course.course_number}.${person.course.section}: ${person.course.title}`
+                              : person.academic_rank}
+                          </span>
+                        </div>
+
+                        <div className="a02-confirmed-observers">
+                          <span className="a02-confirmed-label">
+                            Confirmed Observer
+                            {displayObservers.length === 1 ? "" : "s"}:
+                          </span>
+                          {displayObservers.length > 0 ? (
+                            displayObservers.map((obsName) => (
+                              <span key={obsName} className="a02-observer-tag">
+                                <span className="a02-observer-tag-dot" />
+                                {obsName}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="font-slate font-sm">Accepted</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="a02-confirmed-meta">
+                        <span className="status-chip chip-draft a02-status-nowrap">
+                          Match Confirmed
+                          {confirmedInfo?.confirmedAt
+                            ? ` · ${formatDay(confirmedInfo.confirmedAt)}`
+                            : ""}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
       )}
