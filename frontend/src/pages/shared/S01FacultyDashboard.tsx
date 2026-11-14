@@ -33,8 +33,27 @@ export default function S01FacultyDashboard() {
 
   const canUseFacultyModules = !!currentUser && currentUser.role !== "admin";
 
+  const clearPlannerStorage = () => {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("faculty_planner_")) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // Ignore storage access errors
+    }
+    setCheckedSteps({});
+    setCustomTasks([]);
+    setNewTaskText("");
+  };
+
   const loadDashboard = () => {
     setDashboardLoading(true);
+    setDashboardError("");
     Promise.all([facultyApi.dashboard(), facultyApi.registrationStatus()])
       .then(([dash, reg]) => {
         setDashboard(dash);
@@ -57,14 +76,33 @@ export default function S01FacultyDashboard() {
       loadDashboard();
     };
 
+    const handleDemoReset = () => {
+      clearPlannerStorage();
+      loadDashboard();
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === null || e.key.startsWith("faculty_planner_")) {
+        if (!e.newValue) {
+          setCheckedSteps({});
+          setCustomTasks([]);
+          setNewTaskText("");
+        }
+      }
+    };
+
     window.addEventListener("notifications-changed", handleDashboardUpdate);
     window.addEventListener("simulated-date-changed", handleDashboardUpdate);
     window.addEventListener("demo-date-changed", handleDashboardUpdate);
+    window.addEventListener("demo-reset", handleDemoReset);
+    window.addEventListener("storage", handleStorageChange);
 
     return () => {
       window.removeEventListener("notifications-changed", handleDashboardUpdate);
       window.removeEventListener("simulated-date-changed", handleDashboardUpdate);
       window.removeEventListener("demo-date-changed", handleDashboardUpdate);
+      window.removeEventListener("demo-reset", handleDemoReset);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
@@ -109,9 +147,13 @@ export default function S01FacultyDashboard() {
         };
         setCheckedSteps(parsed.checkedSteps ?? {});
         setCustomTasks(parsed.customTasks ?? []);
+      } else {
+        setCheckedSteps({});
+        setCustomTasks([]);
       }
     } catch {
-      // Ignore malformed storage
+      setCheckedSteps({});
+      setCustomTasks([]);
     }
   }, [storageKey]);
 

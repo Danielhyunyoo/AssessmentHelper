@@ -11,14 +11,9 @@
 .dashboard-container h2 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #0f172a;
-  border-bottom: 2px solid #e2e8f0;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-subtle);
   padding-bottom: 0.5rem;
-}
-
-html.dark-mode .dashboard-container h2 {
-  color: #ffffff;
-  border-bottom-color: #27272a;
 }
 
 .dashboard-phase {
@@ -30,60 +25,29 @@ html.dark-mode .dashboard-container h2 {
 .dashboard-phase h3 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #334155;
-}
-
-html.dark-mode .dashboard-phase h3 {
-  color: #f4f4f5;
+  color: var(--text-secondary);
 }
 
 .yellow-banner,
 .reminder-banner {
-  background-color: #fef9c3;
-  border-left: 4px solid #eab308;
-  color: #000000;
+  background-color: var(--amber-soft-bg);
+  border: 1px solid var(--amber-soft-border);
+  border-left: 4px solid var(--amber-accent);
+  color: var(--amber-soft-text);
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
-  border-radius: 4px;
-}
-
-html.dark-mode .yellow-banner,
-html.dark-mode .reminder-banner {
-  background-color: #291e03;
-  color: #fef08a;
-  border-left-color: #eab308;
-}
-
-.feedback-banner-success {
-  background-color: #dcfce7;
-  border-left: 5px solid #16a34a;
-  color: #14532d;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  margin-bottom: 1.5rem;
-  font-weight: 600;
-}
-
-html.dark-mode .feedback-banner-success {
-  background-color: #052e16;
-  color: #86efac;
-  border-left-color: #22c55e;
+  border-radius: 8px;
 }
 
 .feedback-banner-error {
-  background-color: #fee2e2;
-  border-left: 5px solid #dc2626;
-  color: #7f1d1d;
+  background-color: var(--danger-soft-bg);
+  border: 1px solid var(--danger-soft-border);
+  border-left: 4px solid var(--danger-accent);
+  color: var(--danger-soft-text);
   padding: 0.75rem 1rem;
-  border-radius: 6px;
+  border-radius: 8px;
   margin-bottom: 1.5rem;
   font-weight: 600;
-}
-
-html.dark-mode .feedback-banner-error {
-  background-color: #450a0a;
-  color: #fca5a5;
-  border-left-color: #ef4444;
 }
 
 .submit-action-row {
@@ -98,27 +62,28 @@ html.dark-mode .feedback-banner-error {
   gap: 1.5rem;
 }
 
+.dashboard-card,
+.notification-card,
+.full-width-notification-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
 .dashboard-card {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-html.dark-mode .dashboard-card {
-  background-color: #121212;
-  color: #f4f4f5;
-  border-color: #27272a;
 }
 
 .dashboard-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--text-faint);
+  box-shadow: var(--shadow-elevated);
 }
 
 .dashboard-card img {
@@ -127,7 +92,7 @@ html.dark-mode .dashboard-card {
   height: 140px;
   object-fit: cover;
   border-radius: 6px;
-  background-color: #e2e8f0;
+  background-color: var(--bg-muted);
   display: block;
 }
 
@@ -142,21 +107,13 @@ html.dark-mode .dashboard-card {
 .dashboard-card h4 {
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
-}
-
-html.dark-mode .dashboard-card h4 {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .dashboard-card p {
   font-size: 0.875rem;
-  color: #475569;
+  color: var(--text-muted);
   line-height: 1.4;
-}
-
-html.dark-mode .dashboard-card p {
-  color: #a1a1aa;
 }
 
 /* ==========================================
@@ -165,17 +122,13 @@ html.dark-mode .dashboard-card p {
 .card-status {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #000000;
-  background-color: #fef3c7;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  color: var(--amber-soft-text);
+  background-color: var(--amber-soft-bg);
+  border: 1px solid var(--amber-soft-border);
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
   align-self: flex-start;
   text-transform: uppercase;
-}
-
-html.dark-mode .card-status {
-  background-color: #fef3c7;
-  color: #000000;
 }
 
 .dashboard-center-action {
@@ -188,9 +141,6 @@ html.dark-mode .card-status {
    DASHBOARD NOTIFICATIONS WIDGET
    ========================================== */
 .notification-card {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
@@ -200,14 +150,10 @@ html.dark-mode .card-status {
 .notification-card h4 {
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-html.dark-mode .notification-card h4 {
-  border-bottom-color: #27272a;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .dashboard-notifications-container {
@@ -222,7 +168,7 @@ html.dark-mode .notification-card h4 {
 .dashboard-notif-empty {
   padding: 1.5rem;
   text-align: center;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -231,58 +177,37 @@ html.dark-mode .notification-card h4 {
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.85rem;
   cursor: pointer;
-  background-color: #f8fafc;
-  border: 1px solid #f1f5f9;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
   text-decoration: none;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .dashboard-notif-item:hover {
-  background-color: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-html.dark-mode .dashboard-notif-item {
-  background-color: #18181b;
-  border-color: #27272a;
-}
-
-html.dark-mode .dashboard-notif-item:hover {
-  background-color: #27272a;
-  border-color: #3f3f46;
+  background-color: var(--bg-muted);
+  border-color: var(--border-strong);
 }
 
 .dashboard-notif-title {
   margin: 0;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
-html.dark-mode .dashboard-notif-title {
-  color: #f4f4f5;
-}
-
-/* Right-aligned link logic: hidden by default, blue in both modes */
 a.dashboard-notif-link,
 .dashboard-notif-link {
   align-self: flex-end;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #2563eb;
+  color: var(--accent-primary);
   text-decoration: underline;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease, color 0.15s ease;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
-html.dark-mode a.dashboard-notif-link,
-html.dark-mode .dashboard-notif-link {
-  color: #2563eb;
-}
-
-/* Reveal link on card hover */
 .dashboard-notif-item:hover a.dashboard-notif-link,
 .dashboard-notif-item:hover .dashboard-notif-link {
   opacity: 1;
@@ -296,8 +221,8 @@ html.dark-mode .dashboard-notif-link {
   font-size: 0.75rem;
 }
 
-.dashboard-notif-time.text-success-green { color: #166534; }
-.dashboard-notif-time.text-muted-gray { color: #94a3b8; }
+.dashboard-notif-time.text-success-green { color: var(--sage-soft-text); }
+.dashboard-notif-time.text-muted-gray { color: var(--text-muted); }
 
 .full-width-notification-card {
   grid-column: 1 / -1;
@@ -305,16 +230,6 @@ html.dark-mode .dashboard-notif-link {
   flex-direction: column;
   justify-content: flex-start;
   padding: 1.5rem;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-html.dark-mode .full-width-notification-card {
-  background-color: #121212;
-  color: #f4f4f5;
-  border-color: #27272a;
 }
 
 .notification-card-header {
@@ -323,23 +238,23 @@ html.dark-mode .full-width-notification-card {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .notification-card-header h4 {
   margin: 0;
   font-size: 1.1rem;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .alert-count-badge {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--danger-soft-bg);
+  color: var(--danger-soft-text);
   font-size: 0.75rem;
   font-weight: 700;
   padding: 0.25rem 0.65rem;
   border-radius: 12px;
-  border: 1px solid #fca5a5;
+  border: 1px solid var(--danger-soft-border);
 }
 
 .dashboard-card.notification-card.stretched-notification-card {
@@ -359,6 +274,7 @@ html.dark-mode .full-width-notification-card {
   overflow-y: auto;
   padding-right: 4px;
 }
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -370,15 +286,9 @@ html.dark-mode .full-width-notification-card {
 
 .filter-row select {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 0.9rem;
-}
-
-html.dark-mode .filter-row select {
-  background-color: #18181b;
-  border-color: #27272a;
-  color: #f4f4f5;
 }

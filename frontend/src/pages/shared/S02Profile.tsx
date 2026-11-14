@@ -4,6 +4,28 @@ import { facultyApi, observationApi } from "../../api/endpoints";
 import type { Course, ScheduledVisit } from "../../api/types";
 import { Link } from "react-router-dom";
 
+const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+const TIME_WINDOWS = [
+  {
+    value: "Morning (8:00 AM – 12:00 PM)",
+    label: "Morning",
+    sub: "8:00 AM – 12:00 PM",
+  },
+  {
+    value: "Afternoon (12:00 PM – 4:00 PM)",
+    label: "Afternoon",
+    sub: "12:00 PM – 4:00 PM",
+  },
+  {
+    value: "Evening (4:00 PM – 8:00 PM)",
+    label: "Evening",
+    sub: "4:00 PM – 8:00 PM",
+  },
+];
+
+const AVAILABILITY_STORAGE_KEY = "observer_availability_v1";
+
 function formatLabel(value: string) {
   if (!value) return "Not provided";
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -14,6 +36,17 @@ function getInitials(name: string): string {
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function formatShortDate(isoDate: string): string {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return isoDate;
+  return parsed.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export default function S02Profile(): React.ReactElement {
@@ -48,6 +81,55 @@ export default function S02Profile(): React.ReactElement {
   const [editLastName, setEditLastName] = useState("");
   const [editPhone, setEditPhone] = useState("");
 
+  // Observer Availability State (synced with L03 & S04)
+  const [availDays, setAvailDays] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(AVAILABILITY_STORAGE_KEY) || "{}"
+      );
+      return Array.isArray(saved.days) ? saved.days : ["Tue", "Thu"];
+    } catch {
+      return ["Tue", "Thu"];
+    }
+  });
+
+  const [availWindows, setAvailWindows] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(AVAILABILITY_STORAGE_KEY) || "{}"
+      );
+      return Array.isArray(saved.windows)
+        ? saved.windows
+        : ["Morning (8:00 AM – 12:00 PM)"];
+    } catch {
+      return ["Morning (8:00 AM – 12:00 PM)"];
+    }
+  });
+
+  const [specificDates, setSpecificDates] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(AVAILABILITY_STORAGE_KEY) || "{}"
+      );
+      return Array.isArray(saved.specificDates) ? saved.specificDates : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [newDateInput, setNewDateInput] = useState("");
+  const [availNotes, setAvailNotes] = useState<string>(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(AVAILABILITY_STORAGE_KEY) || "{}"
+      );
+      return typeof saved.notes === "string" ? saved.notes : "";
+    } catch {
+      return "";
+    }
+  });
+  const [availSavedStatus, setAvailSavedStatus] = useState("");
+
   useEffect(() => {
     let cancelled = false;
 
@@ -56,26 +138,35 @@ export default function S02Profile(): React.ReactElement {
       setProfileError("");
 
       try {
-        const [result, regStatus, myCoursesResp, availData, dashData, scheduledVisits] =
-          await Promise.all([
-            facultyApi.profile(),
-            facultyApi.registrationStatus().catch(() => null),
-            facultyApi.courses().catch(() => null),
-            facultyApi.availability().catch(() => null),
-            facultyApi.dashboard().catch(() => null),
-            observationApi.scheduled().catch(() => [] as ScheduledVisit[]),
-          ]);
+        const [
+          result,
+          regStatus,
+          myCoursesResp,
+          availData,
+          dashData,
+          scheduledVisits,
+        ] = await Promise.all([
+          facultyApi.profile(),
+          facultyApi.registrationStatus().catch(() => null),
+          facultyApi.courses().catch(() => null),
+          facultyApi.availability().catch(() => null),
+          facultyApi.dashboard().catch(() => null),
+          observationApi.scheduled().catch(() => [] as ScheduledVisit[]),
+        ]);
 
         if (cancelled) return;
 
         const professor = result.professor as any;
         const first = professor.first_name || "";
         const last = professor.last_name || "";
-        
+
         const profId = professor.user_id ?? professor.id;
         let cachedPhoto = professor.profile_photo;
         if (!cachedPhoto && profId) {
-          cachedPhoto = localStorage.getItem(`profile_photo_${profId}`) || localStorage.getItem(`profile_photo_${professor.email}`) || "";
+          cachedPhoto =
+            localStorage.getItem(`profile_photo_${profId}`) ||
+            localStorage.getItem(`profile_photo_${professor.email}`) ||
+            "";
         }
         setProfilePhoto(cachedPhoto || "");
 
@@ -166,7 +257,8 @@ export default function S02Profile(): React.ReactElement {
           setRegisteredCourse(matched || null);
         } else if (registeredFlag && courseList.length > 0) {
           const flaggedCourse = courseList.find(
-            (c) => c.is_registered || c.registered || c.is_selected || c.selected
+            (c) =>
+              c.is_registered || c.registered || c.is_selected || c.selected
           );
           setRegisteredCourse(flaggedCourse || null);
         } else {
@@ -198,12 +290,65 @@ export default function S02Profile(): React.ReactElement {
       }
     }
 
+    const handleDemoReset = () => {
+      setProfilePhoto("");
+    };
+
     void loadProfile();
+    window.addEventListener("demo-reset", handleDemoReset);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("demo-reset", handleDemoReset);
     };
   }, []);
+
+  const toggleAvailDay = (day: string) => {
+    setAvailSavedStatus("");
+    setAvailDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
+  const toggleAvailWindow = (win: string) => {
+    setAvailSavedStatus("");
+    setAvailWindows((prev) =>
+      prev.includes(win) ? prev.filter((w) => w !== win) : [...prev, win]
+    );
+  };
+
+  const handleAddSpecificDate = () => {
+    if (!newDateInput) return;
+    setAvailSavedStatus("");
+    setSpecificDates((prev) =>
+      prev.includes(newDateInput) ? prev : [...prev, newDateInput].sort()
+    );
+    setNewDateInput("");
+  };
+
+  const handleRemoveSpecificDate = (dateToRemove: string) => {
+    setAvailSavedStatus("");
+    setSpecificDates((prev) => prev.filter((d) => d !== dateToRemove));
+  };
+
+  const handleSaveAvailability = () => {
+    try {
+      localStorage.setItem(
+        AVAILABILITY_STORAGE_KEY,
+        JSON.stringify({
+          days: availDays,
+          windows: availWindows,
+          specificDates,
+          notes: availNotes.trim(),
+          updatedAt: new Date().toISOString(),
+        })
+      );
+      window.dispatchEvent(new Event("observer-availability-changed"));
+      setAvailSavedStatus("Availability saved.");
+    } catch {
+      setProfileError("Unable to save observer availability.");
+    }
+  };
 
   const handlePhotoUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -269,8 +414,9 @@ export default function S02Profile(): React.ReactElement {
     setPhotoRemoving(true);
 
     try {
-      // Clear profile photo on the backend so it persists across page refreshes
-      await facultyApi.updateProfile({ profile_photo: "" } as any).catch(() => {});
+      await facultyApi
+        .updateProfile({ profile_photo: "" } as any)
+        .catch(() => {});
 
       const sessionResp = await facultyApi.profile().catch(() => null);
       const prof = sessionResp?.professor as any;
@@ -341,7 +487,8 @@ export default function S02Profile(): React.ReactElement {
   const formattedCycleStatus = `${evaluationCycle}: ${evaluationStatus.replaceAll("_", " ")}`;
 
   const formatCourseDetails = (course: any) => {
-    const deptCode = course.subject || course.department_code || course.prefix || "";
+    const deptCode =
+      course.subject || course.department_code || course.prefix || "";
     const num = course.number || course.course_number || "";
     const code =
       course.course_code ||
@@ -381,14 +528,13 @@ export default function S02Profile(): React.ReactElement {
         <div>
           <h2 className="profile-page-title">Profile &amp; Evaluation Status</h2>
           <p className="s01-subtitle">
-            Manage your faculty contact details, profile photo, and cycle assignments.
+            Manage your faculty contact details, observer availability, and
+            cycle assignments.
           </p>
         </div>
 
         {evaluationCycle && (
-          <span className="a01-cycle-badge">
-            Cycle: {evaluationCycle}
-          </span>
+          <span className="a01-cycle-badge">Cycle: {evaluationCycle}</span>
         )}
       </div>
 
@@ -463,7 +609,7 @@ export default function S02Profile(): React.ReactElement {
                     height="18"
                     viewBox="0 0 24 24"
                     fill="none"
-                    style={{ flexShrink: 0, marginTop: "2px" }}
+                    className="profile-note-icon"
                   >
                     <circle cx="12" cy="12" r="10" fill="#2563eb" />
                     <circle cx="12" cy="7.5" r="1.5" fill="#ffffff" />
@@ -562,7 +708,11 @@ export default function S02Profile(): React.ReactElement {
           </div>
 
           <div className="profile-photo-col">
-            <div className="profile-avatar-container" style={{ display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: profilePhoto ? "transparent" : "#2563eb", color: "#ffffff", fontWeight: 700, fontSize: "2.25rem" }}>
+            <div
+              className={`profile-avatar-container ${
+                profilePhoto ? "has-photo" : "is-initials"
+              }`}
+            >
               {profilePhoto ? (
                 <img
                   src={profilePhoto}
@@ -580,7 +730,7 @@ export default function S02Profile(): React.ReactElement {
               ref={fileInputRef}
               onChange={handlePhotoUpload}
               accept="image/*"
-              style={{ display: "none" }}
+              className="profile-hidden-file-input"
             />
 
             <button
@@ -603,6 +753,141 @@ export default function S02Profile(): React.ReactElement {
               </button>
             )}
           </div>
+        </div>
+      </section>
+
+      {/* Observer Availability Preferences Section */}
+      <section className="profile-status-card">
+        <div className="s02-avail-header">
+          <div className="profile-section-title-row">
+            <span className="a01-phase-pill">Observer Role</span>
+            <h3>Observer Availability Preferences</h3>
+          </div>
+          <span className="s01-subtitle s04-zero-margin">
+            Used when scheduling peer classroom visits
+          </span>
+        </div>
+
+        <div className="s02-avail-grid">
+          {/* Left Column: Weekly Days & Time Windows */}
+          <div className="s02-avail-col">
+            <div className="l03-field-block">
+              <span className="l03-field-label">Preferred Days of Week</span>
+              <div className="l03-chip-group">
+                {DAYS_OF_WEEK.map((day) => {
+                  const active = availDays.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      className={`l03-chip-btn ${active ? "is-selected" : ""}`}
+                      onClick={() => toggleAvailDay(day)}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="l03-field-block">
+              <span className="l03-field-label">Preferred Time Windows</span>
+              <div className="l03-window-grid">
+                {TIME_WINDOWS.map((win) => {
+                  const active = availWindows.includes(win.value);
+                  return (
+                    <button
+                      key={win.value}
+                      type="button"
+                      className={`l03-window-btn ${
+                        active ? "is-selected" : ""
+                      }`}
+                      onClick={() => toggleAvailWindow(win.value)}
+                    >
+                      <span className="l03-window-title">{win.label}</span>
+                      <span className="l03-window-sub">{win.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Specific Available Dates & Notes */}
+          <div className="s02-avail-col">
+            <div className="l03-field-block">
+              <label htmlFor="s02-specific-date" className="l03-field-label">
+                Specific Available Dates (Optional)
+              </label>
+              <div className="s02-date-picker-row">
+                <input
+                  id="s02-specific-date"
+                  type="date"
+                  className="s02-date-input"
+                  value={newDateInput}
+                  onChange={(e) => setNewDateInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleAddSpecificDate}
+                  disabled={!newDateInput}
+                >
+                  Add Date
+                </button>
+              </div>
+
+              {specificDates.length > 0 ? (
+                <div className="s02-date-tags">
+                  {specificDates.map((d) => (
+                    <span key={d} className="s02-date-tag">
+                      {formatShortDate(d)}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${d}`}
+                        className="s02-date-tag-remove"
+                        onClick={() => handleRemoveSpecificDate(d)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="l03-avail-hint">
+                  No specific calendar dates pinned yet.
+                </span>
+              )}
+            </div>
+
+            <div className="l03-field-block">
+              <label htmlFor="s02-avail-notes" className="l03-field-label">
+                Scheduling Notes
+              </label>
+              <input
+                id="s02-avail-notes"
+                type="text"
+                className="l03-notes-input"
+                placeholder="e.g., Prefer morning sections or South Campus buildings"
+                value={availNotes}
+                onChange={(e) => {
+                  setAvailSavedStatus("");
+                  setAvailNotes(e.target.value);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="s02-avail-footer">
+          <span className="s02-avail-status">{availSavedStatus}</span>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleSaveAvailability}
+          >
+            Save Availability
+          </button>
         </div>
       </section>
 
@@ -684,7 +969,10 @@ export default function S02Profile(): React.ReactElement {
               <span className="status-label">
                 Observing Assignments (As Observer)
               </span>
-              <Link className="notif-action-link" to="/observer/active-observations">
+              <Link
+                className="notif-action-link"
+                to="/observer/active-observations"
+              >
                 View All →
               </Link>
             </div>

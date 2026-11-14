@@ -4,10 +4,15 @@
 .footer-container {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  padding: 1.5rem 2rem;
-  border-top: 1px solid #e5e7eb;
-  background-color: #ffffff;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem 2rem;
+  padding: 1.25rem 2rem;
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-style: normal;
 }
 
 .footer-brand {
@@ -19,29 +24,33 @@
 .footer-logo {
   height: 28px;
   width: auto;
+  object-fit: contain;
 }
 
 .footer-title {
+  font-family: var(--font-sans);
+  font-style: normal;
   font-weight: 700;
-  font-style: italic;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
 .footer-info {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  color: #6b7280;
-  font-size: 0.9rem;
+  flex-wrap: wrap;
+  gap: 1.5rem 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-style: normal;
 }
 
-/* Footer Dark Mode Overrides (Colors Only) */
-html.dark-mode .footer-container {
-  background-color: #121212;
-  color: #f4f4f5;
-  border-color: #27272a;
-}
-
-html.dark-mode .footer-info {
-  color: #a1a1aa;
+.footer-info p,
+.footer-info span,
+.footer-info a {
+  margin: 0;
+  font-family: inherit;
+  font-style: normal;
 }

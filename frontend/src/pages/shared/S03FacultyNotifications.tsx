@@ -1,11 +1,13 @@
 // src/pages/shared/S03FacultyNotifications.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { facultyApi } from "../../api/endpoints";
 import type { Notification } from "../../api/types";
 
 const CLEARED_STORAGE_KEY = "cleared_notification_ids";
 const UNREAD_STORAGE_KEY = "manual_unread_notification_ids";
+
+type FilterTab = "all" | "unread" | "read";
 
 function getStoredIds(key: string): number[] {
   try {
@@ -24,6 +26,45 @@ function saveStoredIds(key: string, ids: number[]) {
   }
 }
 
+function getNotificationCategory(notification: Notification): {
+  label: string;
+  toneClass: string;
+} {
+  const typeLower = (notification.type || "").toLowerCase();
+  const titleLower = (notification.title || "").toLowerCase();
+
+  if (
+    titleLower.includes("confirmed") ||
+    titleLower.includes("accepted") ||
+    titleLower.includes("approved") ||
+    titleLower.includes("complete")
+  ) {
+    return { label: "Update", toneClass: "cat-success" };
+  }
+
+  if (
+    titleLower.includes("reminder") ||
+    titleLower.includes("deadline") ||
+    titleLower.includes("declined") ||
+    titleLower.includes("expired") ||
+    typeLower.includes("reminder")
+  ) {
+    return { label: "Action Needed", toneClass: "cat-warning" };
+  }
+
+  if (
+    titleLower.includes("invitation") ||
+    titleLower.includes("observer") ||
+    titleLower.includes("request") ||
+    typeLower.includes("invitation") ||
+    typeLower.includes("candidate")
+  ) {
+    return { label: "Matching & Invites", toneClass: "cat-invite" };
+  }
+
+  return { label: "Cycle Notice", toneClass: "" };
+}
+
 export default function S03FacultyNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -31,6 +72,8 @@ export default function S03FacultyNotifications() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   async function loadNotifications() {
     setLoading(true);
@@ -41,7 +84,6 @@ export default function S03FacultyNotifications() {
       const clearedIds = getStoredIds(CLEARED_STORAGE_KEY);
       const manualUnreadIds = getStoredIds(UNREAD_STORAGE_KEY);
 
-      // Filter cleared notifications and apply manual unread state overrides
       const activeNotifications = (response.notifications ?? [])
         .filter((n) => !clearedIds.includes(n.notification_id))
         .map((n) => ({
@@ -64,6 +106,17 @@ export default function S03FacultyNotifications() {
 
   useEffect(() => {
     void loadNotifications();
+
+    const handleSync = () => {
+      void loadNotifications();
+    };
+
+    window.addEventListener("notifications-changed", handleSync);
+    window.addEventListener("demo-reset", handleSync);
+    return () => {
+      window.removeEventListener("notifications-changed", handleSync);
+      window.removeEventListener("demo-reset", handleSync);
+    };
   }, []);
 
   async function handleMarkAllRead() {
@@ -73,7 +126,6 @@ export default function S03FacultyNotifications() {
 
     try {
       await facultyApi.markAllRead();
-      // Clear manual unread overrides when marking all read
       saveStoredIds(UNREAD_STORAGE_KEY, []);
       window.dispatchEvent(new Event("notifications-changed"));
       await loadNotifications();
@@ -106,7 +158,6 @@ export default function S03FacultyNotifications() {
     }
     saveStoredIds(UNREAD_STORAGE_KEY, updatedManualUnread);
 
-    // Update local UI state immediately
     setNotifications((prev) =>
       prev.map((n) =>
         n.notification_id === notification.notification_id
@@ -127,7 +178,6 @@ export default function S03FacultyNotifications() {
       }
     }
 
-    // Broadcast change so the Header bell badge updates instantly
     window.dispatchEvent(new Event("notifications-changed"));
   }
 
@@ -154,7 +204,6 @@ export default function S03FacultyNotifications() {
     const titleLower = (notification.title || "").toLowerCase();
     const messageLower = (notification.message || "").toLowerCase();
 
-    // 1. High-priority content checks (prevents generic backend `type: "invitation"` from misrouting)
     if (
       titleLower.includes("observation confirmed") ||
       titleLower.includes("pairing confirmed") ||
@@ -205,9 +254,7 @@ export default function S03FacultyNotifications() {
       );
     }
 
-    // 2. Type-based routing
     switch (typeLower) {
-      // E01 — Course and Section Selection
       case "registration":
       case "registration_open":
       case "registration_reminder":
@@ -221,7 +268,6 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // E02 — Observer Selection (Candidates Released)
       case "candidate_selection":
       case "observer_candidates":
       case "matches_released":
@@ -231,7 +277,6 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // E02 Bottom Section — Invitation Responses & Confirm Pairing
       case "invitation_accepted":
       case "invitation_declined":
       case "invitation_expired":
@@ -246,7 +291,6 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // O01 — Observation Request (Incoming Invite for Observer)
       case "invitation":
       case "observation_invitation":
       case "observation_request":
@@ -258,7 +302,6 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // S04 — Current and Past Observations
       case "pairing_confirmed":
       case "observation_confirmed":
       case "assignment_confirmed":
@@ -281,7 +324,6 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // S02 — Profile and Evaluation Status
       case "profile_updated":
       case "evaluation_status":
       case "cycle_assigned":
@@ -292,15 +334,13 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // A02 — Committee Faculty Matching
       case "course_change_request":
         return (
-          <Link to="/committee/matching" className="notif-action-link">
+          <Link to="/committee/faculty-matching" className="notif-action-link">
             Review in Faculty Matching →
           </Link>
         );
 
-      // A05 — Committee Pending Records
       case "pending_record_review":
         return (
           <Link to="/committee/pending-records" className="notif-action-link">
@@ -308,7 +348,6 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // A06 — Committee Survey Tracking
       case "committee_survey_tracking":
         return (
           <Link to="/committee/survey-tracking" className="notif-action-link">
@@ -316,7 +355,6 @@ export default function S03FacultyNotifications() {
           </Link>
         );
 
-      // 3. Remaining keyword fallbacks
       default:
         if (
           titleLower.includes("observation invitation") ||
@@ -340,7 +378,10 @@ export default function S03FacultyNotifications() {
           messageLower.includes("requested a course change")
         ) {
           return (
-            <Link to="/committee/matching" className="notif-action-link">
+            <Link
+              to="/committee/faculty-matching"
+              className="notif-action-link"
+            >
               Review in Faculty Matching →
             </Link>
           );
@@ -397,8 +438,22 @@ export default function S03FacultyNotifications() {
     }
   }
 
-  const unreadNotifications = notifications.filter((n) => !n.is_read);
-  const readNotifications = notifications.filter((n) => n.is_read);
+  const filteredNotifications = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return notifications.filter((n) => {
+      if (activeTab === "unread" && n.is_read) return false;
+      if (activeTab === "read" && !n.is_read) return false;
+      if (!query) return true;
+      return (
+        n.title.toLowerCase().includes(query) ||
+        n.message.toLowerCase().includes(query)
+      );
+    });
+  }, [notifications, activeTab, searchQuery]);
+
+  const unreadNotifications = filteredNotifications.filter((n) => !n.is_read);
+  const readNotifications = filteredNotifications.filter((n) => n.is_read);
+  const totalReadCount = notifications.length - unreadCount;
 
   return (
     <div className="dashboard-container">
@@ -408,7 +463,23 @@ export default function S03FacultyNotifications() {
         </Link>
       </div>
 
-      <h2>Notifications</h2>
+      {/* Consistent Page Header matching S01 / S02 / A01 */}
+      <div className="a01-page-header">
+        <div>
+          <h2>Notifications</h2>
+          <p className="s01-subtitle">
+            Stay up to date on observation invitations, matching releases, and cycle deadlines.
+          </p>
+        </div>
+
+        {!loading && notifications.length > 0 && (
+          <div className="s03-header-actions">
+            <span className="a01-cycle-badge">
+              {unreadCount} Unread
+            </span>
+          </div>
+        )}
+      </div>
 
       {error && (
         <div role="alert" className="empty-state-banner">
@@ -422,88 +493,152 @@ export default function S03FacultyNotifications() {
         </div>
       )}
 
-      {!loading && notifications.length === 0 && (
-        <div className="empty-state-banner">You have no notifications yet.</div>
-      )}
-
-      {!loading && notifications.length > 0 && (
-        <div className="notif-page-header-row">
-          <div className="notif-count-badge">
-            Unread notifications: <strong>{unreadCount}</strong>
-          </div>
-
-          <button
-            type="button"
-            className="btn-secondary notif-mark-read-btn"
-            onClick={handleMarkAllRead}
-            disabled={saving || unreadCount === 0}
-          >
-            {saving ? "Updating..." : "Mark All as Read"}
-          </button>
-        </div>
-      )}
-
       {loading ? (
-        <p>Loading notifications...</p>
+        <div className="a07-state-box">Loading notifications...</div>
+      ) : notifications.length === 0 ? (
+        <div className="a07-state-box">
+          You&apos;re all caught up — no notifications right now.
+        </div>
       ) : (
-        notifications.length > 0 && (
-          <div className="notif-sections-wrapper">
-            <section className="notif-section">
-              <div className="notif-section-header">
-                <h3>Unread ({unreadNotifications.length})</h3>
-              </div>
+        <>
+          {/* Filter Tabs + Search Bar */}
+          <div className="s03-toolbar">
+            <div className="s03-filter-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "all"}
+                className={`s03-filter-tab ${
+                  activeTab === "all" ? "is-active" : ""
+                }`}
+                onClick={() => setActiveTab("all")}
+              >
+                All
+                <span className="s03-tab-count">{notifications.length}</span>
+              </button>
 
-              {unreadNotifications.length === 0 ? (
-                <div className="notif-empty-subtext">
-                  No unread notifications to display.
-                </div>
-              ) : (
-                <div className="notif-list-container">
-                  {unreadNotifications.map((notification) => (
-                    <NotificationCard
-                      key={notification.notification_id}
-                      notification={notification}
-                      onToggleStatus={handleToggleReadStatus}
-                      renderLink={renderNotificationLink}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "unread"}
+                className={`s03-filter-tab ${
+                  activeTab === "unread" ? "is-active" : ""
+                }`}
+                onClick={() => setActiveTab("unread")}
+              >
+                Unread
+                <span className="s03-tab-count">{unreadCount}</span>
+              </button>
 
-            <section className="notif-section notif-section-spaced">
-              <div className="notif-section-header">
-                <h3>Read ({readNotifications.length})</h3>
-                {readNotifications.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn-secondary notif-clear-btn"
-                    onClick={handleClearReadNotifications}
-                  >
-                    Clear Read Notifications
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "read"}
+                className={`s03-filter-tab ${
+                  activeTab === "read" ? "is-active" : ""
+                }`}
+                onClick={() => setActiveTab("read")}
+              >
+                Read
+                <span className="s03-tab-count">{totalReadCount}</span>
+              </button>
+            </div>
 
-              {readNotifications.length === 0 ? (
-                <div className="notif-empty-subtext">
-                  No read notifications to display.
-                </div>
-              ) : (
-                <div className="notif-list-container">
-                  {readNotifications.map((notification) => (
-                    <NotificationCard
-                      key={notification.notification_id}
-                      notification={notification}
-                      onToggleStatus={handleToggleReadStatus}
-                      renderLink={renderNotificationLink}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+            <input
+              type="search"
+              className="s03-search-input"
+              placeholder="Filter notifications..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Filter notifications"
+            />
           </div>
-        )
+
+          {filteredNotifications.length === 0 ? (
+            <div className="a07-state-box">
+              No notifications match your current filter.
+            </div>
+          ) : (
+            <div className="notif-sections-wrapper">
+              {activeTab !== "read" && (
+                <section className="s03-section-card">
+                  <div className="notif-section-header">
+                    <div className="s03-section-title-group">
+                      <span className="a01-phase-pill">Inbox</span>
+                      <h3>Unread ({unreadNotifications.length})</h3>
+                    </div>
+
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        className="btn-secondary notif-clear-btn"
+                        onClick={handleMarkAllRead}
+                        disabled={saving}
+                      >
+                        {saving ? "Updating..." : "Mark All as Read"}
+                      </button>
+                    )}
+                  </div>
+
+                  {unreadNotifications.length === 0 ? (
+                    <div className="notif-empty-subtext">
+                      No unread notifications to display.
+                    </div>
+                  ) : (
+                    <div className="notif-list-container s03-list-tight">
+                      {unreadNotifications.map((notification) => (
+                        <NotificationCard
+                          key={notification.notification_id}
+                          notification={notification}
+                          onToggleStatus={handleToggleReadStatus}
+                          renderLink={renderNotificationLink}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {activeTab !== "unread" && (
+                <section className="s03-section-card">
+                  <div className="notif-section-header">
+                    <div className="s03-section-title-group">
+                      <span className="a01-phase-pill">Archive</span>
+                      <h3>Read ({readNotifications.length})</h3>
+                    </div>
+
+                    {readNotifications.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn-secondary notif-clear-btn"
+                        onClick={handleClearReadNotifications}
+                      >
+                        Clear Read Notifications
+                      </button>
+                    )}
+                  </div>
+
+                  {readNotifications.length === 0 ? (
+                    <div className="notif-empty-subtext">
+                      No read notifications to display.
+                    </div>
+                  ) : (
+                    <div className="notif-list-container s03-list-tight">
+                      {readNotifications.map((notification) => (
+                        <NotificationCard
+                          key={notification.notification_id}
+                          notification={notification}
+                          onToggleStatus={handleToggleReadStatus}
+                          renderLink={renderNotificationLink}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <div className="dashboard-center-action notif-return-action">
@@ -525,15 +660,22 @@ function NotificationCard({
   renderLink: (notification: Notification) => React.ReactNode;
 }) {
   const linkElement = renderLink(notification);
+  const category = getNotificationCategory(notification);
 
   return (
     <article
-      className={`notif-card-item ${
+      className={`notif-card-item s03-card-elevated ${
         notification.is_read ? "notif-read" : "notif-unread"
       }`}
     >
       <div className="notif-card-top-row">
-        <h3 className="notif-card-title">{notification.title}</h3>
+        <div className="s03-title-cluster">
+          <span className={`s03-category-tag ${category.toneClass}`}>
+            {category.label}
+          </span>
+          <h3 className="notif-card-title">{notification.title}</h3>
+        </div>
+
         <div className="notif-top-right-group">
           <span
             className={`notif-status-pill ${

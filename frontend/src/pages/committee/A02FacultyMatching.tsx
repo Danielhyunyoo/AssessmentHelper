@@ -1912,7 +1912,7 @@ export default function A02FacultyMatching() {
                 Confirmed Observer Matches
               </h3>
               <span className="status-chip chip-draft">
-                {filteredConfirmedObservees.length} of {shownConfirmed.length} CONFIRMED
+                {filteredConfirmedObservees.length} CONFIRMED
               </span>
             </div>
           </div>

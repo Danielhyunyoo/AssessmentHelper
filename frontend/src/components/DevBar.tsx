@@ -5,7 +5,6 @@ import {
   authApi,
   demoApi,
   facultyApi,
-  matchingApi,
   observationApi,
   surveyApi,
 } from "../api/endpoints";
@@ -20,6 +19,33 @@ interface PageItem {
 interface PageGroup {
   group: string;
   items: PageItem[];
+}
+
+function clearDemoLocalState() {
+  const shouldRemoveKey = (key: string) =>
+    key.startsWith("faculty_planner_") ||
+    key.startsWith("profile_photo_") ||
+    key === "cleared_notification_ids" ||
+    key === "manual_unread_notification_ids";
+
+  try {
+    Object.keys(localStorage)
+      .filter(shouldRemoveKey)
+      .forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // Ignore storage errors
+  }
+
+  try {
+    Object.keys(sessionStorage)
+      .filter(shouldRemoveKey)
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // Ignore storage errors
+  }
+
+  window.dispatchEvent(new Event("profile-changed"));
+  window.dispatchEvent(new Event("demo-reset"));
 }
 
 async function signInAs(persona: DemoPersona) {
@@ -85,16 +111,12 @@ export default function DevBar() {
     }
   }
 
-  // Resolved IDs for direct S05 / S06 demo access
-  const [demoObservationId, setDemoObservationId] = useState<number>(1);
-  const [demoPairingId, setDemoPairingId] = useState<number>(1);
-  const [hasLiveMatch, setHasLiveMatch] = useState<boolean>(false);
-
   async function resetData() {
     setResetting(true);
     setResetError("");
     try {
       await demoApi.reset();
+      clearDemoLocalState();
       window.location.assign("/");
     } catch (err) {
       const message =
@@ -137,51 +159,7 @@ export default function DevBar() {
       .catch(() => {});
 
     facultyApi.registrationStatus().then(setCycle).catch(() => {});
-
-    // Resolve the latest observation_id and pairing_id so S05 & S06 open directly
-    Promise.all([
-      observationApi.list().catch(() => []),
-      observationApi.scheduled().catch(() => []),
-      matchingApi.sentInvitations().catch(() => []),
-      matchingApi.incomingInvitations().catch(() => []),
-    ])
-      .then(([records, scheduled, sentInvs, incomingInvs]) => {
-        const recordList = Array.isArray(records) ? records : [];
-        const scheduledList = Array.isArray(scheduled) ? scheduled : [];
-        const confirmedSent = (Array.isArray(sentInvs) ? sentInvs : []).find(
-          (i) => i.status === "confirmed" || i.status === "accepted"
-        );
-        const confirmedIncoming = (
-          Array.isArray(incomingInvs) ? incomingInvs : []
-        ).find((i) => i.status === "confirmed" || i.status === "accepted");
-
-        const foundObsId = recordList[0]?.observation_id;
-        const foundPairingId =
-          recordList[0]?.pairing_id ??
-          scheduledList[0]?.pairing_id ??
-          confirmedSent?.invitation_id ??
-          confirmedIncoming?.invitation_id;
-
-        if (foundObsId) {
-          setDemoObservationId(foundObsId);
-        }
-        if (foundPairingId) {
-          setDemoPairingId(foundPairingId);
-        }
-        setHasLiveMatch(
-          Boolean(
-            recordList.length > 0 ||
-              scheduledList.length > 0 ||
-              confirmedSent ||
-              confirmedIncoming
-          )
-        );
-      })
-      .catch(() => {});
   }, [location.pathname]);
-
-  const s05Path = `/shared/observation-record/${demoObservationId}`;
-  const s06Path = `/shared/post-evaluation-survey?pairingId=${demoPairingId}`;
 
   const pageGroups: PageGroup[] = [
     {
@@ -203,13 +181,13 @@ export default function DevBar() {
           path: "/shared/current-past-observations",
         },
         {
-          label: `S05 - Observation Record (Demo #${demoObservationId})`,
-          path: s05Path,
+          label: "S05 - Observation Record",
+          path: "/shared/observation-record/1",
           matchPrefix: "/shared/observation-record",
         },
         {
-          label: `S06 - Post-Evaluation Survey (Demo #${demoPairingId})`,
-          path: s06Path,
+          label: "S06 - Post-Evaluation Survey",
+          path: "/shared/post-evaluation-survey?pairingId=1",
           matchPrefix: "/shared/post-evaluation-survey",
         },
       ],
@@ -458,43 +436,6 @@ export default function DevBar() {
             </div>
           </div>
 
-          {/* Direct Demo Access for S05 & S06 */}
-          <div className="dev-card">
-            <div className="dev-card-title">
-              Form &amp; Survey Preview (S05 / S06)
-            </div>
-            <p
-              className="dev-caption"
-              style={{ marginTop: 0, marginBottom: "0.5rem" }}
-            >
-              {hasLiveMatch
-                ? `Active match detected (Pairing #${demoPairingId}). Open forms directly:`
-                : "Bypass S04 lock to inspect the Observation Form & Survey layouts:"}
-            </p>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.45rem",
-              }}
-            >
-              <button
-                type="button"
-                className="dev-btn dev-btn-secondary"
-                onClick={() => navigate(s05Path)}
-              >
-                Open S05 Observation Form →
-              </button>
-              <button
-                type="button"
-                className="dev-btn dev-btn-secondary"
-                onClick={() => navigate(s06Path)}
-              >
-                Open S06 Post-Evaluation Survey →
-              </button>
-            </div>
-          </div>
-
           {/* Section 2: Persona & Date Simulation */}
           <div className="dev-card">
             <div className="dev-card-title">Simulation Settings</div>
@@ -524,18 +465,8 @@ export default function DevBar() {
 
             <div className="dev-field-row">
               <label className="dev-label">Simulated Date</label>
-              <div
-                className="dev-date-wrapper"
-                style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
+              <div className="dev-date-wrapper dev-date-row-flex">
+                <div className="dev-date-input-container">
                   <input
                     type="date"
                     className="dev-input-date"
@@ -574,12 +505,7 @@ export default function DevBar() {
                 </div>
                 <button
                   type="button"
-                  className="dev-btn dev-btn-secondary"
-                  style={{
-                    width: "auto",
-                    padding: "0.4rem 0.6rem",
-                    whiteSpace: "nowrap",
-                  }}
+                  className="dev-btn dev-btn-secondary dev-date-confirm-btn"
                   onClick={() => {
                     if (Number(today.slice(0, 4)) >= 2000) {
                       void setToday(today);
@@ -683,7 +609,11 @@ export default function DevBar() {
                 >
                   Yes, reset for everyone
                 </button>
-                <button type="button" className="dev-btn dev-btn-secondary" onClick={() => setConfirmingReset(false)}>
+                <button
+                  type="button"
+                  className="dev-btn dev-btn-secondary"
+                  onClick={() => setConfirmingReset(false)}
+                >
                   Cancel
                 </button>
               </>

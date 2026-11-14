@@ -107,17 +107,20 @@ export default function A04FacultyRoster() {
     }
   }
 
-  useEffect(() => {
-    void loadFaculty();
+    useEffect(() => {
+        void loadFaculty();
 
-    const handleProfileChange = () => {
-      void loadFaculty();
-    };
-    window.addEventListener("profile-changed", handleProfileChange);
-    return () => {
-      window.removeEventListener("profile-changed", handleProfileChange);
-    };
-  }, [search, sort]);
+        const handleProfileChange = () => {
+          setAvatarFailed(false);
+          void loadFaculty();
+        };
+        window.addEventListener("profile-changed", handleProfileChange);
+        window.addEventListener("demo-reset", handleProfileChange);
+        return () => {
+          window.removeEventListener("profile-changed", handleProfileChange);
+          window.removeEventListener("demo-reset", handleProfileChange);
+        };
+      }, [search, sort]);
 
   function openMemberProfile(member: FacultyRow) {
     setAvatarFailed(false);

@@ -16,6 +16,32 @@ interface NotificationPreview {
   unread: boolean;
 }
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function getStoredUserPhoto(user: Professor | null): string {
+  if (!user) return "";
+  const rec = user as unknown as Record<string, unknown>;
+  const id = rec.user_id ?? rec.id;
+  try {
+    if (id !== undefined && id !== null) {
+      const byId = localStorage.getItem(`profile_photo_${id}`);
+      if (byId) return byId;
+    }
+    if (user.email) {
+      const byEmail = localStorage.getItem(`profile_photo_${user.email}`);
+      if (byEmail) return byEmail;
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return user.profile_photo || "";
+}
+
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,13 +54,21 @@ export default function Header() {
   const profileRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<NotificationPreview[]>([]);
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [headerError, setHeaderError] = useState("");
   const [backendUnreadCount, setBackendUnreadCount] = useState(0);
 
   const isLoggedIn = currentUser !== null;
-  const userAvatarSrc = currentUser?.profile_photo || profileIcon;
-  const hasCustomAvatar = Boolean(currentUser?.profile_photo);
+  const customAvatarUrl = !avatarFailed ? getStoredUserPhoto(currentUser) : "";
+  const hasCustomAvatar = Boolean(customAvatarUrl);
+  const fullUserName = currentUser
+    ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`.trim() ||
+      currentUser.username ||
+      currentUser.email ||
+      "User"
+    : "";
+  const userInitials = getInitials(fullUserName);
 
   const closeAllMenus = () => {
     setIsMenuOpen(false);
@@ -42,7 +76,10 @@ export default function Header() {
     setIsProfileOpen(false);
   };
 
-  const handleProtectedAction = (targetPath: string, actionIfAuthenticated: () => void) => {
+  const handleProtectedAction = (
+    targetPath: string,
+    actionIfAuthenticated: () => void
+  ) => {
     if (isLoggedIn) {
       actionIfAuthenticated();
     } else {
@@ -73,7 +110,10 @@ export default function Header() {
     setIsProfileOpen(false);
   };
 
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, targetPath: string) => {
+  const handleLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    targetPath: string
+  ) => {
     closeAllMenus();
     if (!isLoggedIn) {
       e.preventDefault();
@@ -93,7 +133,10 @@ export default function Header() {
             localStorage.getItem("manual_unread_notification_ids") || "[]"
           );
           const updated = manualUnreadIds.filter((mId) => mId !== Number(id));
-          localStorage.setItem("manual_unread_notification_ids", JSON.stringify(updated));
+          localStorage.setItem(
+            "manual_unread_notification_ids",
+            JSON.stringify(updated)
+          );
         } catch {
           // Ignore parse errors
         }
@@ -123,6 +166,7 @@ export default function Header() {
     } finally {
       closeAllMenus();
       setCurrentUser(null);
+      setAvatarFailed(false);
       navigate("/login/signin", { replace: true });
       setSigningOut(false);
     }
@@ -160,6 +204,7 @@ export default function Header() {
           setHasUnreadNotifications(false);
           setBackendUnreadCount(0);
           setCurrentUser(null);
+          setAvatarFailed(false);
           return;
         }
 
@@ -173,18 +218,25 @@ export default function Header() {
         let clearedIds: number[] = [];
         let manualUnreadIds: number[] = [];
         try {
-          clearedIds = JSON.parse(localStorage.getItem("cleared_notification_ids") || "[]");
-          manualUnreadIds = JSON.parse(localStorage.getItem("manual_unread_notification_ids") || "[]");
+          clearedIds = JSON.parse(
+            localStorage.getItem("cleared_notification_ids") || "[]"
+          );
+          manualUnreadIds = JSON.parse(
+            localStorage.getItem("manual_unread_notification_ids") || "[]"
+          );
         } catch {
           // Fallback if parsing fails
         }
 
-        const rawList: Notification[] = notificationResponse.notifications ?? [];
+        const rawList: Notification[] =
+          notificationResponse.notifications ?? [];
         const activeList = rawList
           .filter((n) => !clearedIds.includes(n.notification_id))
           .map((n) => ({
             ...n,
-            is_read: manualUnreadIds.includes(n.notification_id) ? false : n.is_read,
+            is_read: manualUnreadIds.includes(n.notification_id)
+              ? false
+              : n.is_read,
           }));
 
         const totalUnread = activeList.filter((n) => !n.is_read).length;
@@ -206,6 +258,7 @@ export default function Header() {
 
         setHasUnreadNotifications(totalUnread > 0);
         setBackendUnreadCount(totalUnread);
+        setAvatarFailed(false);
         setCurrentUser(profileResponse.professor);
         setHeaderError("");
       } catch {
@@ -219,11 +272,13 @@ export default function Header() {
 
     window.addEventListener("notifications-changed", loadHeaderData);
     window.addEventListener("profile-changed", loadHeaderData);
+    window.addEventListener("demo-reset", loadHeaderData);
 
     return () => {
       cancelled = true;
       window.removeEventListener("notifications-changed", loadHeaderData);
       window.removeEventListener("profile-changed", loadHeaderData);
+      window.removeEventListener("demo-reset", loadHeaderData);
     };
   }, [location.pathname]);
 
@@ -257,7 +312,11 @@ export default function Header() {
             >
               <img
                 className="icon"
-                src={unreadCount > 0 && hasUnreadNotifications ? bellActive : bellDefault}
+                src={
+                  unreadCount > 0 && hasUnreadNotifications
+                    ? bellActive
+                    : bellDefault
+                }
                 alt="Notifications"
               />
             </button>
@@ -265,12 +324,8 @@ export default function Header() {
             {isNotifOpen && (
               <div className="notif-popover">
                 <div className="notif-header">
-                  <span className="notif-header-title">
-                    NOTIFICATIONS
-                  </span>
-                  <span className="notif-unread-badge">
-                    {unreadCount} New
-                  </span>
+                  <span className="notif-header-title">NOTIFICATIONS</span>
+                  <span className="notif-unread-badge">{unreadCount} New</span>
                 </div>
 
                 <div className="notif-scroll-list">
@@ -283,10 +338,26 @@ export default function Header() {
                       <div
                         key={n.id}
                         onClick={() => handleNotificationClick(n.id)}
-                        className={`menu-item-hover notif-item ${n.unread ? "notif-unread-highlight" : "notif-read-item"}`}
+                        className={`menu-item-hover notif-item ${
+                          n.unread
+                            ? "notif-unread-highlight"
+                            : "notif-read-item"
+                        }`}
                       >
-                        <p className={`notif-item-title ${n.unread ? "fw-bold" : "fw-medium"}`}>{n.title}</p>
-                        <span className={`notif-item-time ${n.unread ? "text-unread" : "text-read"}`}>{n.time}</span>
+                        <p
+                          className={`notif-item-title ${
+                            n.unread ? "fw-bold" : "fw-medium"
+                          }`}
+                        >
+                          {n.title}
+                        </p>
+                        <span
+                          className={`notif-item-time ${
+                            n.unread ? "text-unread" : "text-read"
+                          }`}
+                        >
+                          {n.time}
+                        </span>
                       </div>
                     ))
                   )}
@@ -313,7 +384,9 @@ export default function Header() {
                           setHasUnreadNotifications(e.target.checked);
                           if (e.target.checked) {
                             setNotifications((prev) =>
-                              prev.map((n, i) => (i < 2 ? { ...n, unread: true } : n))
+                              prev.map((n, i) =>
+                                i < 2 ? { ...n, unread: true } : n
+                              )
                             );
                           }
                         }}
@@ -333,31 +406,45 @@ export default function Header() {
               title="Profile Settings"
               className="header-icon-btn"
             >
-              <img
-                className={`icon ${hasCustomAvatar ? "header-user-avatar" : ""}`}
-                src={userAvatarSrc}
-                alt="Profile"
-                onError={(e) => {
-                  e.currentTarget.src = profileIcon;
-                }}
-              />
+              {!isLoggedIn ? (
+                <img className="icon" src={profileIcon} alt="Profile" />
+              ) : hasCustomAvatar ? (
+                <img
+                  className="icon header-user-avatar"
+                  src={customAvatarUrl}
+                  alt={fullUserName}
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : (
+                <span
+                  className="icon header-user-avatar header-initials-avatar"
+                  aria-label={fullUserName}
+                >
+                  {userInitials}
+                </span>
+              )}
             </button>
 
             {isProfileOpen && (
               <div className="profile-popover">
                 <div className="profile-user-summary">
-                  <img
-                    src={userAvatarSrc}
-                    alt="User Avatar"
-                    className="profile-popover-avatar"
-                    onError={(e) => {
-                      e.currentTarget.src = profileIcon;
-                    }}
-                  />
+                  {hasCustomAvatar ? (
+                    <img
+                      src={customAvatarUrl}
+                      alt="User Avatar"
+                      className="profile-popover-avatar"
+                      onError={() => setAvatarFailed(true)}
+                    />
+                  ) : (
+                    <div className="profile-popover-avatar profile-popover-initials">
+                      {userInitials}
+                    </div>
+                  )}
                   <div>
                     <h4 className="profile-popover-name">
                       {currentUser
-                        ? `${currentUser.first_name} ${currentUser.last_name}`.trim() || currentUser.username
+                        ? `${currentUser.first_name} ${currentUser.last_name}`.trim() ||
+                          currentUser.username
                         : "Loading profile..."}
                     </h4>
                     <p className="profile-popover-role">
@@ -367,9 +454,7 @@ export default function Header() {
                 </div>
 
                 <div className="profile-links-section">
-                  <span className="profile-links-header">
-                    ACCOUNT
-                  </span>
+                  <span className="profile-links-header">ACCOUNT</span>
 
                   <button
                     type="button"
@@ -410,7 +495,11 @@ export default function Header() {
           <div className="menu-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="menu-header">
               <h3>Navigation Menu</h3>
-              <button type="button" className="close-btn" onClick={closeAllMenus}>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={closeAllMenus}
+              >
                 &times;
               </button>
             </div>
@@ -426,7 +515,9 @@ export default function Header() {
                 </Link>
                 <Link
                   to="/shared/faculty-dashboard"
-                  onClick={(e) => handleLinkClick(e, "/shared/faculty-dashboard")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/shared/faculty-dashboard")
+                  }
                 >
                   Faculty Dashboard
                 </Link>
@@ -436,19 +527,25 @@ export default function Header() {
                 <h4>Committee Workflows</h4>
                 <Link
                   to="/committee/faculty-matching"
-                  onClick={(e) => handleLinkClick(e, "/committee/faculty-matching")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/committee/faculty-matching")
+                  }
                 >
                   Faculty Matching
                 </Link>
                 <Link
                   to="/committee/unmatched-observees"
-                  onClick={(e) => handleLinkClick(e, "/committee/unmatched-observees")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/committee/unmatched-observees")
+                  }
                 >
                   Unmatched Observees
                 </Link>
                 <Link
                   to="/committee/faculty-roster"
-                  onClick={(e) => handleLinkClick(e, "/committee/faculty-roster")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/committee/faculty-roster")
+                  }
                 >
                   Faculty Roster Management
                 </Link>
@@ -465,28 +562,36 @@ export default function Header() {
 
                 <Link
                   to="/observee/course-selection"
-                  onClick={(e) => handleLinkClick(e, "/observee/course-selection")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/observee/course-selection")
+                  }
                 >
                   Course Section Selection
                 </Link>
 
                 <Link
                   to="/observee/observer-selection"
-                  onClick={(e) => handleLinkClick(e, "/observee/observer-selection")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/observee/observer-selection")
+                  }
                 >
                   Observer Selection
                 </Link>
 
                 <Link
                   to="/shared/current-past-observations"
-                  onClick={(e) => handleLinkClick(e, "/shared/current-past-observations")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/shared/current-past-observations")
+                  }
                 >
                   Current / Past Observations
                 </Link>
 
                 <Link
                   to="/observer/observation-request"
-                  onClick={(e) => handleLinkClick(e, "/observer/observation-request")}
+                  onClick={(e) =>
+                    handleLinkClick(e, "/observer/observation-request")
+                  }
                 >
                   Observation Requests
                 </Link>
@@ -509,10 +614,7 @@ export default function Header() {
                     Sign Out
                   </Link>
                 ) : (
-                  <Link
-                    to="/login/signin"
-                    onClick={closeAllMenus}
-                  >
+                  <Link to="/login/signin" onClick={closeAllMenus}>
                     Sign In
                   </Link>
                 )}
