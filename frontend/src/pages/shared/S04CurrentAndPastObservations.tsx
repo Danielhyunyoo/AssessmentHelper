@@ -23,17 +23,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const AWAITING_CONFIRMATION = "Waiting for confirmation";
-const S04_TODO_STORAGE_KEY = "s04_role_checklist_manual_v1";
 
 type RoleFilter = "all" | "observer" | "observee";
-
-interface RoleChecklistTask {
-  id: string;
-  label: string;
-  done: boolean;
-  linkTo?: string;
-  linkText?: string;
-}
 
 function statusLabel(status: string) {
   return STATUS_LABELS[status] ?? status;
@@ -55,9 +46,10 @@ interface NormalizedVisit {
   fromScheduledEndpoint: boolean;
 }
 
-function getNumericId(obj: any): number | null {
+function getNumericId(obj: unknown): number | null {
   if (!obj || typeof obj !== "object") return null;
-  const raw = obj.id ?? obj.user_id ?? obj.professor_id;
+  const rec = obj as Record<string, unknown>;
+  const raw = rec.id ?? rec.user_id ?? rec.professor_id;
   const num = Number(raw);
   return Number.isFinite(num) && num > 0 ? num : null;
 }
@@ -87,10 +79,10 @@ function getSemester(value?: string | null) {
 }
 
 function formatObservationDate(value?: string | null) {
-  if (!value) return "Date & Time Pending";
+  if (!value) return "Date and Time Pending";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date & Time Pending";
+  if (Number.isNaN(date.getTime())) return "Date and Time Pending";
 
   return date.toLocaleString("en-US", {
     weekday: "short",
@@ -102,12 +94,17 @@ function formatObservationDate(value?: string | null) {
   });
 }
 
-function formatPersonName(person: any, fallback: string): string {
+function formatPersonName(person: unknown, fallback: string): string {
   if (!person) return fallback;
   if (typeof person === "string") return person;
-  if (person.name) return person.name;
-  const full = `${person.first_name ?? ""} ${person.last_name ?? ""}`.trim();
-  return full || person.username || fallback;
+  if (typeof person === "object") {
+    const p = person as Record<string, unknown>;
+    if (typeof p.name === "string" && p.name) return p.name;
+    const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim();
+    if (full) return full;
+    if (typeof p.username === "string" && p.username) return p.username;
+  }
+  return fallback;
 }
 
 function buildVisitKey(
@@ -172,9 +169,6 @@ export default function S04CurrentAndPastObservations() {
   const [registration, setRegistration] = useState<RegistrationStatus | null>(
     null
   );
-  const [hasSelectedCourse, setHasSelectedCourse] = useState(false);
-  const [hasSentInvites, setHasSentInvites] = useState(false);
-  const [hasAcceptedIncoming, setHasAcceptedIncoming] = useState(false);
 
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveError, setLiveError] = useState("");
@@ -182,25 +176,6 @@ export default function S04CurrentAndPastObservations() {
   const [openSemesters, setOpenSemesters] = useState<Record<string, boolean>>(
     {}
   );
-
-  const [manualChecks, setManualChecks] = useState<Record<string, boolean>>(
-    () => {
-      try {
-        const raw = localStorage.getItem(S04_TODO_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-      } catch {
-        return {};
-      }
-    }
-  );
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(S04_TODO_STORAGE_KEY, JSON.stringify(manualChecks));
-    } catch {
-      // ignore storage quota errors
-    }
-  }, [manualChecks]);
 
   useEffect(() => {
     let cancelled = false;
@@ -240,23 +215,16 @@ export default function S04CurrentAndPastObservations() {
             "Faculty Member"
           : "Faculty Member";
 
+        const recordList = Array.isArray(records) ? records : [];
+
         setCurrentUser(user);
-        setLiveRecords(Array.isArray(records) ? records : []);
+        setLiveRecords(recordList);
         setRegistration(registrationData);
-        setHasSelectedCourse(Boolean(profileData?.selected_course));
 
         const sentList = Array.isArray(sentInvites) ? sentInvites : [];
         const incomingList = Array.isArray(incomingInvites)
           ? incomingInvites
           : [];
-
-        setHasSentInvites(sentList.length > 0);
-        setHasAcceptedIncoming(
-          incomingList.some(
-            (inv: any) =>
-              inv.status === "accepted" || inv.status === "confirmed"
-          )
-        );
 
         const rawVisitList = Array.isArray(scheduledRaw)
           ? scheduledRaw
@@ -283,12 +251,13 @@ export default function S04CurrentAndPastObservations() {
 
         sentList
           .filter(
-            (inv: any) => inv.status === "confirmed" || inv.status === "accepted"
+            (inv) => inv.status === "confirmed" || inv.status === "accepted"
           )
-          .forEach((inv: any) => {
-            const pId = Number(inv.pairing_id ?? inv.invitation_id);
+          .forEach((inv) => {
+            const invRecord = inv as unknown as Record<string, unknown>;
+            const pId = Number(invRecord.pairing_id ?? inv.invitation_id);
             const acceptedSlot = (inv.proposed_dates ?? []).find(
-              (d: any) => d.status === "accepted"
+              (d) => d.status === "accepted"
             );
             const obsId = Number(inv.recipient_id) || null;
             const dt = acceptedSlot?.datetime ?? null;
@@ -322,12 +291,13 @@ export default function S04CurrentAndPastObservations() {
 
         incomingList
           .filter(
-            (inv: any) => inv.status === "confirmed" || inv.status === "accepted"
+            (inv) => inv.status === "confirmed" || inv.status === "accepted"
           )
-          .forEach((inv: any) => {
-            const pId = Number(inv.pairing_id ?? inv.invitation_id);
+          .forEach((inv) => {
+            const invRecord = inv as unknown as Record<string, unknown>;
+            const pId = Number(invRecord.pairing_id ?? inv.invitation_id);
             const acceptedSlot = (inv.proposed_dates ?? []).find(
-              (d: any) => d.status === "accepted"
+              (d) => d.status === "accepted"
             );
             const observeeId =
               getNumericId(inv.sender) ?? (Number(inv.sender_id) || null);
@@ -381,22 +351,22 @@ export default function S04CurrentAndPastObservations() {
     const handleRefresh = () => {
       void loadRecords();
     };
+
     window.addEventListener("notifications-changed", handleRefresh);
+    window.addEventListener("profile-changed", handleRefresh);
+    window.addEventListener("simulated-date-changed", handleRefresh);
     window.addEventListener("demo-date-changed", handleRefresh);
+    window.addEventListener("demo-reset", handleRefresh);
 
     return () => {
       cancelled = true;
       window.removeEventListener("notifications-changed", handleRefresh);
+      window.removeEventListener("profile-changed", handleRefresh);
+      window.removeEventListener("simulated-date-changed", handleRefresh);
       window.removeEventListener("demo-date-changed", handleRefresh);
+      window.removeEventListener("demo-reset", handleRefresh);
     };
   }, []);
-
-  const toggleManualTask = (id: string) => {
-    setManualChecks((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
 
   const toggleSemester = (semester: string) => {
     setOpenSemesters((prev) => ({
@@ -405,6 +375,7 @@ export default function S04CurrentAndPastObservations() {
     }));
   };
 
+  const isCommitteeMember = currentUser?.role === "admin";
   const currentUserId = getNumericId(currentUser);
   const currentUserName = currentUser
     ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`
@@ -426,7 +397,7 @@ export default function S04CurrentAndPastObservations() {
   };
 
   const userRecords = liveRecords.filter((record) => {
-    if (currentUserId === null) return true;
+    if (isCommitteeMember || currentUserId === null) return true;
     return (
       getNumericId(record.observer) === currentUserId ||
       getNumericId(record.observee) === currentUserId
@@ -471,7 +442,7 @@ export default function S04CurrentAndPastObservations() {
     );
     if (existingRecordKeys.has(visitKey)) return false;
     if (visit.fromScheduledEndpoint) return true;
-    if (currentUserId === null) return true;
+    if (isCommitteeMember || currentUserId === null) return true;
     return (
       visit.observerId === currentUserId || visit.observeeId === currentUserId
     );
@@ -495,131 +466,6 @@ export default function S04CurrentAndPastObservations() {
 
   const totalActiveCount =
     allCurrentRecords.length + allActiveScheduledVisits.length;
-
-  // Derived checklist status across Observee and Observer roles
-  const hasSavedAvailability = (() => {
-    try {
-      const saved = localStorage.getItem("observer_availability_v1");
-      if (!saved) return false;
-      const parsed = JSON.parse(saved);
-      return (
-        (Array.isArray(parsed?.days) && parsed.days.length > 0) ||
-        (Array.isArray(parsed?.windows) && parsed.windows.length > 0)
-      );
-    } catch {
-      return false;
-    }
-  })();
-
-  const observeeRecords = userRecords.filter(
-    (r) => !isUserObserver(getNumericId(r.observer), r.observer?.name)
-  );
-  const observerRecords = userRecords.filter((r) =>
-    isUserObserver(getNumericId(r.observer), r.observer?.name)
-  );
-
-  const observeeConfirmed =
-    observeeRecords.length > 0 ||
-    allActiveScheduledVisits.some(
-      (v) =>
-        !isUserObserver(v.observerId, v.observerName) &&
-        v.statusLabel !== AWAITING_CONFIRMATION
-    );
-
-  const observeeFormSigned = observeeRecords.some(
-    (r) => r.observee_signed || r.status === "completed"
-  );
-
-  const observerFormSigned = observerRecords.some(
-    (r) => r.observer_signed || r.status === "completed"
-  );
-
-  const observeeTasks: RoleChecklistTask[] = [
-    {
-      id: "oe-register-course",
-      label: "Register an active course section for observation",
-      done: manualChecks["oe-register-course"] ?? hasSelectedCourse,
-      linkTo: "/observee/course-registration",
-      linkText: "Course Form",
-    },
-    {
-      id: "oe-invite-observers",
-      label: "Send observation invitations to eligible peers",
-      done: manualChecks["oe-invite-observers"] ?? hasSentInvites,
-      linkTo: "/observee/observer-selection",
-      linkText: "Invite",
-    },
-    {
-      id: "oe-confirm-visit",
-      label: "Confirm an accepted observer's visit date",
-      done: manualChecks["oe-confirm-visit"] ?? observeeConfirmed,
-      linkTo: "/observee/observer-selection",
-      linkText: "Confirm",
-    },
-    {
-      id: "oe-sign-form",
-      label: "Review and sign the completed evaluation form",
-      done: manualChecks["oe-sign-form"] ?? observeeFormSigned,
-      linkTo: observeeRecords[0]
-        ? `/shared/observation-record/${observeeRecords[0].observation_id}`
-        : undefined,
-      linkText: observeeRecords[0] ? "Open Form" : undefined,
-    },
-    {
-      id: "oe-survey",
-      label: "Complete the post-evaluation survey",
-      done: Boolean(manualChecks["oe-survey"]),
-      linkTo: observeeRecords[0]
-        ? `/shared/post-evaluation-survey?pairingId=${observeeRecords[0].pairing_id}`
-        : "/shared/post-evaluation-survey",
-      linkText: "Survey",
-    },
-  ];
-
-  const observerTasks: RoleChecklistTask[] = [
-    {
-      id: "or-availability",
-      label: "Indicate preferred dates & times for peer observations",
-      done: manualChecks["or-availability"] ?? hasSavedAvailability,
-      linkTo: "/shared/profile",
-      linkText: "Availability",
-    },
-    {
-      id: "or-accept-invite",
-      label: "Accept at least one invitation request (up to 1 per professor)",
-      done:
-        manualChecks["or-accept-invite"] ??
-        (hasAcceptedIncoming || observerRecords.length > 0),
-      linkTo: "/observer/invitation-requests",
-      linkText: "Requests",
-    },
-    {
-      id: "or-complete-sign-form",
-      label: "Complete and sign the observation form after the visit",
-      done: manualChecks["or-complete-sign-form"] ?? observerFormSigned,
-      linkTo: observerRecords[0]
-        ? `/shared/observation-record/${observerRecords[0].observation_id}`
-        : undefined,
-      linkText: observerRecords[0] ? "Open Form" : undefined,
-    },
-    {
-      id: "or-survey",
-      label: "Submit the post-evaluation survey once unlocked",
-      done: Boolean(manualChecks["or-survey"]),
-      linkTo: observerRecords[0]
-        ? `/shared/post-evaluation-survey?pairingId=${observerRecords[0].pairing_id}`
-        : "/shared/post-evaluation-survey",
-      linkText: "Survey",
-    },
-  ];
-
-  const visibleObserveeTasks =
-    roleFilter === "observer" ? [] : observeeTasks;
-  const visibleObserverTasks =
-    roleFilter === "observee" ? [] : observerTasks;
-
-  const allVisibleTasks = [...visibleObserveeTasks, ...visibleObserverTasks];
-  const completedTaskCount = allVisibleTasks.filter((t) => t.done).length;
 
   const pastRecordsBySemester = pastRecords.reduce<
     Record<string, ObservationRecord[]>
@@ -657,32 +503,32 @@ export default function S04CurrentAndPastObservations() {
 
   return (
     <div className="dashboard-container">
-      {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
-        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
+        <Link
+          to={
+            isCommitteeMember
+              ? "/committee/dashboard"
+              : "/shared/faculty-dashboard"
+          }
+          className="back-dashboard-link"
+        >
           ← Back to Dashboard
         </Link>
       </div>
 
-      {/* Page Header */}
-      <div className="a01-page-header">
-        <div>
-          <h2>Current and Past Observations</h2>
-          <p className="s01-subtitle">
-            Track upcoming classroom visits, complete observation forms, and review archived records.
-          </p>
-        </div>
+      {/* Header matching A03-A08 */}
+      <div className="committee-page-header">
+        <h2>Current and Past Observations</h2>
 
         {!liveLoading && (
-          <div className="s03-header-actions">
+          <div className="committee-page-header-meta">
             <span className="a01-cycle-badge">
-              {totalActiveCount} Active · {allPastRecords.length} Archived
+              {totalActiveCount} Active - {allPastRecords.length} Archived
             </span>
           </div>
         )}
       </div>
 
-      {/* Section 1: Deadline Reminders */}
       <section className="s04-reminders-card">
         <div className="s04-reminders-header">
           <div className="s03-section-title-group">
@@ -703,7 +549,7 @@ export default function S04CurrentAndPastObservations() {
 
           <div className="s04-reminder-item">
             <span className="s04-reminder-label">
-              Classroom Visits &amp; Signing
+              Classroom Visits and Signing
             </span>
             <p className="s04-reminder-date">
               {formatReminderDate(registration?.observation_deadline)}
@@ -721,7 +567,6 @@ export default function S04CurrentAndPastObservations() {
         </div>
       </section>
 
-      {/* Loading and Error States */}
       {liveLoading && (
         <div className="a07-state-box">Loading observation records...</div>
       )}
@@ -732,8 +577,7 @@ export default function S04CurrentAndPastObservations() {
         </div>
       )}
 
-      {/* Role Filter Bar */}
-      {!liveLoading && !liveError && (
+      {!liveLoading && !liveError && !isCommitteeMember && (
         <div className="s03-toolbar s04-zero-margin">
           <div className="s03-filter-tabs" role="tablist">
             <button
@@ -778,7 +622,6 @@ export default function S04CurrentAndPastObservations() {
         </div>
       )}
 
-      {/* Section 2: Ongoing Evaluations Panel + Role Checklist */}
       {!liveLoading && !liveError && (
         <section className="s04-section-panel">
           <div className="s04-section-header">
@@ -790,102 +633,10 @@ export default function S04CurrentAndPastObservations() {
               </h3>
             </div>
             <p className="s04-section-subtitle">
-              Scheduled visits, evaluation forms, and role milestone checklist
+              Scheduled classroom visits and active evaluation forms
             </p>
           </div>
 
-          {/* Role-Aware Cycle Checklist */}
-          <div className="s04-checklist-box">
-            <div className="s04-checklist-header">
-              <div className="s03-section-title-group">
-                <span className="a01-phase-pill">Checklist</span>
-                <h4 className="s04-checklist-title">
-                  Cycle Requirements by Role
-                </h4>
-              </div>
-              <span className="s01-progress-badge">
-                {completedTaskCount} / {allVisibleTasks.length} Done
-              </span>
-            </div>
-
-            <div
-              className={`s04-checklist-tracks ${
-                roleFilter !== "all" ? "is-single" : ""
-              }`}
-            >
-              {visibleObserveeTasks.length > 0 && (
-                <div className="s04-track-col">
-                  <div className="s04-track-header">
-                    <span className="pill-badge pill-observee">
-                      Observee Tasks
-                    </span>
-                    <span className="s04-track-count">
-                      {visibleObserveeTasks.filter((t) => t.done).length}/
-                      {visibleObserveeTasks.length}
-                    </span>
-                  </div>
-
-                  {visibleObserveeTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`s04-task-row ${task.done ? "is-done" : ""}`}
-                    >
-                      <label className="s04-task-label">
-                        <input
-                          type="checkbox"
-                          checked={task.done}
-                          onChange={() => toggleManualTask(task.id)}
-                        />
-                        <span className="s04-task-text">{task.label}</span>
-                      </label>
-                      {task.linkTo && task.linkText && (
-                        <Link to={task.linkTo} className="s01-todo-go-link">
-                          {task.linkText} →
-                        </Link>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {visibleObserverTasks.length > 0 && (
-                <div className="s04-track-col">
-                  <div className="s04-track-header">
-                    <span className="pill-badge pill-observer">
-                      Observer Tasks
-                    </span>
-                    <span className="s04-track-count">
-                      {visibleObserverTasks.filter((t) => t.done).length}/
-                      {visibleObserverTasks.length}
-                    </span>
-                  </div>
-
-                  {visibleObserverTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`s04-task-row ${task.done ? "is-done" : ""}`}
-                    >
-                      <label className="s04-task-label">
-                        <input
-                          type="checkbox"
-                          checked={task.done}
-                          onChange={() => toggleManualTask(task.id)}
-                        />
-                        <span className="s04-task-text">{task.label}</span>
-                      </label>
-                      {task.linkTo && task.linkText && (
-                        <Link to={task.linkTo} className="s01-todo-go-link">
-                          {task.linkText} →
-                        </Link>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Active Observation Cards */}
           {currentRecords.length === 0 && activeScheduledVisits.length === 0 ? (
             <div className="a07-state-box s04-zero-margin">
               {roleFilter === "all"
@@ -894,7 +645,6 @@ export default function S04CurrentAndPastObservations() {
             </div>
           ) : (
             <div className="s04-cards-grid">
-              {/* Confirmed / Scheduled Visits (Before Record Opens) */}
               {activeScheduledVisits.map((visit) => {
                 const asObserver = isUserObserver(
                   visit.observerId,
@@ -992,7 +742,6 @@ export default function S04CurrentAndPastObservations() {
                 );
               })}
 
-              {/* Active Observation Records (In Progress / Awaiting Signatures) */}
               {currentRecords.map((record) => {
                 const asObserver = isUserObserver(
                   getNumericId(record.observer),
@@ -1107,7 +856,6 @@ export default function S04CurrentAndPastObservations() {
         </section>
       )}
 
-      {/* Section 3: Past Evaluations Panel */}
       {!liveLoading && !liveError && (
         <section className="s04-section-panel">
           <div className="s04-section-header">
@@ -1272,9 +1020,15 @@ export default function S04CurrentAndPastObservations() {
         </section>
       )}
 
-      {/* Bottom Centered Return Button */}
       <div className="dashboard-center-action">
-        <Link to="/shared/faculty-dashboard" className="btn-secondary">
+        <Link
+          to={
+            isCommitteeMember
+              ? "/committee/dashboard"
+              : "/shared/faculty-dashboard"
+          }
+          className="btn-secondary"
+        >
           Return to Dashboard
         </Link>
       </div>

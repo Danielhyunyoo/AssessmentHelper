@@ -8,19 +8,19 @@ const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 const TIME_WINDOWS = [
   {
-    value: "Morning (8:00 AM – 12:00 PM)",
+    value: "Morning (8:00 AM - 12:00 PM)",
     label: "Morning",
-    sub: "8:00 AM – 12:00 PM",
+    sub: "8:00 AM - 12:00 PM",
   },
   {
-    value: "Afternoon (12:00 PM – 4:00 PM)",
+    value: "Afternoon (12:00 PM - 4:00 PM)",
     label: "Afternoon",
-    sub: "12:00 PM – 4:00 PM",
+    sub: "12:00 PM - 4:00 PM",
   },
   {
-    value: "Evening (4:00 PM – 8:00 PM)",
+    value: "Evening (4:00 PM - 8:00 PM)",
     label: "Evening",
-    sub: "4:00 PM – 8:00 PM",
+    sub: "4:00 PM - 8:00 PM",
   },
 ];
 
@@ -69,7 +69,6 @@ export default function S02Profile(): React.ReactElement {
   const [evaluationStatus, setEvaluationStatus] = useState("");
   const [lastEvaluated, setLastEvaluated] = useState("");
 
-  // Single registered course & observer assignments
   const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
   const [isRegisteredObservee, setIsRegisteredObservee] = useState(false);
   const [observerVisits, setObserverVisits] = useState<ScheduledVisit[]>([]);
@@ -81,7 +80,6 @@ export default function S02Profile(): React.ReactElement {
   const [editLastName, setEditLastName] = useState("");
   const [editPhone, setEditPhone] = useState("");
 
-  // Observer Availability State (synced with L03 & S04)
   const [availDays, setAvailDays] = useState<string[]>(() => {
     try {
       const saved = JSON.parse(
@@ -100,9 +98,9 @@ export default function S02Profile(): React.ReactElement {
       );
       return Array.isArray(saved.windows)
         ? saved.windows
-        : ["Morning (8:00 AM – 12:00 PM)"];
+        : ["Morning (8:00 AM - 12:00 PM)"];
     } catch {
-      return ["Morning (8:00 AM – 12:00 PM)"];
+      return ["Morning (8:00 AM - 12:00 PM)"];
     }
   });
 
@@ -195,7 +193,6 @@ export default function S02Profile(): React.ReactElement {
         setEditFirstName(first);
         setEditLastName(last);
 
-        // Normalize courses array whether returned as [...] or { courses: [...] }
         const rawCourses = myCoursesResp as any;
         const courseList: any[] = Array.isArray(rawCourses)
           ? rawCourses
@@ -508,7 +505,7 @@ export default function S02Profile(): React.ReactElement {
         course.location || course.room || course.classroom,
       ]
         .filter(Boolean)
-        .join(" • "),
+        .join(" - "),
     };
   };
 
@@ -523,18 +520,13 @@ export default function S02Profile(): React.ReactElement {
         </Link>
       </div>
 
-      {/* Upgraded Page Header */}
-      <div className="a01-page-header">
-        <div>
-          <h2 className="profile-page-title">Profile &amp; Evaluation Status</h2>
-          <p className="s01-subtitle">
-            Manage your faculty contact details, observer availability, and
-            cycle assignments.
-          </p>
-        </div>
-
+      {/* Header matching A03-A08 */}
+      <div className="committee-page-header">
+        <h2>Profile and Evaluation Status</h2>
         {evaluationCycle && (
-          <span className="a01-cycle-badge">Cycle: {evaluationCycle}</span>
+          <div className="committee-page-header-meta">
+            <span className="a01-cycle-badge">Cycle: {evaluationCycle}</span>
+          </div>
         )}
       </div>
 
@@ -555,7 +547,7 @@ export default function S02Profile(): React.ReactElement {
       )}
 
       {/* Main Profile Card */}
-      <section className="profile-main-card">
+      <section className="profile-main-card s05-section-accent-primary">
         <div className="profile-card-grid">
           <div className="profile-info-col">
             {!isEditingInfo ? (
@@ -757,7 +749,7 @@ export default function S02Profile(): React.ReactElement {
       </section>
 
       {/* Observer Availability Preferences Section */}
-      <section className="profile-status-card">
+      <section className="profile-status-card s05-section-accent-sage">
         <div className="s02-avail-header">
           <div className="profile-section-title-row">
             <span className="a01-phase-pill">Observer Role</span>
@@ -769,7 +761,6 @@ export default function S02Profile(): React.ReactElement {
         </div>
 
         <div className="s02-avail-grid">
-          {/* Left Column: Weekly Days & Time Windows */}
           <div className="s02-avail-col">
             <div className="l03-field-block">
               <span className="l03-field-label">Preferred Days of Week</span>
@@ -813,7 +804,6 @@ export default function S02Profile(): React.ReactElement {
             </div>
           </div>
 
-          {/* Right Column: Specific Available Dates & Notes */}
           <div className="s02-avail-col">
             <div className="l03-field-block">
               <label htmlFor="s02-specific-date" className="l03-field-label">
@@ -920,15 +910,14 @@ export default function S02Profile(): React.ReactElement {
         </div>
       </section>
 
-      {/* Course & Observation Assignments Section */}
+      {/* Course and Observation Assignments Section */}
       <section className="profile-status-card">
         <div className="profile-section-title-row">
           <span className="a01-phase-pill">Schedule</span>
-          <h3>Course &amp; Observation Assignments</h3>
+          <h3>Course and Observation Assignments</h3>
         </div>
 
         <div className="profile-assignments-grid">
-          {/* Observee Class Registration */}
           <div className="profile-assignment-card">
             <div className="profile-assignment-header">
               <span className="status-label">
@@ -963,7 +952,6 @@ export default function S02Profile(): React.ReactElement {
             )}
           </div>
 
-          {/* Observer Assignments */}
           <div className="profile-assignment-card">
             <div className="profile-assignment-header">
               <span className="status-label">
@@ -1023,7 +1011,6 @@ export default function S02Profile(): React.ReactElement {
         </div>
       </section>
 
-      {/* Bottom Centered Return Button */}
       <div className="dashboard-center-action">
         <Link className="btn-secondary" to="/shared/faculty-dashboard">
           Return to Dashboard

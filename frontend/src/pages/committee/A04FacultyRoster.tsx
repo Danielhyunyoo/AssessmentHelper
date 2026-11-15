@@ -57,7 +57,13 @@ function getMemberAvatar(member: FacultyRow): string | null {
   }
 
   const rec = member as unknown as Record<string, unknown>;
-  for (const key of ["profile_photo", "avatar_url", "photo_url", "profile_picture", "avatar"]) {
+  for (const key of [
+    "profile_photo",
+    "avatar_url",
+    "photo_url",
+    "profile_picture",
+    "avatar",
+  ]) {
     if (typeof rec[key] === "string" && (rec[key] as string).trim()) {
       return rec[key] as string;
     }
@@ -107,20 +113,20 @@ export default function A04FacultyRoster() {
     }
   }
 
-    useEffect(() => {
-        void loadFaculty();
+  useEffect(() => {
+    void loadFaculty();
 
-        const handleProfileChange = () => {
-          setAvatarFailed(false);
-          void loadFaculty();
-        };
-        window.addEventListener("profile-changed", handleProfileChange);
-        window.addEventListener("demo-reset", handleProfileChange);
-        return () => {
-          window.removeEventListener("profile-changed", handleProfileChange);
-          window.removeEventListener("demo-reset", handleProfileChange);
-        };
-      }, [search, sort]);
+    const handleProfileChange = () => {
+      setAvatarFailed(false);
+      void loadFaculty();
+    };
+    window.addEventListener("profile-changed", handleProfileChange);
+    window.addEventListener("demo-reset", handleProfileChange);
+    return () => {
+      window.removeEventListener("profile-changed", handleProfileChange);
+      window.removeEventListener("demo-reset", handleProfileChange);
+    };
+  }, [search, sort]);
 
   function openMemberProfile(member: FacultyRow) {
     setAvatarFailed(false);
@@ -210,6 +216,9 @@ export default function A04FacultyRoster() {
     (m) => m.evaluation_status === "overdue" || m.evaluation_status === "due"
   ).length;
 
+  const hasActiveFilters =
+    Boolean(search.trim()) || Boolean(departmentFilter) || sort !== "name";
+
   const renderEmailCell = (email: string | null | undefined, name: string) => {
     if (!email) {
       return <span className="font-slate font-sm">No email</span>;
@@ -236,10 +245,16 @@ export default function A04FacultyRoster() {
         </Link>
       </div>
 
-      <div className="a02-section-header-bar">
-        <h2 className="a02-section-heading">
-          Faculty Registration and Communications
-        </h2>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Faculty Registration and Communications</h2>
+            <span className="status-chip chip-draft">
+              {filteredFaculty.length} FACULTY
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Feedback Banners */}
@@ -254,6 +269,79 @@ export default function A04FacultyRoster() {
         </div>
       )}
 
+      {/* Global Search, Department, and Sort Controls Bar */}
+      <div className="roster-controls-row a04-controls-bar">
+        <div className="search-control-group">
+          <label htmlFor="a04-search">Search Faculty:</label>
+          <div className="search-input-wrapper">
+            <input
+              id="a04-search"
+              type="text"
+              placeholder="Search by name, department, or email..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="styled-text-input"
+            />
+          </div>
+        </div>
+
+        {departments.length > 0 && (
+          <div className="sort-control-group">
+            <label htmlFor="a04-dept-filter">Department:</label>
+            <select
+              id="a04-dept-filter"
+              value={departmentFilter}
+              onChange={(event) => setDepartmentFilter(event.target.value)}
+              className="styled-select-input"
+            >
+              <option value="">All departments</option>
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="sort-control-group">
+          <label htmlFor="a04-sort">Sort By:</label>
+          <select
+            id="a04-sort"
+            value={sort}
+            onChange={(event) =>
+              setSort(
+                event.target.value as
+                  | "name"
+                  | "department"
+                  | "rank"
+                  | "status"
+              )
+            }
+            className="styled-select-input"
+          >
+            <option value="name">Name</option>
+            <option value="department">Department</option>
+            <option value="rank">Academic Rank</option>
+            <option value="status">Registration Status</option>
+          </select>
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setSearch("");
+              setDepartmentFilter("");
+              setSort("name");
+            }}
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
+
       {/* SECTION 1: FACULTY ROSTER */}
       <section className="dashboard-phase">
         <div className="a02-section-header-bar">
@@ -267,78 +355,11 @@ export default function A04FacultyRoster() {
           </div>
         </div>
 
-        <ul className="instruction-bullet-list">
-          <li>
-            <em>
-              Click any faculty member&apos;s name to inspect their full profile,
-              edit their academic rank, and view quick navigation links.
-            </em>
-          </li>
-        </ul>
-
-        {/* Search, Department & Sort Controls Bar */}
-        <div className="roster-controls-row a04-controls-bar">
-          <div className="search-control-group">
-            <label htmlFor="a04-search">Search Faculty:</label>
-            <div className="search-input-wrapper">
-              <input
-                id="a04-search"
-                type="text"
-                placeholder="Search by name, department, or email..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="styled-text-input"
-              />
-            </div>
-          </div>
-
-          {departments.length > 0 && (
-            <div className="sort-control-group">
-              <label htmlFor="a04-dept-filter">Department:</label>
-              <select
-                id="a04-dept-filter"
-                value={departmentFilter}
-                onChange={(event) => setDepartmentFilter(event.target.value)}
-                className="styled-select-input"
-              >
-                <option value="">All departments</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="sort-control-group">
-            <label htmlFor="a04-sort">Sort By:</label>
-            <select
-              id="a04-sort"
-              value={sort}
-              onChange={(event) =>
-                setSort(
-                  event.target.value as
-                    | "name"
-                    | "department"
-                    | "rank"
-                    | "status"
-                )
-              }
-              className="styled-select-input"
-            >
-              <option value="name">Name</option>
-              <option value="department">Department</option>
-              <option value="rank">Academic Rank</option>
-              <option value="status">Registration Status</option>
-            </select>
-          </div>
-        </div>
-
         {/* Green Theme Scrollable Table Box */}
         <div className="table-container theme-green">
           <div className="table-instruction">
-            Select a faculty member&apos;s name to view their full profile.
+            Click any faculty member&apos;s name to inspect their full profile,
+            edit their academic rank, or access quick navigation links.
           </div>
 
           <div className="table-scroll-wrapper a04-scroll-box">
@@ -430,26 +451,12 @@ export default function A04FacultyRoster() {
           </div>
         </div>
 
-        <ul className="instruction-bullet-list">
-          <li>
-            <em>
-              Faculty members below are due for evaluation in this cycle but
-              have not yet registered a course section.
-            </em>
-          </li>
-          <li>
-            <em>
-              Selected faculty members will receive a reminder to register for
-              the current evaluation cycle.
-            </em>
-          </li>
-        </ul>
-
         {/* Orange Theme Scrollable Table Box */}
         <div className="table-container theme-orange">
           <div className="table-instruction">
-            Select faculty members to send a registration reminder, or click a
-            name to view their profile.
+            Faculty below are due for evaluation this cycle but have not yet
+            registered a course section. Select faculty to send a registration
+            reminder.
           </div>
 
           <div className="table-scroll-wrapper a04-scroll-box">
@@ -553,12 +560,12 @@ export default function A04FacultyRoster() {
         </div>
       </section>
 
-      {/* SECTION 3: EVALUATION DUE & OVERDUE STATUS */}
+      {/* SECTION 3: EVALUATION DUE AND OVERDUE STATUS */}
       <section className="dashboard-phase phase-spacing">
         <div className="a02-section-header-bar">
           <div className="a02-section-title-group">
             <h3 className="a02-section-heading">
-              Evaluation Due &amp; Overdue Status
+              Evaluation Due and Overdue Status
             </h3>
             <span className="status-chip chip-draft a04-nowrap-chip">
               {dueOrOverdueCount} DUE / OVERDUE
@@ -566,19 +573,11 @@ export default function A04FacultyRoster() {
           </div>
         </div>
 
-        <ul className="instruction-bullet-list">
-          <li>
-            <em>
-              Track faculty evaluation status across current and past evaluation
-              cycles.
-            </em>
-          </li>
-        </ul>
-
         {/* Green Theme Scrollable Table Box */}
         <div className="table-container theme-green">
           <div className="table-instruction">
-            Review faculty members flagged as Due or Overdue for an evaluation.
+            Track faculty evaluation eligibility and review members flagged as
+            Due or Overdue across cycles.
           </div>
 
           <div className="table-scroll-wrapper a04-scroll-box">
@@ -650,13 +649,6 @@ export default function A04FacultyRoster() {
           </div>
         </div>
       </section>
-
-      {/* Bottom Centered Return Button */}
-      <div className="dashboard-center-action">
-        <Link to="/committee/dashboard" className="btn-secondary">
-          Return to Dashboard
-        </Link>
-      </div>
 
       {/* Faculty Profile Quick-View Modal */}
       {selectedMember && (
@@ -788,7 +780,7 @@ export default function A04FacultyRoster() {
               </div>
             </div>
 
-            {/* Actions & Navigation */}
+            {/* Actions and Navigation */}
             <div className="a04-modal-redirects">
               <span className="a02-card-section-label">Actions</span>
               <div className="a04-redirect-buttons">

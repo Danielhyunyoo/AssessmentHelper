@@ -59,7 +59,7 @@ function getNotificationCategory(notification: Notification): {
     typeLower.includes("invitation") ||
     typeLower.includes("candidate")
   ) {
-    return { label: "Matching & Invites", toneClass: "cat-invite" };
+    return { label: "Matching and Invites", toneClass: "cat-invite" };
   }
 
   return { label: "Cycle Notice", toneClass: "" };
@@ -216,7 +216,7 @@ export default function S03FacultyNotifications() {
           to="/shared/current-past-observations"
           className="notif-action-link"
         >
-          View Current &amp; Past Observations →
+          View Current and Past Observations →
         </Link>
       );
     }
@@ -320,7 +320,7 @@ export default function S03FacultyNotifications() {
             to="/shared/current-past-observations"
             className="notif-action-link"
           >
-            View Current &amp; Past Observations →
+            View Current and Past Observations →
           </Link>
         );
 
@@ -330,7 +330,7 @@ export default function S03FacultyNotifications() {
       case "cycle_transferred":
         return (
           <Link to="/shared/profile" className="notif-action-link">
-            View Profile &amp; Status →
+            View Profile and Status →
           </Link>
         );
 
@@ -408,7 +408,7 @@ export default function S03FacultyNotifications() {
         ) {
           return (
             <Link to="/shared/profile" className="notif-action-link">
-              View Profile &amp; Status →
+              View Profile and Status →
             </Link>
           );
         }
@@ -425,7 +425,7 @@ export default function S03FacultyNotifications() {
               to="/shared/current-past-observations"
               className="notif-action-link"
             >
-              View Current &amp; Past Observations →
+              View Current and Past Observations →
             </Link>
           );
         }
@@ -463,20 +463,13 @@ export default function S03FacultyNotifications() {
         </Link>
       </div>
 
-      {/* Consistent Page Header matching S01 / S02 / A01 */}
-      <div className="a01-page-header">
-        <div>
-          <h2>Notifications</h2>
-          <p className="s01-subtitle">
-            Stay up to date on observation invitations, matching releases, and cycle deadlines.
-          </p>
-        </div>
+      {/* Header matching A03-A08 */}
+      <div className="committee-page-header">
+        <h2>Notifications</h2>
 
         {!loading && notifications.length > 0 && (
-          <div className="s03-header-actions">
-            <span className="a01-cycle-badge">
-              {unreadCount} Unread
-            </span>
+          <div className="committee-page-header-meta">
+            <span className="a01-cycle-badge">{unreadCount} Unread</span>
           </div>
         )}
       </div>
@@ -497,11 +490,11 @@ export default function S03FacultyNotifications() {
         <div className="a07-state-box">Loading notifications...</div>
       ) : notifications.length === 0 ? (
         <div className="a07-state-box">
-          You&apos;re all caught up — no notifications right now.
+          You are all caught up - no notifications right now.
         </div>
       ) : (
         <>
-          {/* Filter Tabs + Search Bar */}
+          {/* Card-Wrapped Filter Tabs + Search Bar */}
           <div className="s03-toolbar">
             <div className="s03-filter-tabs" role="tablist">
               <button
@@ -561,7 +554,7 @@ export default function S03FacultyNotifications() {
           ) : (
             <div className="notif-sections-wrapper">
               {activeTab !== "read" && (
-                <section className="s03-section-card">
+                <section className="s03-section-card s05-section-accent-primary">
                   <div className="notif-section-header">
                     <div className="s03-section-title-group">
                       <span className="a01-phase-pill">Inbox</span>

@@ -22,7 +22,9 @@ function recordError(err: unknown, record: ObservationRecord, fallback: string) 
     const key = String(message).replace(/\.$/, "");
     byMessage[key] = [...(byMessage[key] ?? []), question?.text ?? id];
   }
-  return Object.entries(byMessage).map(([message, questions]) => `${message}: ${questions.join("; ")}.`).join(" ");
+  return Object.entries(byMessage)
+    .map(([message, questions]) => `${message}: ${questions.join("; ")}.`)
+    .join(" ");
 }
 
 function buildDemoObservationRecord(
@@ -97,7 +99,7 @@ function buildDemoObservationRecord(
         },
         {
           id: "q4_strengths",
-          text: "Observed Teaching Strengths & Effective Practices",
+          text: "Observed Teaching Strengths and Effective Practices",
           type: "text",
           required: true,
         },
@@ -286,9 +288,7 @@ export default function S05ObservationRecord() {
 
       setRecord(updated);
       setResponses(updated.responses ?? {});
-      setSuccess(
-        updated.locked ? "" : "Your signature has been saved."
-      );
+      setSuccess(updated.locked ? "" : "Your signature has been saved.");
     } catch (err) {
       setError(recordError(err, record, "Unable to sign record."));
     } finally {
@@ -299,7 +299,7 @@ export default function S05ObservationRecord() {
   if (loading) {
     return (
       <div className="dashboard-container">
-        <p>Loading observation record...</p>
+        <div className="a07-state-box">Loading observation record...</div>
       </div>
     );
   }
@@ -307,10 +307,10 @@ export default function S05ObservationRecord() {
   if (!record) {
     return (
       <div className="dashboard-container">
-        <p role="alert">
+        <p role="alert" className="empty-state-banner">
           {error || "The requested observation record could not be loaded."}
         </p>
-        <Link to="/shared/current-past-observations">
+        <Link to="/shared/current-past-observations" className="btn-secondary">
           Return to Observations
         </Link>
       </div>
@@ -325,37 +325,45 @@ export default function S05ObservationRecord() {
         </Link>
       </div>
 
-      <div className="notif-page-header-row" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ margin: 0 }}>Observation Record</h2>
-        <span
-          className={`status-chip ${
-            record.locked ? "chip-locked" : "chip-draft"
-          }`}
-          style={{ textTransform: "capitalize" }}
-        >
-          {record.status.replaceAll("_", " ")}
-        </span>
+      {/* Header matching A03-A08 */}
+      <div className="committee-page-header">
+        <h2>Observation Record</h2>
+
+        <div className="committee-page-header-meta">
+          <span
+            className={`status-chip a03-capitalize ${
+              record.locked ? "chip-locked" : "chip-draft"
+            }`}
+          >
+            {record.status.replaceAll("_", " ")}
+          </span>
+        </div>
       </div>
 
       {isDemoPreview && (
-        <div className="yellow-banner" role="status">
+        <div className="s05-readonly-banner s04-zero-margin" role="status">
           <strong>Demo Preview Mode:</strong> Interactive preview of the
           Observation Record while the backend record is pending creation.
         </div>
       )}
 
       {error && (
-        <div className="empty-state-banner" role="alert">
+        <div className="empty-state-banner s04-zero-margin" role="alert">
           {error}
         </div>
       )}
       {success && (
-        <div className="feedback-banner-success" role="status">
+        <div className="feedback-banner-success s04-zero-margin" role="status">
           {success}
         </div>
       )}
+      {record.locked && (
+        <div className="s05-completed-banner" role="status">
+          This observation record has been signed by both participants and is now locked.
+        </div>
+      )}
       {!record.can_edit && !record.locked && record.status !== "cancelled" && (
-        <div className="yellow-banner" role="status">
+        <div className="s05-readonly-banner s04-zero-margin" role="status">
           {!record.observer_signed
             ? `Only ${record.observer.name} can edit this record. You can sign after they sign.`
             : record.can_sign
@@ -365,16 +373,18 @@ export default function S05ObservationRecord() {
       )}
 
       {/* Pairing Summary Card */}
-      <section className="table-container theme-orange summary-card-padding">
-        <div className="form-header-row" style={{ marginBottom: "0.25rem" }}>
-          <h3 className="card-heading-md margin-none">Pairing Summary</h3>
+      <section className="s03-section-card s05-section-accent-primary">
+        <div className="s01-card-top-bar">
+          <div>
+            <h3>Pairing Summary</h3>
+            <p className="s01-subtitle">
+              Confirmed classroom observation participants and course schedule
+            </p>
+          </div>
           {record.course.classroom && (
             <span className="version-pill">{record.course.classroom}</span>
           )}
         </div>
-        <p className="card-subtext font-slate" style={{ margin: 0 }}>
-          Confirmed classroom observation participants and course schedule
-        </p>
 
         <div className="form-summary-grid-4">
           <div className="form-summary-cell">
@@ -386,7 +396,7 @@ export default function S05ObservationRecord() {
             <p className="summary-field-val">{record.observee.name}</p>
           </div>
           <div className="form-summary-cell">
-            <span className="summary-field-label">Course &amp; Section</span>
+            <span className="summary-field-label">Course and Section</span>
             <p className="summary-field-val">
               {record.course.department_code} {record.course.course_number}.
               {record.course.section}
@@ -411,17 +421,14 @@ export default function S05ObservationRecord() {
       </section>
 
       {/* Evaluation Form Main Container */}
-      <section className="table-container theme-green summary-card-padding">
-        <div className="form-header-row">
-          <h3 className="card-heading-md margin-none">
-            {record.template.name}
-          </h3>
+      <section className="s03-section-card s05-section-accent-sage">
+        <div className="s01-card-top-bar">
+          <div>
+            <h3>{record.template.name}</h3>
+            <p className="s01-subtitle">{record.template.instructions}</p>
+          </div>
           <span className="version-pill">Version {record.template.version}</span>
         </div>
-
-        <p className="form-instruction-subtext">
-          {record.template.instructions}
-        </p>
 
         <form
           onSubmit={(event) => {
@@ -432,22 +439,22 @@ export default function S05ObservationRecord() {
           <div className="eval-question-list">
             {record.template.questions.map((question, idx) => (
               <div className="eval-question-card" key={question.id}>
-                <div className="eval-question-top">
+                <label className="eval-question-label">
                   <span className="eval-question-num">Q{idx + 1}</span>
-                  <label className="eval-question-text">
+                  <span>
                     {question.text}
                     {question.required && (
                       <span className="eval-required-star">*</span>
                     )}
-                  </label>
-                </div>
+                  </span>
+                </label>
 
                 {question.type === "rating" ? (
                   <div className="eval-rating-wrapper">
                     <span className="eval-scale-hint">
                       {question.min ?? 1} (Low)
                     </span>
-                    <div className="rating-btn-row" style={{ marginTop: 0 }}>
+                    <div className="rating-scale-group">
                       {Array.from(
                         {
                           length:
@@ -465,9 +472,9 @@ export default function S05ObservationRecord() {
                               [question.id]: score,
                             }))
                           }
-                          className={`rating-score-btn ${
-                            responses[question.id] === score ? "selected" : ""
-                          }`}
+                          className={`rating-scale-option ${
+                            responses[question.id] === score ? "is-selected" : ""
+                          } ${!record.can_edit ? "is-disabled" : ""}`}
                         >
                           {score}
                         </button>
@@ -479,7 +486,7 @@ export default function S05ObservationRecord() {
                   </div>
                 ) : (
                   <textarea
-                    className="fixed-height-textarea"
+                    className="eval-textarea"
                     placeholder="Enter your detailed observation notes here..."
                     value={String(responses[question.id] ?? "")}
                     disabled={!record.can_edit}
@@ -497,32 +504,24 @@ export default function S05ObservationRecord() {
           </div>
 
           {/* Signatures Section */}
-          <div
-            className="form-section-block-sm"
-            style={{ marginTop: "2rem" }}
-          >
-            <h4 className="section-subtitle">Participant Sign-Off</h4>
+          <div className="eval-signoff-box">
+            <div className="s01-card-top-bar">
+              <h4>Participant Sign-Off</h4>
+            </div>
 
-            <div className="eval-signatures-grid">
+            <div className="s05-signature-grid">
               <div
-                className={`eval-signature-card ${
+                className={`s05-signature-card ${
                   record.observer_signed ? "is-signed" : ""
                 }`}
               >
-                <div className="eval-signature-header">
-                  <strong>Observer ({record.observer.name})</strong>
-                  <span
-                    className={`status-chip ${
-                      record.observer_signed ? "chip-draft" : "chip-locked"
-                    }`}
-                  >
-                    {record.observer_signed ? "Signed" : "Pending"}
-                  </span>
-                </div>
-                <p
-                  className="observation-card-subtext"
-                  style={{ margin: 0 }}
-                >
+                <span className="s05-signature-role">
+                  Observer - {record.observer.name}
+                </span>
+                <span className="s05-signature-status">
+                  {record.observer_signed ? "Signed" : "Pending Signature"}
+                </span>
+                <span className="s05-signature-date">
                   {record.observer_signed
                     ? `Signed on ${
                         record.observer_signed_at
@@ -530,28 +529,21 @@ export default function S05ObservationRecord() {
                           : "record"
                       }`
                     : "Awaiting observer review and digital signature"}
-                </p>
+                </span>
               </div>
 
               <div
-                className={`eval-signature-card ${
+                className={`s05-signature-card ${
                   record.observee_signed ? "is-signed" : ""
                 }`}
               >
-                <div className="eval-signature-header">
-                  <strong>Observee ({record.observee.name})</strong>
-                  <span
-                    className={`status-chip ${
-                      record.observee_signed ? "chip-draft" : "chip-locked"
-                    }`}
-                  >
-                    {record.observee_signed ? "Signed" : "Pending"}
-                  </span>
-                </div>
-                <p
-                  className="observation-card-subtext"
-                  style={{ margin: 0 }}
-                >
+                <span className="s05-signature-role">
+                  Observee - {record.observee.name}
+                </span>
+                <span className="s05-signature-status">
+                  {record.observee_signed ? "Signed" : "Pending Signature"}
+                </span>
+                <span className="s05-signature-date">
                   {record.observee_signed
                     ? `Signed on ${
                         record.observee_signed_at
@@ -559,14 +551,11 @@ export default function S05ObservationRecord() {
                           : "record"
                       }`
                     : "Unlocks once observer signs the record"}
-                </p>
+                </span>
               </div>
             </div>
 
-            <p
-              className="disclaimer-text"
-              style={{ marginTop: "0.85rem", marginBottom: 0 }}
-            >
+            <p className="s05-signoff-note">
               By signing this form, you acknowledge that the classroom
               observation occurred. Your signature is recorded using your
               authenticated account.
@@ -574,7 +563,7 @@ export default function S05ObservationRecord() {
           </div>
 
           {/* Footer Toolbar */}
-          <div className="form-footer-toolbar">
+          <div className="eval-form-actions is-split">
             <button
               type="button"
               className="btn-secondary"

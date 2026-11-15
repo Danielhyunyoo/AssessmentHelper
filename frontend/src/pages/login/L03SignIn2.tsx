@@ -9,19 +9,19 @@ const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 const TIME_WINDOWS = [
   {
-    value: "Morning (8:00 AM – 12:00 PM)",
+    value: "Morning (8:00 AM - 12:00 PM)",
     label: "Morning",
-    sub: "8 AM – 12 PM",
+    sub: "8:00 AM to 12:00 PM",
   },
   {
-    value: "Afternoon (12:00 PM – 4:00 PM)",
+    value: "Afternoon (12:00 PM - 4:00 PM)",
     label: "Afternoon",
-    sub: "12 PM – 4 PM",
+    sub: "12:00 PM to 4:00 PM",
   },
   {
-    value: "Evening (4:00 PM – 8:00 PM)",
+    value: "Evening (4:00 PM - 8:00 PM)",
     label: "Evening",
-    sub: "4 PM – 8 PM",
+    sub: "4:00 PM to 8:00 PM",
   },
 ];
 
@@ -56,9 +56,9 @@ export default function L03SignIn2() {
       );
       return Array.isArray(saved.windows)
         ? saved.windows
-        : ["Morning (8:00 AM – 12:00 PM)"];
+        : ["Morning (8:00 AM - 12:00 PM)"];
     } catch {
-      return ["Morning (8:00 AM – 12:00 PM)"];
+      return ["Morning (8:00 AM - 12:00 PM)"];
     }
   });
 
@@ -85,17 +85,16 @@ export default function L03SignIn2() {
       }
       setUser(sessionUser);
 
-      if (sessionUser.role === "admin") {
-        navigate("/committee/dashboard");
-        return;
+      try {
+        setRegistration(await facultyApi.registrationStatus());
+      } catch {
+        // Committee accounts may not have a personal faculty registration record
       }
-
-      setRegistration(await facultyApi.registrationStatus());
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to load registration information."
+          : "Unable to load cycle information."
       );
     } finally {
       setLoading(false);
@@ -103,7 +102,7 @@ export default function L03SignIn2() {
   }
 
   useEffect(() => {
-    loadPage();
+    void loadPage();
   }, []);
 
   const toggleDay = (day: string) => {
@@ -127,6 +126,21 @@ export default function L03SignIn2() {
 
   const isCommittee = user?.role === "admin";
   const cycleName = registration?.cycle_name || "Current Evaluation Cycle";
+
+  const firstName = (() => {
+    if (!user) return "";
+    const rec = user as unknown as Record<string, unknown>;
+    if (typeof rec.first_name === "string" && rec.first_name.trim()) {
+      return rec.first_name.trim();
+    }
+    if (typeof rec.full_name === "string" && rec.full_name.trim()) {
+      return rec.full_name.trim().split(" ")[0];
+    }
+    if (typeof rec.name === "string" && rec.name.trim()) {
+      return rec.name.trim().split(" ")[0];
+    }
+    return "";
+  })();
 
   const handleRegister = async () => {
     setSaving(true);
@@ -170,24 +184,138 @@ export default function L03SignIn2() {
     return (
       <div className="dashboard-container">
         <div className="l03-wrapper">
-          <div className="a07-state-box">
-            Loading {cycleName} registration...
+          <div className="a07-state-box">Getting things ready for you...</div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================================
+     COMMITTEE MEMBER WELCOME VIEW
+     ========================================================= */
+  if (isCommittee) {
+    return (
+      <div className="dashboard-container">
+        <div className="l03-wrapper">
+          <div className="l03-hero-header">
+            <span className="a01-phase-pill">Assessment Committee</span>
+            <h2>Welcome back{firstName ? `, ${firstName}` : ""}</h2>
+            <p className="l03-subtitle">
+              Here is a quick look at the {cycleName} schedule before you head
+              into your workspace.
+            </p>
+          </div>
+
+          {error && (
+            <div role="alert" className="empty-state-banner s04-zero-margin">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
+
+          <div className="registration-card">
+            {registration && (
+              <div className="l03-dates-bar">
+                <div className="l03-date-pair">
+                  <span className="l03-date-label">Semester Window:</span>
+                  <span className="l03-date-val">
+                    {formatDate(registration.start_date)} to{" "}
+                    {formatDate(registration.end_date)}
+                  </span>
+                </div>
+
+                <span className="l03-date-divider" aria-hidden="true">
+                  |
+                </span>
+
+                <div className="l03-date-pair">
+                  <span className="l03-date-label">Faculty Signup Cutoff:</span>
+                  <span className="l03-date-val">
+                    {formatDate(registration.signup_deadline)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="l03-two-col">
+              <div className="l03-col-section">
+                <div className="l03-section-head">
+                  <span className="a01-phase-pill">Good to Know</span>
+                  <h3 className="registration-title">Your Committee Role</h3>
+                </div>
+
+                <p className="l03-role-desc">
+                  As an Assessment Committee member, you are exempt from
+                  personal course registration. Your dashboard brings together
+                  pairing approvals, unmatched faculty follow-ups, record
+                  audits, and cycle KPIs in one place.
+                </p>
+
+                <p className="l03-avail-hint">
+                  Need a refresher on any tool? You can expand the guide at the
+                  top of your dashboard whenever you like.
+                </p>
+              </div>
+
+              <div className="l03-col-section is-right">
+                <div className="l03-section-head">
+                  <span className="a01-phase-pill">Helpful Reminders</span>
+                  <h3 className="registration-title">This Semester</h3>
+                </div>
+
+                <div className="l03-admin-notes">
+                  <div className="l03-admin-note-card">
+                    <span className="l03-field-label">Early Cycle</span>
+                    <p className="l03-role-desc">
+                      Review incoming course signups and release observer
+                      lists so faculty can schedule their classroom visits.
+                    </p>
+                  </div>
+
+                  <div className="l03-admin-note-card">
+                    <span className="l03-field-label">Mid to Late Cycle</span>
+                    <p className="l03-role-desc">
+                      Keep an eye on unsigned observation records and post-visit
+                      survey completion before closing out the semester.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="l03-footer-bar">
+              <Link
+                to="/shared/faculty-dashboard"
+                className="registration-link"
+              >
+                View General Overview
+              </Link>
+
+              <button
+                type="button"
+                className="btn-primary l03-primary-cta"
+                onClick={() => navigate("/committee/dashboard")}
+              >
+                Go to Committee Dashboard →
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+  /* =========================================================
+     FACULTY WELCOME VIEW
+     ========================================================= */
   return (
     <div className="dashboard-container">
       <div className="l03-wrapper">
-        {/* Compact Header */}
         <div className="l03-hero-header">
-          <span className="a01-phase-pill">Faculty Cycle Registration</span>
-          <h2>{cycleName} Evaluation Cycle</h2>
+          <span className="a01-phase-pill">Peer Evaluation Portal</span>
+          <h2>Welcome{firstName ? `, ${firstName}` : ""}</h2>
           <p className="l03-subtitle">
-            Confirm your dual-role participation and set your general availability
-            to observe peers.
+            Take a quick moment to check this semester's dates and let us know
+            when you are free to observe colleagues.
           </p>
         </div>
 
@@ -197,15 +325,14 @@ export default function L03SignIn2() {
           </div>
         )}
 
-        {/* Main Card */}
         <div className="registration-card">
-          {/* Inline Key Dates Strip */}
+          {/* Dates Bar */}
           {registration && (
             <div className="l03-dates-bar">
               <div className="l03-date-pair">
-                <span className="l03-date-label">Cycle Window:</span>
+                <span className="l03-date-label">Semester Window:</span>
                 <span className="l03-date-val">
-                  {formatDate(registration.start_date)} –{" "}
+                  {formatDate(registration.start_date)} to{" "}
                   {formatDate(registration.end_date)}
                 </span>
               </div>
@@ -215,7 +342,7 @@ export default function L03SignIn2() {
               </span>
 
               <div className="l03-date-pair">
-                <span className="l03-date-label">Registration Deadline:</span>
+                <span className="l03-date-label">Signup Deadline:</span>
                 <span className="l03-date-val">
                   {formatDate(registration.signup_deadline)}
                 </span>
@@ -223,200 +350,167 @@ export default function L03SignIn2() {
             </div>
           )}
 
-          {isRegistered ? (
-            <>
-              <div className="feedback-banner-success s04-zero-margin">
-                <strong>Registered:</strong> You are enrolled for the{" "}
-                {cycleName} cycle. Customize specific dates anytime in{" "}
+          {/* Balanced Two-Column Layout */}
+          <div className="l03-two-col">
+            {/* Left Column: Warm, Simple Overview */}
+            <div className="l03-col-section">
+              <div className="l03-section-head">
+                <span className="a01-phase-pill">Quick Overview</span>
+                <h3 className="registration-title">How the Cycle Works</h3>
+              </div>
+
+              <div className="l03-role-list">
+                <div className="l03-role-item is-observee">
+                  <span className="pill-badge pill-observee">Being Observed</span>
+                  <p className="l03-role-desc">
+                    If you are due for evaluation this semester, you will pick{" "}
+                    <strong>one class section</strong> and invite colleagues
+                    from your matched list to visit.
+                  </p>
+                </div>
+
+                <div className="l03-role-item is-observer">
+                  <span className="pill-badge pill-observer">Observing Peers</span>
+                  <p className="l03-role-desc">
+                    Joining the cycle also adds you to the observer pool so you
+                    can accept <strong>1 to 3 peer visits</strong> that fit your
+                    teaching schedule.
+                  </p>
+                </div>
+              </div>
+
+              <p className="l03-avail-hint">
+                Not due for evaluation this semester? You can skip registration
+                below and head straight to your dashboard to check your status.
+              </p>
+            </div>
+
+            {/* Right Column: Observer Availability Customizer */}
+            <div className="l03-col-section is-right">
+              <div className="l03-section-head">
+                <span className="a01-phase-pill">Optional Setup</span>
+                <h3 className="registration-title">Your Preferred Schedule</h3>
+              </div>
+
+              <p className="l03-avail-hint">
+                Share the days and times that usually work best for you to
+                observe a class. You can always change this later in{" "}
                 <Link to="/shared/profile" className="s04-inline-link">
                   My Profile
                 </Link>
                 .
+              </p>
+
+              <div className="l03-field-block">
+                <span className="l03-field-label">Days That Work Best</span>
+                <div className="l03-chip-group">
+                  {DAYS_OF_WEEK.map((day) => {
+                    const active = selectedDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        className={`l03-chip-btn ${
+                          active ? "is-selected" : ""
+                        }`}
+                        onClick={() => toggleDay(day)}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="l03-footer-bar">
+              <div className="l03-field-block">
+                <span className="l03-field-label">Preferred Time of Day</span>
+                <div className="l03-window-grid">
+                  {TIME_WINDOWS.map((win) => {
+                    const active = selectedWindows.includes(win.value);
+                    return (
+                      <button
+                        key={win.value}
+                        type="button"
+                        className={`l03-window-btn ${
+                          active ? "is-selected" : ""
+                        }`}
+                        onClick={() => toggleWindow(win.value)}
+                      >
+                        <span className="l03-window-title">{win.label}</span>
+                        <span className="l03-window-sub">{win.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="l03-field-block">
+                <label htmlFor="l03-avail-notes" className="l03-field-label">
+                  Anything Else to Keep in Mind? (Optional)
+                </label>
+                <input
+                  id="l03-avail-notes"
+                  type="text"
+                  className="l03-notes-input"
+                  placeholder="e.g., Free after 11:00 AM on Mon and Wed"
+                  value={availabilityNotes}
+                  onChange={(e) => setAvailabilityNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer CTA / Status */}
+          {isRegistered ? (
+            <div className="l03-footer-bar">
+              <div className="feedback-banner-success s04-zero-margin">
+                <strong>You are all set:</strong> You are already registered
+                for {cycleName}.
+              </div>
+
+              <button
+                type="button"
+                className="btn-primary l03-primary-cta"
+                onClick={() => navigate("/shared/faculty-dashboard")}
+              >
+                Go to My Dashboard →
+              </button>
+            </div>
+          ) : isPastDeadline ? (
+            <div className="l03-footer-bar">
+              <div className="empty-state-banner s04-zero-margin">
+                <strong>Signup Closed:</strong> The registration window for{" "}
+                {cycleName} has ended.
+              </div>
+
+              <button
+                type="button"
+                className="btn-primary l03-primary-cta"
+                onClick={() => navigate("/shared/faculty-dashboard")}
+              >
+                Go to My Dashboard →
+              </button>
+            </div>
+          ) : (
+            <div className="l03-footer-bar">
+              <div className="registration-link-container">
+                <span className="l03-avail-hint">Not due this semester? </span>
                 <Link
-                  to="/shared/current-past-observations"
+                  to="/shared/faculty-dashboard"
                   className="registration-link"
                 >
-                  View Current &amp; Past Observations
-                </Link>
-                <button
-                  type="button"
-                  className="btn-primary l03-primary-cta"
-                  onClick={() => navigate("/shared/faculty-dashboard")}
-                >
-                  Go to Faculty Dashboard →
-                </button>
-              </div>
-            </>
-          ) : isPastDeadline ? (
-            <>
-              <div className="empty-state-banner s04-zero-margin">
-                <strong>Registration Closed:</strong> The deadline to register
-                for the {cycleName} evaluation cycle has passed.
-              </div>
-
-              <p className="l03-role-desc">
-                You were not registered for an observation visit during this
-                active cycle, though you can still access your historical
-                evaluation records.
-              </p>
-
-              <div className="l03-footer-bar">
-                <Link
-                  to="/shared/current-past-observations"
-                  className="btn-secondary"
-                >
-                  View Previous Observation Records
+                  Skip to My Dashboard
                 </Link>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="l03-two-col">
-                {/* Left Column: Dual-Role Participation */}
-                <div className="l03-col-section">
-                  <div className="l03-section-head">
-                    <span className="a01-phase-pill">Participation</span>
-                    <h3 className="registration-title">
-                      What Registration Includes
-                    </h3>
-                  </div>
 
-                  <div className="l03-role-list">
-                    <div className="l03-role-item is-observee">
-                      <span className="pill-badge pill-observee">Observee</span>
-                      <p className="l03-role-desc">
-                        Select one course section to receive a peer visit and
-                        invite eligible colleagues.
-                      </p>
-                    </div>
-
-                    <div className="l03-role-item is-observer">
-                      <span className="pill-badge pill-observer">Observer</span>
-                      <p className="l03-role-desc">
-                        Enroll as a peer observer to review requests, visit a
-                        colleague&apos;s class, and submit feedback.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Observer Availability */}
-                <div className="l03-col-section is-right">
-                  <div className="l03-section-head">
-                    <span className="a01-phase-pill">Scheduling</span>
-                    <h3 className="registration-title">
-                      Observer Availability
-                    </h3>
-                  </div>
-
-                  <div className="l03-field-block">
-                    <div className="l03-field-row">
-                      <span className="l03-field-label">Days</span>
-                      <div className="l03-chip-group">
-                        {DAYS_OF_WEEK.map((day) => {
-                          const active = selectedDays.includes(day);
-                          return (
-                            <button
-                              key={day}
-                              type="button"
-                              className={`l03-chip-btn ${
-                                active ? "is-selected" : ""
-                              }`}
-                              onClick={() => toggleDay(day)}
-                            >
-                              {day}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="l03-field-block">
-                    <span className="l03-field-label">Time Windows</span>
-                    <div className="l03-window-grid">
-                      {TIME_WINDOWS.map((win) => {
-                        const active = selectedWindows.includes(win.value);
-                        return (
-                          <button
-                            key={win.value}
-                            type="button"
-                            className={`l03-window-btn ${
-                              active ? "is-selected" : ""
-                            }`}
-                            onClick={() => toggleWindow(win.value)}
-                          >
-                            <span className="l03-window-title">{win.label}</span>
-                            <span className="l03-window-sub">{win.sub}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="l03-field-block">
-                    <label
-                      htmlFor="l03-avail-notes"
-                      className="l03-field-label"
-                    >
-                      Additional Notes (Optional)
-                    </label>
-                    <input
-                      id="l03-avail-notes"
-                      type="text"
-                      className="l03-notes-input"
-                      placeholder="e.g., Available after 11:00 AM on MWF"
-                      value={availabilityNotes}
-                      onChange={(e) => setAvailabilityNotes(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Aligned Footer Bar */}
-              <div className="l03-footer-bar">
-                <div className="registration-link-container">
-                  <span className="l03-avail-hint">
-                    Not participating in this cycle?{" "}
-                  </span>
-                  <Link
-                    to="/shared/current-past-observations"
-                    className="registration-link"
-                  >
-                    View previous records
-                  </Link>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn-primary l03-primary-cta"
-                  onClick={handleRegister}
-                  disabled={saving}
-                >
-                  {saving ? "Registering..." : `Register for ${cycleName} Cycle`}
-                </button>
-              </div>
-            </>
-          )}
-
-          {isCommittee && (
-            <div className="committee-section">
-              <h4 className="committee-title">Assessment Committee Access</h4>
-              <p className="committee-desc">
-                Access to Assessment Committee tools is configured automatically
-                based on your staff credentials.
-              </p>
-
-              <Link
-                to="/committee/dashboard"
-                className="btn-secondary"
-                style={{ marginTop: "0.75rem" }}
+              <button
+                type="button"
+                className="btn-primary l03-primary-cta"
+                onClick={handleRegister}
+                disabled={saving}
               >
-                Go to Assessment Committee Portal
-              </Link>
+                {saving ? "Registering..." : `Join ${cycleName} Cycle`}
+              </button>
             </div>
           )}
         </div>

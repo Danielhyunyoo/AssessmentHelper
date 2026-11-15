@@ -10,6 +10,22 @@ function formatDay(isoDate: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function SearchIcon() {
+  return (
+    <svg
+      className="a02-search-icon"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="9" r="6" />
+      <path d="M13.5 13.5L17 17" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export const CYCLE_TRANSFER_STORAGE_KEY = "ac_cycle_transfers";
 const PENDING_COURSE_CHANGE_KEY = "pending_course_change_requests";
 const LEGACY_PENDING_COURSE_CHANGE_KEY = "pending_course_change_request";
@@ -1194,22 +1210,38 @@ export default function A02FacultyMatching() {
         </Link>
       </div>
 
-      <div className="a02-section-header-bar">
-        <h2 className="a02-section-heading">
-          Observer Selection and Matching
-        </h2>
-        {queuedForA03Count > 0 && (
-          <Link to="/committee/unmatched" className="btn-secondary">
-            View Unmatched Observees ({queuedForA03Count} Queued) →
-          </Link>
-        )}
+      {/* Editorial Page Header */}
+      <div className="a01-page-header" style={{ marginBottom: "1.5rem" }}>
+        <div className="a02-section-title-group">
+          <span className="a01-phase-pill">Phase 1 · Committee Matching</span>
+          <h2 className="a02-section-heading">
+            Observer Selection and Matching
+          </h2>
+          <p className="s01-subtitle">
+            Manage registration windows, resolve course change requests, and
+            release observer candidate pools.
+          </p>
+        </div>
+
+        <div className="s01-header-meta">
+          <span className="a01-cycle-badge">
+            {shownActive.length} Active · {shownConfirmed.length} Confirmed
+          </span>
+          {queuedForA03Count > 0 && (
+            <Link to="/committee/unmatched" className="btn-secondary">
+              Unmatched Observees ({queuedForA03Count}) →
+            </Link>
+          )}
+        </div>
       </div>
 
       {loadingMatches && (
-        <p>Loading faculty and eligible observer candidates...</p>
+        <div className="a07-state-box">
+          Loading faculty and eligible observer candidates...
+        </div>
       )}
       {matchError && (
-        <div role="alert" className="yellow-banner">
+        <div role="alert" className="signin-error-banner">
           {matchError}
         </div>
       )}
@@ -1229,26 +1261,49 @@ export default function A02FacultyMatching() {
         <section className="dashboard-phase a02-section-block">
           <div className="a02-section-header-bar">
             <div className="a02-section-title-group">
-              <h3 className="a02-section-heading">
-                Course Registration Change Requests
-              </h3>
-              <span
-                className={`status-chip ${
-                  pendingChangeRequests.length > 0 ? "a02-chip-warning" : ""
-                }`}
+              <span className="a01-phase-pill">Action Required</span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.65rem",
+                  flexWrap: "wrap",
+                }}
               >
-                {pendingChangeRequests.length} PENDING
-              </span>
+                <h3 className="a02-section-heading">
+                  Course Registration Change Requests
+                </h3>
+                <span
+                  className={`status-chip ${
+                    pendingChangeRequests.length > 0 ? "a02-chip-warning" : ""
+                  }`}
+                >
+                  {pendingChangeRequests.length} PENDING
+                </span>
+              </div>
             </div>
 
             {pendingChangeRequests.length > 2 && (
-              <input
-                type="text"
-                className="styled-text-input a02-req-search-input"
-                placeholder="Filter requests by professor or course..."
-                value={changeReqSearchQuery}
-                onChange={(e) => setChangeReqSearchQuery(e.target.value)}
-              />
+              <div className="a02-search-field" style={{ maxWidth: "340px" }}>
+                <SearchIcon />
+                <input
+                  type="text"
+                  className="a02-match-search"
+                  placeholder="Filter requests by professor or course..."
+                  value={changeReqSearchQuery}
+                  onChange={(e) => setChangeReqSearchQuery(e.target.value)}
+                />
+                {changeReqSearchQuery && (
+                  <button
+                    type="button"
+                    className="a02-search-clear-btn"
+                    aria-label="Clear change request search"
+                    onClick={() => setChangeReqSearchQuery("")}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -1483,34 +1538,56 @@ export default function A02FacultyMatching() {
       )}
 
       {/* 2. Manage Course Registrations */}
-      <section className="table-container theme-orange summary-card-padding">
-        <h3>Manage Course Registrations</h3>
-        <p className="status-banner-text">
-          <strong>Current Status:</strong>{" "}
-          <span
-            className={`status-dot ${isOpen ? "dot-green" : "dot-red"}`}
-          ></span>{" "}
-          {isOpen
-            ? "COURSE REGISTRATION CURRENTLY OPEN"
-            : "COURSE REGISTRATION CLOSED"}{" "}
-          <br />
-          <span className="font-slate font-sm">
-            (Open from {displayStartDate} until {displayEndDate})
-          </span>
-        </p>
-        <p className="status-banner-text">
-          <strong>Next Scheduled Action:</strong>{" "}
-          {isOpen
-            ? `Course registration closes on ${displayEndDate}`
-            : `Course registration closed on ${displayEndDate}`}
-        </p>
-        <button
-          type="button"
-          className="btn-secondary button-margin-top"
-          onClick={handleOpenModal}
-        >
-          Edit Course Registration Dates
-        </button>
+      <section className="e01-active-course-card">
+        <div className="e02-card-header" style={{ paddingBottom: "0.75rem" }}>
+          <div className="a02-section-title-group">
+            <span className="a01-phase-pill">Cycle Window</span>
+            <h3 className="e02-card-title">Manage Course Registrations</h3>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              className={`e02-status-pill ${
+                isOpen ? "is-confirmed" : "is-declined"
+              }`}
+            >
+              {isOpen ? "Registration Open" : "Registration Closed"}
+            </span>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleOpenModal}
+            >
+              Edit Cycle Dates
+            </button>
+          </div>
+        </div>
+
+        <div className="s04-reminders-grid-3">
+          <div className="s04-reminder-item">
+            <span className="s04-reminder-label">Registration Opens</span>
+            <p className="s04-reminder-date">{displayStartDate}</p>
+          </div>
+          <div className="s04-reminder-item">
+            <span className="s04-reminder-label">Registration Closes</span>
+            <p className="s04-reminder-date">{displayEndDate}</p>
+          </div>
+          <div className="s04-reminder-item">
+            <span className="s04-reminder-label">Next Scheduled Action</span>
+            <p className="s04-reminder-date">
+              {isOpen
+                ? `Closes ${displayEndDate}`
+                : `Closed ${displayEndDate}`}
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* 3. Master-Detail Workspace for Pending / Unconfirmed Observer Lists */}
@@ -1518,28 +1595,46 @@ export default function A02FacultyMatching() {
         id="a02-match-workspace"
         className="dashboard-phase section-margin-top"
       >
-        <h3>Review and Approve Existing Observer-Observee Matched Lists</h3>
+        <div className="a02-section-header-bar">
+          <div className="a02-section-title-group">
+            <span className="a01-phase-pill">Candidate Pools</span>
+            <h3 className="a02-section-heading">
+              Review and Approve Observer-Observee Matched Lists
+            </h3>
+          </div>
+        </div>
 
-        <div className="yellow-banner">
+        <div className="e02-callout-notice">
           <strong>NOTE:</strong> Course registration closes on {displayEndDate}.
-          <p className="a02-banner-subcopy">
-            Select an observee on the left to review, customize, or release
-            their assigned observers on the right. Once an observee approves
-            their observer match, they move to the locked confirmed section
-            below.
-          </p>
+          Select an observee on the left to review, customize, or release their
+          assigned observers on the right. Once an observee approves their
+          observer match, they move to the locked confirmed section below.
         </div>
 
         <div className="table-container theme-blue summary-card-padding">
-          {/* Search & Status Filter Toolbar */}
+          {/* Polished Search & Status Filter Toolbar */}
           <div className="a02-match-toolbar a02-toolbar-flush">
-            <input
-              type="text"
-              className="styled-text-input a02-match-search"
-              placeholder="Search observee, rank, course, or assigned observer..."
-              value={matchSearchQuery}
-              onChange={(e) => setMatchSearchQuery(e.target.value)}
-            />
+            <div className="a02-search-field">
+              <SearchIcon />
+              <input
+                type="text"
+                className="a02-match-search"
+                aria-label="Search active observees, ranks, courses, or observers"
+                placeholder="Search observee, rank, course, or assigned observer..."
+                value={matchSearchQuery}
+                onChange={(e) => setMatchSearchQuery(e.target.value)}
+              />
+              {matchSearchQuery && (
+                <button
+                  type="button"
+                  className="a02-search-clear-btn"
+                  aria-label="Clear search"
+                  onClick={() => setMatchSearchQuery("")}
+                >
+                  ×
+                </button>
+              )}
+            </div>
 
             <div className="a02-match-toolbar-actions">
               <select
@@ -1548,7 +1643,7 @@ export default function A02FacultyMatching() {
                 value={shownDepartment}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
               >
-                <option value="">All departments</option>
+                <option value="">All Departments</option>
                 {departments.map((department) => (
                   <option key={department} value={department}>
                     {department}
@@ -1556,43 +1651,73 @@ export default function A02FacultyMatching() {
                 ))}
               </select>
 
-              <select
+              <div
+                className="a02-filter-pills"
+                role="tablist"
                 aria-label="Filter matched lists by status"
-                className="slot-select-input a02-status-filter"
-                value={matchStatusFilter}
-                onChange={(e) =>
-                  setMatchStatusFilter(
-                    e.target.value as
-                      | "all"
-                      | "released"
-                      | "unreleased"
-                      | "pending_change"
-                  )
-                }
               >
-                <option value="all">All ({shownActive.length})</option>
-                <option value="unreleased">
-                  Awaiting Release ({unreleasedCount})
-                </option>
-                <option value="released">
-                  Released / Awaiting Acceptance ({releasedCount})
-                </option>
-                {pendingChangeCount > 0 && (
-                  <option value="pending_change">
-                    Change Requests ({pendingChangeCount})
-                  </option>
-                )}
-              </select>
-
-              {matchSearchQuery && (
                 <button
                   type="button"
-                  className="btn-select-toggle"
-                  onClick={() => setMatchSearchQuery("")}
+                  role="tab"
+                  aria-selected={matchStatusFilter === "all"}
+                  className={`a02-filter-pill ${
+                    matchStatusFilter === "all" ? "is-active" : ""
+                  }`}
+                  onClick={() => setMatchStatusFilter("all")}
                 >
-                  Clear Search
+                  All{" "}
+                  <span className="a02-filter-pill-count">
+                    {shownActive.length}
+                  </span>
                 </button>
-              )}
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={matchStatusFilter === "unreleased"}
+                  className={`a02-filter-pill ${
+                    matchStatusFilter === "unreleased" ? "is-active" : ""
+                  }`}
+                  onClick={() => setMatchStatusFilter("unreleased")}
+                >
+                  Awaiting Release{" "}
+                  <span className="a02-filter-pill-count">
+                    {unreleasedCount}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={matchStatusFilter === "released"}
+                  className={`a02-filter-pill ${
+                    matchStatusFilter === "released" ? "is-active" : ""
+                  }`}
+                  onClick={() => setMatchStatusFilter("released")}
+                >
+                  Released{" "}
+                  <span className="a02-filter-pill-count">
+                    {releasedCount}
+                  </span>
+                </button>
+
+                {pendingChangeCount > 0 && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={matchStatusFilter === "pending_change"}
+                    className={`a02-filter-pill ${
+                      matchStatusFilter === "pending_change" ? "is-active" : ""
+                    }`}
+                    onClick={() => setMatchStatusFilter("pending_change")}
+                  >
+                    Change Requests{" "}
+                    <span className="a02-filter-pill-count">
+                      {pendingChangeCount}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1800,11 +1925,54 @@ export default function A02FacultyMatching() {
                           </div>
                         ) : (
                           <div className="a02-inspector-body">
-                            <div className="a02-inspector-list-header">
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                                gap: "0.5rem",
+                              }}
+                            >
                               <span className="a02-card-section-label">
                                 Eligible Observer Candidates (
                                 {selectedIds.length} / 5 selected)
                               </span>
+
+                              <div style={{ display: "flex", gap: "0.4rem" }}>
+                                <button
+                                  type="button"
+                                  className="l03-chip-btn"
+                                  disabled={savingSignupId === signupId}
+                                  onClick={() => {
+                                    const topFive = candidates
+                                      .filter((c) => c.eligible !== false)
+                                      .slice(0, 5)
+                                      .map((c) => c.id);
+                                    setSelectedObservers((prev) => ({
+                                      ...prev,
+                                      [signupId]: topFive,
+                                    }));
+                                  }}
+                                >
+                                  Select Top 5
+                                </button>
+                                {selectedIds.length > 0 && (
+                                  <button
+                                    type="button"
+                                    className="l03-chip-btn"
+                                    disabled={savingSignupId === signupId}
+                                    onClick={() =>
+                                      setSelectedObservers((prev) => ({
+                                        ...prev,
+                                        [signupId]: [],
+                                      }))
+                                    }
+                                  >
+                                    Clear
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             <div className="observer-checkbox-list a02-inspector-checklist">
@@ -1812,6 +1980,16 @@ export default function A02FacultyMatching() {
                                 <label
                                   key={candidate.id}
                                   className="checkbox-row-label"
+                                  style={
+                                    selectedIds.includes(candidate.id)
+                                      ? {
+                                          backgroundColor:
+                                            "var(--accent-soft-bg)",
+                                          borderColor:
+                                            "var(--accent-soft-border)",
+                                        }
+                                      : undefined
+                                  }
                                 >
                                   <input
                                     type="checkbox"
@@ -1834,8 +2012,8 @@ export default function A02FacultyMatching() {
                                         selectedIds.length >= 5)
                                     }
                                   />
-                                  <span>
-                                    {candidate.name}{" "}
+                                  <span style={{ flex: 1 }}>
+                                    <strong>{candidate.name}</strong>{" "}
                                     {candidate.academic_level && (
                                       <span className="font-slate">
                                         ({candidate.academic_level})
@@ -1843,10 +2021,13 @@ export default function A02FacultyMatching() {
                                     )}
                                     {candidate.eligible === false && (
                                       <span
-                                        className="font-slate font-sm"
-                                        style={{ display: "block" }}
+                                        className="status-chip chip-locked a02-chip-xs"
+                                        style={{
+                                          display: "inline-flex",
+                                          marginLeft: "0.5rem",
+                                        }}
                                       >
-                                        Not eligible:{" "}
+                                        Ineligible:{" "}
                                         {candidate.problems?.join(", ")}
                                       </span>
                                     )}
@@ -1908,25 +2089,49 @@ export default function A02FacultyMatching() {
         <section className="dashboard-phase section-margin-top">
           <div className="a02-section-header-bar">
             <div className="a02-section-title-group">
-              <h3 className="a02-section-heading">
-                Confirmed Observer Matches
-              </h3>
-              <span className="status-chip chip-draft">
-                {filteredConfirmedObservees.length} CONFIRMED
-              </span>
+              <span className="a01-phase-pill">Completed Pairings</span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.65rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                <h3 className="a02-section-heading">
+                  Confirmed Observer Matches
+                </h3>
+                <span className="status-chip chip-draft">
+                  {filteredConfirmedObservees.length} CONFIRMED
+                </span>
+              </div>
             </div>
           </div>
 
           <div className="table-container theme-blue summary-card-padding">
-            {/* Confirmed Search & Filter Toolbar */}
+            {/* Polished Confirmed Search & Filter Toolbar */}
             <div className="a02-match-toolbar a02-toolbar-flush">
-              <input
-                type="text"
-                className="styled-text-input a02-match-search"
-                placeholder="Search confirmed observee, course, or observer..."
-                value={confirmedSearchQuery}
-                onChange={(e) => setConfirmedSearchQuery(e.target.value)}
-              />
+              <div className="a02-search-field">
+                <SearchIcon />
+                <input
+                  type="text"
+                  className="a02-match-search"
+                  aria-label="Search confirmed observees, courses, or observers"
+                  placeholder="Search confirmed observee, course, or observer..."
+                  value={confirmedSearchQuery}
+                  onChange={(e) => setConfirmedSearchQuery(e.target.value)}
+                />
+                {confirmedSearchQuery && (
+                  <button
+                    type="button"
+                    className="a02-search-clear-btn"
+                    aria-label="Clear confirmed search"
+                    onClick={() => setConfirmedSearchQuery("")}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
 
               <div className="a02-match-toolbar-actions">
                 <select
@@ -1935,29 +2140,20 @@ export default function A02FacultyMatching() {
                   value={confirmedDeptFilter}
                   onChange={(e) => setConfirmedDeptFilter(e.target.value)}
                 >
-                  <option value="">All departments</option>
+                  <option value="">All Departments</option>
                   {departments.map((dept) => (
                     <option key={dept} value={dept}>
                       {dept}
                     </option>
                   ))}
                 </select>
-
-                {confirmedSearchQuery && (
-                  <button
-                    type="button"
-                    className="btn-select-toggle"
-                    onClick={() => setConfirmedSearchQuery("")}
-                  >
-                    Clear Search
-                  </button>
-                )}
               </div>
             </div>
 
             {filteredConfirmedObservees.length === 0 ? (
               <p className="font-slate font-sm a02-zero-margin">
-                No confirmed observer matches match your current search or department filter.
+                No confirmed observer matches match your current search or
+                department filter.
               </p>
             ) : (
               <div className="a02-confirmed-list">
@@ -2033,41 +2229,49 @@ export default function A02FacultyMatching() {
       {/* Date Control Modal Popup */}
       {isModalOpen && (
         <div className="modal-backdrop" onClick={handleCloseModal}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Edit Evaluation Cycle Dates</h3>
-            <p>
-              Configure the registration, observation, and process survey
-              deadlines for the active evaluation cycle.
-            </p>
-            <div className="modal-field">
+          <div
+            className="a04-confirm-modal"
+            style={{ maxWidth: "480px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="a04-modal-header">
+              <div>
+                <h3 className="a04-confirm-title">
+                  Edit Evaluation Cycle Dates
+                </h3>
+                <p className="a04-modal-subtitle">
+                  Configure registration, observation, and survey deadlines.
+                </p>
+              </div>
+            </div>
+
+            <div className="profile-field-group">
               <label htmlFor="reg-opens">
                 Registration opens{" "}
-                <span className="modal-fixed-note">(12:00 AM fixed)</span>
+                <span className="font-slate">(12:00 AM fixed)</span>
               </label>
               <input
                 id="reg-opens"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="modal-input"
               />
             </div>
 
-            <div className="modal-field">
+            <div className="profile-field-group">
               <label htmlFor="reg-closes">
                 Registration closes{" "}
-                <span className="modal-fixed-note">(11:59 PM fixed)</span>
+                <span className="font-slate">(11:59 PM fixed)</span>
               </label>
               <input
                 id="reg-closes"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="modal-input"
               />
             </div>
 
-            <div className="modal-field">
+            <div className="profile-field-group">
               <label htmlFor="observation-deadline">
                 Observation Records End
               </label>
@@ -2076,32 +2280,30 @@ export default function A02FacultyMatching() {
                 type="date"
                 value={observationDeadline}
                 onChange={(e) => setObservationDeadline(e.target.value)}
-                className="modal-input"
               />
             </div>
 
-            <div className="modal-field">
+            <div className="profile-field-group">
               <label htmlFor="survey-deadline">Process Surveys End</label>
               <input
                 id="survey-deadline"
                 type="date"
                 value={surveyDeadline}
                 onChange={(e) => setSurveyDeadline(e.target.value)}
-                className="modal-input"
               />
             </div>
 
-            <div className="modal-actions">
+            <div className="a04-confirm-actions">
               <button
                 type="button"
-                className="modal-btn-secondary"
+                className="btn-secondary"
                 onClick={handleCloseModal}
               >
                 Close
               </button>
               <button
                 type="button"
-                className="modal-btn-primary"
+                className="btn-primary"
                 onClick={() => void handleSaveDates()}
                 disabled={savingDates}
               >

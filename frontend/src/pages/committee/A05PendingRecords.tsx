@@ -195,10 +195,13 @@ export default function A05PendingObservationRecords() {
         </Link>
       </div>
 
-      <div className="a02-section-header-bar">
-        <h2 className="a02-section-heading">
-          Observation Records &amp; Pending Follow-Ups
-        </h2>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Observation Records and Pending Follow-Ups</h2>
+          </div>
+        </div>
       </div>
 
       {/* Feedback Banners */}
@@ -213,7 +216,7 @@ export default function A05PendingObservationRecords() {
         </div>
       )}
 
-      {/* Search & Filter Controls Bar */}
+      {/* Search and Filter Controls Bar */}
       <div className="roster-controls-row a05-controls-bar">
         <div className="search-control-group">
           <label htmlFor="a05-search">Search Records:</label>
@@ -272,6 +275,20 @@ export default function A05PendingObservationRecords() {
             </option>
           </select>
         </div>
+
+        {isFiltered && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setSearch("");
+              setDepartmentFilter("");
+              setMissingFilter("all");
+            }}
+          >
+            Clear Filters
+          </button>
+        )}
       </div>
 
       {/* SECTION 1: PENDING EVALUATION FORMS */}
@@ -436,13 +453,6 @@ export default function A05PendingObservationRecords() {
         </div>
       </section>
 
-      {/* Standardized Bottom Return Button */}
-      <div className="dashboard-center-action">
-        <Link to="/committee/dashboard" className="btn-secondary">
-          Return to Dashboard
-        </Link>
-      </div>
-
       {/* Confirmation Popup for Bulk Remind All */}
       {showConfirmAll && (
         <div
@@ -463,8 +473,8 @@ export default function A05PendingObservationRecords() {
               This will send a reminder notification to the responsible faculty
               member for{" "}
               <strong>
-                {filteredPending.length}{" "}
-                {isFiltered ? "filtered " : ""}pending observation record
+                {filteredPending.length} {isFiltered ? "filtered " : ""}pending
+                observation record
                 {filteredPending.length === 1 ? "" : "s"}
               </strong>
               . Do you want to continue?

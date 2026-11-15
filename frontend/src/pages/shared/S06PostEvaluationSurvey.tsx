@@ -175,14 +175,12 @@ export default function S06PostEvaluationSurvey() {
   const displayObservee = survey?.observee ?? record?.observee;
   const displayCourse = survey?.course ?? record?.course;
   const displayDate = survey?.observation_datetime ?? record?.confirmed_datetime;
-  const canEdit = survey
-    ? survey.can_edit
-    : Boolean(record && template);
+  const canEdit = survey ? survey.can_edit : Boolean(record && template);
 
   if (loading) {
     return (
       <div className="dashboard-container">
-        <p>Loading survey...</p>
+        <div className="a07-state-box">Loading survey...</div>
       </div>
     );
   }
@@ -190,8 +188,8 @@ export default function S06PostEvaluationSurvey() {
   if (error && !template) {
     return (
       <div className="dashboard-container">
-        <p role="alert">{error}</p>
-        <Link to="/shared/current-past-observations">
+        <p role="alert" className="empty-state-banner">{error}</p>
+        <Link to="/shared/current-past-observations" className="btn-secondary">
           Return to Observations
         </Link>
       </div>
@@ -206,38 +204,49 @@ export default function S06PostEvaluationSurvey() {
         </Link>
       </div>
 
-      <div className="notif-page-header-row" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ margin: 0 }}>Post-Evaluation Survey</h2>
+      {/* Header matching A03-A08 */}
+      <div className="committee-page-header">
+        <h2>Post-Evaluation Survey</h2>
+
         {respondentType && (
-          <span
-            className={`pill-badge ${
-              respondentType === "observer" ? "pill-observer" : "pill-observee"
-            }`}
-          >
-            Role: {respondentType === "observer" ? "Observer" : "Observee"}
-          </span>
+          <div className="committee-page-header-meta">
+            <span
+              className={`status-chip ${
+                respondentType === "observer" ? "chip-locked" : "a05-chip-info"
+              }`}
+            >
+              Role: {respondentType === "observer" ? "Observer" : "Observee"}
+            </span>
+          </div>
         )}
       </div>
 
       {error && (
-        <div className="empty-state-banner" role="alert">
+        <div className="empty-state-banner s04-zero-margin" role="alert">
           {error}
         </div>
       )}
       {message && (
-        <div className="feedback-banner-success" role="status">
+        <div className="feedback-banner-success s04-zero-margin" role="status">
           {message}
+        </div>
+      )}
+      {!canEdit && (
+        <div className="s05-completed-banner" role="status">
+          This survey has been submitted and is now read-only.
         </div>
       )}
 
       {/* Pairing Summary Card */}
-      <section className="table-container theme-orange summary-card-padding">
-        <h3 className="card-heading-md" style={{ marginBottom: "0.25rem" }}>
-          Pairing Summary
-        </h3>
-        <p className="card-subtext font-slate" style={{ margin: 0 }}>
-          Completed peer observation details associated with this survey
-        </p>
+      <section className="s03-section-card s05-section-accent-primary">
+        <div className="s01-card-top-bar">
+          <div>
+            <h3>Pairing Summary</h3>
+            <p className="s01-subtitle">
+              Completed peer observation details associated with this survey
+            </p>
+          </div>
+        </div>
 
         <div className="form-summary-grid-4">
           <div className="form-summary-cell">
@@ -253,7 +262,7 @@ export default function S06PostEvaluationSurvey() {
             </p>
           </div>
           <div className="form-summary-cell">
-            <span className="summary-field-label">Course &amp; Section</span>
+            <span className="summary-field-label">Course and Section</span>
             <p className="summary-field-val">
               {displayCourse
                 ? `${displayCourse.department_code} ${displayCourse.course_number}.${displayCourse.section}`
@@ -278,17 +287,18 @@ export default function S06PostEvaluationSurvey() {
       </section>
 
       {/* Survey Main Container */}
-      <section className="table-container theme-green summary-card-padding">
-        <div className="form-header-row">
-          <h3 className="card-heading-md margin-none">
-            {template?.name ?? "Post-Evaluation Survey"}
-          </h3>
+      <section className="s03-section-card s05-section-accent-sage">
+        <div className="s01-card-top-bar">
+          <div>
+            <h3>{template?.name ?? "Post-Evaluation Survey"}</h3>
+            {template?.instructions && (
+              <p className="s01-subtitle">{template.instructions}</p>
+            )}
+          </div>
           <span className="version-pill">
             {template ? `Version ${template.version}` : "No template"}
           </span>
         </div>
-
-        <p className="form-instruction-subtext">{template?.instructions}</p>
 
         <form
           onSubmit={(event) => {
@@ -299,22 +309,22 @@ export default function S06PostEvaluationSurvey() {
           <div className="eval-question-list">
             {template?.questions.map((question, idx) => (
               <div className="eval-question-card" key={question.id}>
-                <div className="eval-question-top">
+                <label className="eval-question-label">
                   <span className="eval-question-num">Q{idx + 1}</span>
-                  <label className="eval-question-text">
+                  <span>
                     {question.text}
                     {question.required && (
                       <span className="eval-required-star">*</span>
                     )}
-                  </label>
-                </div>
+                  </span>
+                </label>
 
                 {question.type === "rating" ? (
                   <div className="eval-rating-wrapper">
                     <span className="eval-scale-hint">
                       {question.min ?? 1} (Low)
                     </span>
-                    <div className="rating-btn-row" style={{ marginTop: 0 }}>
+                    <div className="rating-scale-group">
                       {Array.from(
                         {
                           length:
@@ -332,9 +342,9 @@ export default function S06PostEvaluationSurvey() {
                               [question.id]: score,
                             }))
                           }
-                          className={`rating-score-btn ${
-                            responses[question.id] === score ? "selected" : ""
-                          }`}
+                          className={`rating-scale-option ${
+                            responses[question.id] === score ? "is-selected" : ""
+                          } ${!canEdit ? "is-disabled" : ""}`}
                         >
                           {score}
                         </button>
@@ -346,7 +356,7 @@ export default function S06PostEvaluationSurvey() {
                   </div>
                 ) : (
                   <textarea
-                    className="fixed-height-textarea"
+                    className="eval-textarea"
                     placeholder="Share your feedback here..."
                     value={String(responses[question.id] ?? "")}
                     disabled={!canEdit}
@@ -364,22 +374,14 @@ export default function S06PostEvaluationSurvey() {
           </div>
 
           {respondentType === "observee" && (
-            <div
-              className="form-section-block-sm"
-              style={{ marginTop: "2rem" }}
-            >
-              <h4 className="section-subtitle">
-                Optional Supporting Statement or File
-              </h4>
+            <div className="eval-signoff-box">
+              <div className="s01-card-top-bar">
+                <h4>Optional Supporting Statement or File</h4>
+              </div>
 
               <div className="eval-file-upload-box">
-                <p
-                  className="observation-card-text"
-                  style={{ margin: 0 }}
-                >
-                  Attach an optional document (`.pdf`, `.doc`, `.docx`, or
-                  `.txt`, max 10 MB) to provide additional context about the
-                  evaluation process.
+                <p className="s05-signoff-note">
+                  Attach an optional document (.pdf, .doc, .docx, or .txt, max 10 MB) to provide additional context about the evaluation process.
                 </p>
 
                 <input
@@ -393,8 +395,7 @@ export default function S06PostEvaluationSurvey() {
 
                 {supportingFile && (
                   <p
-                    className="feedback-banner-success"
-                    style={{ margin: 0 }}
+                    className="feedback-banner-success s04-zero-margin"
                     role="status"
                   >
                     Selected file: {supportingFile.name}
@@ -404,10 +405,7 @@ export default function S06PostEvaluationSurvey() {
             </div>
           )}
 
-          <div
-            className="form-footer-toolbar"
-            style={{ justifyContent: "flex-end" }}
-          >
+          <div className="eval-form-actions">
             {canEdit ? (
               <div className="form-footer-actions">
                 <button
@@ -428,7 +426,7 @@ export default function S06PostEvaluationSurvey() {
                 </button>
               </div>
             ) : (
-              <p className="observation-card-subtext" style={{ margin: 0 }}>
+              <p className="s05-signoff-note">
                 This survey has been submitted and cannot be edited.
               </p>
             )}

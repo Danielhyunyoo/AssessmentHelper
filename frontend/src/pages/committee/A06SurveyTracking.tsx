@@ -37,7 +37,6 @@ export default function A06SurveyTracking() {
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSendingAll, setIsSendingAll] = useState(false);
   const [showConfirmAll, setShowConfirmAll] = useState(false);
   const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
@@ -71,16 +70,13 @@ export default function A06SurveyTracking() {
     }
   }
 
-  async function loadSurveys(showSpinner = false) {
-    if (showSpinner) setIsRefreshing(true);
+  async function loadSurveys() {
     try {
       setError("");
       const result = await committeeApi.pendingSurveys();
       setSurveyData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load surveys.");
-    } finally {
-      if (showSpinner) setIsRefreshing(false);
     }
   }
 
@@ -200,20 +196,13 @@ export default function A06SurveyTracking() {
         </Link>
       </div>
 
-      {/* Page Header & Refresh Action */}
-      <div className="a02-section-header-bar">
-        <h2 className="a02-section-heading">
-          Post-Evaluation Survey Tracking
-        </h2>
-
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={isRefreshing}
-          onClick={() => void loadSurveys(true)}
-        >
-          {isRefreshing ? "Refreshing..." : "Refresh Survey Data"}
-        </button>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Post-Evaluation Survey Tracking</h2>
+          </div>
+        </div>
       </div>
 
       {/* Feedback Banners */}
@@ -228,7 +217,7 @@ export default function A06SurveyTracking() {
         </div>
       )}
 
-      {/* Search & Filter Controls Bar */}
+      {/* Search and Filter Controls Bar */}
       <div className="roster-controls-row a05-controls-bar">
         <div className="search-control-group">
           <label htmlFor="a06-search">Search Surveys:</label>
@@ -280,6 +269,20 @@ export default function A06SurveyTracking() {
             <option value="observee">Observee</option>
           </select>
         </div>
+
+        {isFiltered && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setSearch("");
+              setDepartmentFilter("");
+              setRoleFilter("all");
+            }}
+          >
+            Clear Filters
+          </button>
+        )}
       </div>
 
       {/* SECTION 1: MISSING POST-EVALUATION SURVEYS */}
@@ -476,13 +479,6 @@ export default function A06SurveyTracking() {
           </div>
         </div>
       </section>
-
-      {/* Standardized Bottom Return Button */}
-      <div className="dashboard-center-action">
-        <Link to="/committee/dashboard" className="btn-secondary">
-          Return to Dashboard
-        </Link>
-      </div>
 
       {/* Confirmation Popup for Bulk Remind All */}
       {showConfirmAll && (

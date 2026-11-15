@@ -57,10 +57,8 @@ function buildFallbackNextCycle(currentStartDate?: string): EvaluationCycle {
     ? new Date(`${currentStartDate}T00:00:00`)
     : new Date();
   const year = baseDate.getFullYear();
-  const month = baseDate.getMonth(); // 0-indexed (0 = Jan, 7 = Aug)
+  const month = baseDate.getMonth();
 
-  // If current cycle starts in Jan-Jun (Spring), next is Fall of same year.
-  // Otherwise (Fall), next is Spring of next year.
   const isSpring = month >= 0 && month <= 5;
   const semester = isSpring ? `Fall ${year}` : `Spring ${year + 1}`;
   const start_date = isSpring ? `${year}-08-24` : `${year + 1}-01-18`;
@@ -166,7 +164,6 @@ export default function A03UnmatchedObservees() {
         });
       });
 
-      // Provide a fallback upcoming cycle if the backend has no future cycle seeded yet
       const availableCycles: EvaluationCycle[] =
         Array.isArray(response.next_cycles) && response.next_cycles.length > 0
           ? response.next_cycles
@@ -236,9 +233,6 @@ export default function A03UnmatchedObservees() {
   const eligibleFaculty = allUnmatched.filter(
     (item) => !item.already_carried_forward
   );
-  const carriedForwardCount = allUnmatched.filter(
-    (item) => item.already_carried_forward
-  ).length;
 
   const departments = [
     ...new Set(
@@ -306,7 +300,6 @@ export default function A03UnmatchedObservees() {
       const realSignupIds = selectedIds.filter((id) => id > 0);
       let transferredCount = selectedIds.length;
 
-      // Only call backend endpoint when a real cycle_id (> 0) exists
       if (numericCycleId > 0 && realSignupIds.length > 0) {
         const result = await committeeApi.carryForward(
           realSignupIds,
@@ -319,8 +312,6 @@ export default function A03UnmatchedObservees() {
         }
       }
 
-      // Persist carried-forward state in localStorage so both fallback cycles
-      // and A02-queued observees stay marked as transferred
       const selectedItems = allUnmatched.filter((item) =>
         selectedIds.includes(item.signup_id)
       );
@@ -330,7 +321,8 @@ export default function A03UnmatchedObservees() {
         const nameKey = item.name.toLowerCase();
         const existing = queuedMap[nameKey];
         queuedMap[nameKey] = {
-          signup_id: item.signup_id > 0 ? item.signup_id : existing?.signup_id ?? null,
+          signup_id:
+            item.signup_id > 0 ? item.signup_id : existing?.signup_id ?? null,
           faculty_id: item.faculty_id || existing?.faculty_id || null,
           professor_name: item.name,
           department: item.department,
@@ -386,9 +378,15 @@ export default function A03UnmatchedObservees() {
         </Link>
       </div>
 
-      <div className="a02-section-header-bar">
-        <div className="a02-section-title-group">
-          <h2 className="a02-section-heading">Unmatched Observees</h2>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Unmatched Observees</h2>
+          </div>
+        </div>
+
+        <div className="committee-page-header-meta">
           <span
             className={`status-chip ${
               eligibleFaculty.length > 0 ? "a02-chip-warning" : "chip-draft"
@@ -396,16 +394,7 @@ export default function A03UnmatchedObservees() {
           >
             {eligibleFaculty.length} AWAITING TRANSFER
           </span>
-          {carriedForwardCount > 0 && (
-            <span className="status-chip chip-draft">
-              {carriedForwardCount} TRANSFERRED
-            </span>
-          )}
         </div>
-
-        <Link to="/committee/matching" className="btn-secondary">
-          ← Back to Faculty Matching
-        </Link>
       </div>
 
       {loading && <p>Loading unmatched faculty...</p>}
@@ -421,7 +410,7 @@ export default function A03UnmatchedObservees() {
       )}
 
       {/* Info Alert Banner */}
-      <div className="yellow-banner unmatched-alert-margin">
+      <div className="yellow-banner">
         <strong>ALERT:</strong> The observees below either could not be matched
         with the required minimum (5) of eligible observer candidates or were
         deferred from Faculty Matching. Select faculty members below to transfer
@@ -478,15 +467,15 @@ export default function A03UnmatchedObservees() {
           </div>
 
           <div className="unmatched-table-frame a03-table-frame">
-            <div className="unmatched-table-wrapper">
-              <table className="unmatched-table">
+            <div className="table-scroll-box">
+              <table className="custom-data-table sticky-header-table">
                 <thead>
                   <tr>
-                    <th className="unmatched-checkbox-cell">Select</th>
+                    <th className="col-checkbox">Select</th>
                     <th>Candidate Name</th>
                     <th>Department</th>
                     <th>Academic Level</th>
-                    <th>Course &amp; Section</th>
+                    <th>Course and Section</th>
                     <th>Status / Reason</th>
                   </tr>
                 </thead>
@@ -511,7 +500,7 @@ export default function A03UnmatchedObservees() {
                         }}
                       >
                         <td
-                          className="unmatched-checkbox-cell"
+                          className="col-checkbox"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <input
@@ -566,15 +555,13 @@ export default function A03UnmatchedObservees() {
       </section>
 
       {/* Transfer Configuration Card */}
-      <section className="dashboard-phase section-margin-top">
+      <section className="dashboard-phase phase-spacing">
         <div className="table-container theme-orange summary-card-padding">
           <div className="a02-section-header-bar">
             <h3 className="a02-section-heading">
               Transfer Selected Observees to Next Cycle
             </h3>
-            <span className="status-chip">
-              {selectedIds.length} SELECTED
-            </span>
+            <span className="status-chip">{selectedIds.length} SELECTED</span>
           </div>
 
           <div className="a03-transfer-grid">
@@ -648,13 +635,6 @@ export default function A03UnmatchedObservees() {
           </div>
         </div>
       </section>
-
-      {/* Bottom Center Return Action */}
-      <div className="dashboard-center-action">
-        <Link to="/committee/dashboard" className="btn-secondary">
-          Return to Dashboard
-        </Link>
-      </div>
     </div>
   );
 }

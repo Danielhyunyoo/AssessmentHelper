@@ -116,46 +116,68 @@ export default function L01Home() {
         </div>
       </div>
 
-      <div className="home-info-footer-grid">
-        <div className="home-info-box">
-          <img src={course_and_section_selection_card} alt="Course Registration" className="home-box-img" />
-          <h4>Course & Section Registration</h4>
-          <p>Select active course sections and submit proposed observation dates aligned with departmental deadlines.</p>
-          <button
-            type="button"
-            onClick={() => handleProtectedNavigate("/observee/course-selection")}
-            className="btn-secondary home-box-btn"
-          >
-            Select Courses
-          </button>
-        </div>
+      <section className="home-modules-section">
+        <span className="a01-phase-pill">Quick Workspace Access</span>
 
-        <div className="home-info-box">
-          <img src={observation_record_management_card} alt="Observation Requests" className="home-box-img" />
-          <h4>Observation Requests</h4>
-          <p>Review incoming peer observation assignments, accept requests, and manage evaluation schedules.</p>
-          <button
-            type="button"
-            onClick={() => handleProtectedNavigate("/observer/observation-request")}
-            className="btn-secondary home-box-btn"
-          >
-            Review Requests
-          </button>
-        </div>
+        <div className="home-info-footer-grid">
+          <div className="home-info-box">
+            <div className="home-box-img-frame">
+              <img
+                src={course_and_section_selection_card}
+                alt="Course Registration"
+                className="home-box-img"
+              />
+            </div>
+            <h4>Course and Section Registration</h4>
+            <p>Select active course sections and submit proposed observation dates aligned with departmental deadlines.</p>
+            <button
+              type="button"
+              onClick={() => handleProtectedNavigate("/observee/course-selection")}
+              className="btn-secondary home-box-btn"
+            >
+              Select Courses
+            </button>
+          </div>
 
-        <div className="home-info-box">
-          <img src={current_and_past_observations_card} alt="Historical Archives" className="home-box-img" />
-          <h4>Historical Archives</h4>
-          <p>Access past evaluation records and track institutional progress securely across evaluation cycles.</p>
-          <button
-            type="button"
-            onClick={() => handleProtectedNavigate("/shared/current-past-observations")}
-            className="btn-secondary home-box-btn"
-          >
-            Access Past Records
-          </button>
+          <div className="home-info-box">
+            <div className="home-box-img-frame">
+              <img
+                src={observation_record_management_card}
+                alt="Observation Requests"
+                className="home-box-img"
+              />
+            </div>
+            <h4>Observation Requests</h4>
+            <p>Review incoming peer observation assignments, accept requests, and manage evaluation schedules.</p>
+            <button
+              type="button"
+              onClick={() => handleProtectedNavigate("/observer/observation-request")}
+              className="btn-secondary home-box-btn"
+            >
+              Review Requests
+            </button>
+          </div>
+
+          <div className="home-info-box">
+            <div className="home-box-img-frame">
+              <img
+                src={current_and_past_observations_card}
+                alt="Historical Archives"
+                className="home-box-img"
+              />
+            </div>
+            <h4>Historical Archives</h4>
+            <p>Access past evaluation records and track institutional progress securely across evaluation cycles.</p>
+            <button
+              type="button"
+              onClick={() => handleProtectedNavigate("/shared/current-past-observations")}
+              className="btn-secondary home-box-btn"
+            >
+              Access Past Records
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -60,6 +60,9 @@ export default function Header() {
   const [backendUnreadCount, setBackendUnreadCount] = useState(0);
 
   const isLoggedIn = currentUser !== null;
+  const isCommitteeUser = currentUser?.role === "admin";
+  const isFacultyUser = isLoggedIn && !isCommitteeUser;
+
   const customAvatarUrl = !avatarFailed ? getStoredUserPhoto(currentUser) : "";
   const hasCustomAvatar = Boolean(customAvatarUrl);
   const fullUserName = currentUser
@@ -505,106 +508,170 @@ export default function Header() {
             </div>
 
             <div className="menu-body">
-              <div className="menu-section">
-                <h4>Switch Dashboards</h4>
-                <Link
-                  to="/committee/dashboard"
-                  onClick={(e) => handleLinkClick(e, "/committee/dashboard")}
-                >
-                  Assessment Committee Dashboard
-                </Link>
-                <Link
-                  to="/shared/faculty-dashboard"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/shared/faculty-dashboard")
-                  }
-                >
-                  Faculty Dashboard
-                </Link>
-              </div>
+              {isCommitteeUser && (
+                <>
+                  <div className="menu-section">
+                    <h4>Dashboards</h4>
+                    <Link
+                      to="/committee/dashboard"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/dashboard")
+                      }
+                    >
+                      Assessment Committee Dashboard
+                    </Link>
+                    <Link
+                      to="/shared/faculty-dashboard"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/shared/faculty-dashboard")
+                      }
+                    >
+                      Faculty Dashboard
+                    </Link>
+                  </div>
 
-              <div className="menu-section">
-                <h4>Committee Workflows</h4>
-                <Link
-                  to="/committee/faculty-matching"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/committee/faculty-matching")
-                  }
-                >
-                  Faculty Matching
-                </Link>
-                <Link
-                  to="/committee/unmatched-observees"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/committee/unmatched-observees")
-                  }
-                >
-                  Unmatched Observees
-                </Link>
-                <Link
-                  to="/committee/faculty-roster"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/committee/faculty-roster")
-                  }
-                >
-                  Faculty Roster Management
-                </Link>
-                <Link
-                  to="/committee/form-editor"
-                  onClick={(e) => handleLinkClick(e, "/committee/form-editor")}
-                >
-                  Form Editor
-                </Link>
-              </div>
+                  <div className="menu-section">
+                    <h4>Committee Workflows</h4>
+                    <Link
+                      to="/committee/faculty-matching"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/faculty-matching")
+                      }
+                    >
+                      Faculty Matching
+                    </Link>
+                    <Link
+                      to="/committee/unmatched-observees"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/unmatched-observees")
+                      }
+                    >
+                      Unmatched Observees
+                    </Link>
+                    <Link
+                      to="/committee/faculty-roster"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/faculty-roster")
+                      }
+                    >
+                      Faculty Roster Management
+                    </Link>
+                    <Link
+                      to="/committee/pending-records"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/pending-records")
+                      }
+                    >
+                      Pending Records
+                    </Link>
+                    <Link
+                      to="/committee/survey-tracking"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/survey-tracking")
+                      }
+                    >
+                      Survey Tracking
+                    </Link>
+                    <Link
+                      to="/committee/kpi-overview"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/kpi-overview")
+                      }
+                    >
+                      KPI Overview
+                    </Link>
+                    <Link
+                      to="/committee/form-editor"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/form-editor")
+                      }
+                    >
+                      Form Editor
+                    </Link>
+                  </div>
+                </>
+              )}
 
-              <div className="menu-section">
-                <h4>Observee &amp; Observer Modules</h4>
+              {isFacultyUser && (
+                <>
+                  <div className="menu-section">
+                    <h4>Dashboard</h4>
+                    <Link
+                      to="/shared/faculty-dashboard"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/shared/faculty-dashboard")
+                      }
+                    >
+                      Faculty Dashboard
+                    </Link>
+                  </div>
 
-                <Link
-                  to="/observee/course-selection"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/observee/course-selection")
-                  }
-                >
-                  Course Section Selection
-                </Link>
+                  <div className="menu-section">
+                    <h4>Observee Modules</h4>
+                    <Link
+                      to="/observee/course-selection"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/observee/course-selection")
+                      }
+                    >
+                      Course Section Selection
+                    </Link>
+                    <Link
+                      to="/observee/observer-selection"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/observee/observer-selection")
+                      }
+                    >
+                      Observer Selection
+                    </Link>
+                  </div>
 
-                <Link
-                  to="/observee/observer-selection"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/observee/observer-selection")
-                  }
-                >
-                  Observer Selection
-                </Link>
+                  <div className="menu-section">
+                    <h4>Observer Modules</h4>
+                    <Link
+                      to="/observer/observation-request"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/observer/observation-request")
+                      }
+                    >
+                      Observation Requests
+                    </Link>
+                  </div>
+                </>
+              )}
 
-                <Link
-                  to="/shared/current-past-observations"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/shared/current-past-observations")
-                  }
-                >
-                  Current / Past Observations
-                </Link>
-
-                <Link
-                  to="/observer/observation-request"
-                  onClick={(e) =>
-                    handleLinkClick(e, "/observer/observation-request")
-                  }
-                >
-                  Observation Requests
-                </Link>
-              </div>
+              {isLoggedIn && (
+                <div className="menu-section">
+                  <h4>Shared Records</h4>
+                  <Link
+                    to="/shared/current-past-observations"
+                    onClick={(e) =>
+                      handleLinkClick(e, "/shared/current-past-observations")
+                    }
+                  >
+                    Current and Past Observations
+                  </Link>
+                  <Link
+                    to="/shared/notifications"
+                    onClick={(e) =>
+                      handleLinkClick(e, "/shared/notifications")
+                    }
+                  >
+                    Notifications
+                  </Link>
+                </div>
+              )}
 
               <div className="menu-section">
                 <h4>Account</h4>
-                <Link
-                  to="/shared/profile"
-                  onClick={(e) => handleLinkClick(e, "/shared/profile")}
-                >
-                  Profile Settings
-                </Link>
+                {isLoggedIn && (
+                  <Link
+                    to="/shared/profile"
+                    onClick={(e) => handleLinkClick(e, "/shared/profile")}
+                  >
+                    Profile Settings
+                  </Link>
+                )}
                 {isLoggedIn ? (
                   <Link
                     to="/login/signin"

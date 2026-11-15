@@ -226,8 +226,13 @@ export default function A08FormEditor() {
         </Link>
       </div>
 
-      <div className="editor-top-bar">
-        <h2>Edit Evaluation & Survey Forms</h2>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Edit Evaluation and Survey Forms</h2>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -323,6 +328,15 @@ export default function A08FormEditor() {
             {selectedTemplate && (
               <span className="version-pill">v{selectedTemplate.version}</span>
             )}
+            <span
+              className={
+                isEditable
+                  ? "status-chip chip-draft"
+                  : "status-chip chip-locked"
+              }
+            >
+              {isEditable ? "Editable Draft" : "Published (Locked)"}
+            </span>
           </div>
 
           <div className="a08-header-right-actions">
@@ -335,15 +349,24 @@ export default function A08FormEditor() {
                 Clone as New Version
               </button>
             )}
-            <span
-              className={
-                isEditable
-                  ? "status-chip chip-draft"
-                  : "status-chip chip-locked"
-              }
-            >
-              {isEditable ? "Editable Draft" : "Published (Locked)"}
-            </span>
+            {isEditable && (
+              <button
+                type="button"
+                className="btn-secondary header-clone-btn"
+                onClick={() => void saveDraft()}
+              >
+                Save Draft
+              </button>
+            )}
+            {selectedTemplate?.can_publish && (
+              <button
+                type="button"
+                className="btn-accent-blue header-clone-btn"
+                onClick={() => void publishTemplate()}
+              >
+                Publish Template
+              </button>
+            )}
           </div>
         </div>
 

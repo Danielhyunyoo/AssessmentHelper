@@ -90,9 +90,16 @@ export default function A07KpiOverview() {
   const processCompletion = kpis.find(
     (kpi) => kpi.key === "process_completion"
   );
-  const surveyCompletionDisplay = processCompletion
-    ? formatKpi(processCompletion)
-    : "N/A";
+
+  const hasNumericSurveyPct = processCompletion?.value != null;
+  const surveyCompletionValue = hasNumericSurveyPct
+    ? `${processCompletion!.value}%`
+    : "Pending";
+  const surveyCompletionSubtext = hasNumericSurveyPct
+    ? `${processCompletion?.numerator ?? 0} of ${
+        processCompletion?.denominator ?? 0
+      } signups completed`
+    : processCompletion?.note || "Opens after observation deadline";
 
   const activeCycleLabel =
     cycles.find((c) => c.cycle_id === (cycleId ?? kpiData?.cycle?.id))
@@ -157,23 +164,17 @@ export default function A07KpiOverview() {
         </Link>
       </div>
 
-      {/* Unified Page Header + Cycle Selector */}
-      <div className="a07-page-header">
-        <div className="a07-title-block">
-          <div className="a02-section-title-group">
-            <h2 className="a02-section-heading kpi-page-title">
-              Assessment KPI Overview
-            </h2>
+      {/* Unified Page Header and Cycle Selector */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Assessment KPI Overview</h2>
             {activeCycleLabel && (
               <span className="status-chip a05-chip-info a04-nowrap-chip">
                 {activeCycleLabel}
               </span>
             )}
           </div>
-          <p className="a07-page-subtitle">
-            Cycle progress, faculty participation metrics, and completion
-            benchmarks.
-          </p>
         </div>
 
         {cycles.length > 1 && (
@@ -217,7 +218,7 @@ export default function A07KpiOverview() {
       {/* Printable Report Wrapper */}
       {!loading && kpiData && (
         <div ref={reportRef} className="a07-report-stack">
-          {/* 1. Summary Cards Section */}
+          {/* 1. Summary Cards Section (5 Distinct Top Accent Colors) */}
           <section className="dashboard-phase">
             <div className="table-container summary-card-padding">
               <div className="a07-section-header">
@@ -228,7 +229,7 @@ export default function A07KpiOverview() {
               </div>
 
               <div className="kpi-cards-grid">
-                {/* Card 1: Faculty Due */}
+                {/* Card 1: Blue */}
                 <Link
                   to="/committee/faculty-roster"
                   className="kpi-card kpi-card-link a07-kpi-accent-blue"
@@ -244,14 +245,10 @@ export default function A07KpiOverview() {
                   </p>
                 </Link>
 
-                {/* Card 2: Overdue Faculty */}
+                {/* Card 2: Red */}
                 <Link
                   to="/committee/faculty-roster"
-                  className={`kpi-card kpi-card-link ${
-                    overdueFaculty > 0
-                      ? "a07-kpi-accent-red"
-                      : "a07-kpi-accent-slate"
-                  }`}
+                  className="kpi-card kpi-card-link a07-kpi-accent-red"
                 >
                   <div>
                     <div className="kpi-card-header">
@@ -264,7 +261,7 @@ export default function A07KpiOverview() {
                   </p>
                 </Link>
 
-                {/* Card 3: Pending Records */}
+                {/* Card 3: Amber */}
                 <Link
                   to="/committee/pending-records"
                   className="kpi-card kpi-card-link a07-kpi-accent-amber"
@@ -280,10 +277,10 @@ export default function A07KpiOverview() {
                   </p>
                 </Link>
 
-                {/* Card 4: Unmatched Faculty */}
+                {/* Card 4: Purple */}
                 <Link
                   to="/committee/unmatched-observees"
-                  className="kpi-card kpi-card-link a07-kpi-accent-amber"
+                  className="kpi-card kpi-card-link a07-kpi-accent-purple"
                 >
                   <div>
                     <div className="kpi-card-header">
@@ -296,7 +293,7 @@ export default function A07KpiOverview() {
                   </p>
                 </Link>
 
-                {/* Card 5: Survey Completion % */}
+                {/* Card 5: Green (Compact value so card matches sibling height) */}
                 <Link
                   to="/committee/survey-tracking"
                   className="kpi-card kpi-card-link a07-kpi-accent-green"
@@ -305,15 +302,15 @@ export default function A07KpiOverview() {
                     <div className="kpi-card-header">
                       <span className="kpi-card-label">Survey Completion</span>
                     </div>
-                    <div className="kpi-card-value">
-                      {surveyCompletionDisplay}
+                    <div
+                      className={`kpi-card-value ${
+                        !hasNumericSurveyPct ? "a07-kpi-value-compact" : ""
+                      }`}
+                    >
+                      {surveyCompletionValue}
                     </div>
                   </div>
-                  <p className="kpi-card-subtext">
-                    {processCompletion?.numerator ?? 0} of{" "}
-                    {processCompletion?.denominator ?? 0} signups completed the
-                    full process
-                  </p>
+                  <p className="kpi-card-subtext">{surveyCompletionSubtext}</p>
                 </Link>
               </div>
             </div>
@@ -462,7 +459,7 @@ export default function A07KpiOverview() {
               <div className="table-container summary-card-padding">
                 <div className="a07-section-header">
                   <h3 className="kpi-section-heading a02-zero-margin">
-                    KPI Definitions & Methodology
+                    KPI Definitions and Methodology
                   </h3>
                 </div>
 
@@ -490,7 +487,7 @@ export default function A07KpiOverview() {
         </div>
       )}
 
-      {/* Bottom Export & Report Actions */}
+      {/* Bottom Export and Report Actions */}
       <div className="kpi-export-actions-bottom">
         <button
           type="button"
@@ -516,13 +513,6 @@ export default function A07KpiOverview() {
         >
           Print Report
         </button>
-      </div>
-
-      {/* Bottom Center Return Button */}
-      <div className="dashboard-center-action">
-        <Link to="/committee/dashboard" className="btn-secondary">
-          Return to Dashboard
-        </Link>
       </div>
     </div>
   );

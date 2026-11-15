@@ -32,7 +32,9 @@ export function getPendingCourseChangeRequest(): PendingCourseChangeRequest | nu
   }
 }
 
-export function savePendingCourseChangeRequest(req: PendingCourseChangeRequest | null) {
+export function savePendingCourseChangeRequest(
+  req: PendingCourseChangeRequest | null
+) {
   try {
     if (req) {
       localStorage.setItem(COURSE_CHANGE_REQUEST_KEY, JSON.stringify(req));
@@ -44,7 +46,6 @@ export function savePendingCourseChangeRequest(req: PendingCourseChangeRequest |
     // Ignore storage errors
   }
 }
-
 
 function extractCourseStartTime(schedule: string): string {
   const match = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i);
@@ -86,7 +87,6 @@ function nextDay(isoDate: string): string {
 
 function localDateString(value: string): string {
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "";
 
   const year = date.getFullYear();
@@ -111,7 +111,8 @@ function parseAllowedDays(scheduleText: string): DayOfWeek[] {
   if (upper.includes("TR")) return ["Tue", "Thu"];
   if (upper.includes("TTH") || upper.includes("TU")) return ["Tue", "Thu"];
   if (upper.includes("M")) days.push("Mon");
-  if (upper.includes("TU") || (upper.includes("T") && !upper.includes("TH"))) days.push("Tue");
+  if (upper.includes("TU") || (upper.includes("T") && !upper.includes("TH")))
+    days.push("Tue");
   if (upper.includes("W")) days.push("Wed");
   if (upper.includes("TH")) days.push("Thu");
   if (upper.includes("F")) days.push("Fri");
@@ -122,19 +123,22 @@ function parseAllowedDays(scheduleText: string): DayOfWeek[] {
 export default function E01CourseSelection() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(
+    null
+  );
   const [professorName, setProfessorName] = useState("");
   const [hasMatchedObservers, setHasMatchedObservers] = useState(false);
 
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
   const [confirmedCourseId, setConfirmedCourseId] = useState<number | "">("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [showCalendarSection, setShowCalendarSection] = useState<boolean>(false);
+  const [showCalendarSection, setShowCalendarSection] =
+    useState<boolean>(false);
 
-  // Change request state
-  const [pendingRequest, setPendingRequest] = useState<PendingCourseChangeRequest | null>(
-    () => getPendingCourseChangeRequest()
-  );
+  const [pendingRequest, setPendingRequest] =
+    useState<PendingCourseChangeRequest | null>(() =>
+      getPendingCourseChangeRequest()
+    );
   const [changeReason, setChangeReason] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -150,12 +154,13 @@ export default function E01CourseSelection() {
     setLoading(true);
 
     try {
-      const [courseData, statusData, profileData, matchesData] = await Promise.all([
-        facultyApi.courses(),
-        facultyApi.registrationStatus(),
-        facultyApi.profile().catch(() => null),
-        matchingApi.matches().catch(() => null),
-      ]);
+      const [courseData, statusData, profileData, matchesData] =
+        await Promise.all([
+          facultyApi.courses(),
+          facultyApi.registrationStatus(),
+          facultyApi.profile().catch(() => null),
+          matchingApi.matches().catch(() => null),
+        ]);
 
       setCourses(courseData);
       setRegistration(statusData);
@@ -166,9 +171,9 @@ export default function E01CourseSelection() {
         );
       }
 
-      // Check if the AC committee has already released matched observers to this observee
       const observersReleased = Boolean(
-        matchesData?.released || (matchesData?.candidates && matchesData.candidates.length > 0)
+        matchesData?.released ||
+          (matchesData?.candidates && matchesData.candidates.length > 0)
       );
       setHasMatchedObservers(observersReleased);
 
@@ -188,7 +193,10 @@ export default function E01CourseSelection() {
       setShowCalendarSection(savedId !== "");
       setPendingRequest(getPendingCourseChangeRequest());
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to load registration information.";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Unable to load registration information.";
       window.alert(msg);
     } finally {
       setLoading(false);
@@ -199,9 +207,6 @@ export default function E01CourseSelection() {
     void loadPage();
   }, []);
 
-  // Lock direct overwrites if:
-  // 1) Registration deadline has passed, OR
-  // 2) Matched observers have already been released by the AC committee
   const isPastRegistrationDeadline = Boolean(
     registration?.today &&
       registration?.signup_deadline &&
@@ -219,7 +224,9 @@ export default function E01CourseSelection() {
       ? registration.start_date
       : tomorrowIsoDate;
 
-  const confirmedCourse = courses.find((c) => c.course_id === confirmedCourseId);
+  const confirmedCourse = courses.find(
+    (c) => c.course_id === confirmedCourseId
+  );
   const allowedDays = confirmedCourse
     ? parseAllowedDays(confirmedCourse.schedule)
     : ["Mon", "Wed", "Thu"];
@@ -234,7 +241,6 @@ export default function E01CourseSelection() {
       return;
     }
 
-    // Stage the selected course for date selection & AC approval request without overwriting DB
     if (requiresApprovalForChanges) {
       setConfirmedCourseId(selectedCourseId);
       if (selectedCourseId !== registration?.selected_course_id) {
@@ -266,7 +272,6 @@ export default function E01CourseSelection() {
 
       if (selectedCourseId !== confirmedCourseId) {
         setSelectedDates([]);
-
         try {
           await facultyApi.saveAvailability([]);
         } catch {
@@ -282,14 +287,19 @@ export default function E01CourseSelection() {
       setRegistration(updatedStatus);
       setCourses(updatedCourses);
       setShowCalendarSection(true);
-      setSuccess("Course section saved! Please select your observation dates below.");
+      setSuccess(
+        "Course section saved! Please select your observation dates below."
+      );
       setDatesSaved(false);
 
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to confirm course selection.";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Unable to confirm course selection.";
       window.alert(msg);
     } finally {
       setSaving(false);
@@ -334,7 +344,8 @@ export default function E01CourseSelection() {
     }
 
     if (!confirmedCourse) {
-      const msg = "Please confirm a course section before selecting observation dates.";
+      const msg =
+        "Please confirm a course section before selecting observation dates.";
       setCalendarError(msg);
       window.alert(msg);
       return;
@@ -350,7 +361,6 @@ export default function E01CourseSelection() {
       return;
     }
 
-    // Submit as a Pending Course Change Request instead of directly overwriting
     if (requiresApprovalForChanges) {
       const triggerReason =
         isPastRegistrationDeadline && hasMatchedObservers
@@ -391,7 +401,9 @@ export default function E01CourseSelection() {
         const localDateTime = new Date(`${date}T${courseStartTime}:00`);
 
         if (Number.isNaN(localDateTime.getTime())) {
-          throw new Error(`Invalid date or course time: ${date} ${courseStartTime}`);
+          throw new Error(
+            `Invalid date or course time: ${date} ${courseStartTime}`
+          );
         }
 
         return localDateTime.toISOString();
@@ -401,13 +413,16 @@ export default function E01CourseSelection() {
       window.dispatchEvent(new Event("notifications-changed"));
 
       setSuccess(
-        `Your course and ${proposedDateTimes.length} proposed observation date/time choices were saved to the database.`
+        `Your course and ${proposedDateTimes.length} proposed observation date and time choices were saved.`
       );
       setDatesSaved(true);
 
       navigate("/observee/observer-selection");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to save your observation dates.";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Unable to save your observation dates.";
       setCalendarError(msg);
       window.alert(msg);
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -433,139 +448,176 @@ export default function E01CourseSelection() {
   if (loading) {
     return (
       <div className="dashboard-container">
-        <h2>Course and Section Selection</h2>
-        <p>Loading your registration and course sections...</p>
+        <div className="a07-state-box">
+          Loading your registration and course sections...
+        </div>
       </div>
     );
   }
 
   return (
     <div className="dashboard-container" ref={topRef}>
-      {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
           ← Back to Dashboard
         </Link>
       </div>
 
-      <h2>Course and Section Selection</h2>
+      <div className="a01-page-header">
+        <div className="a01-phase-title-group">
+          <span className="a01-phase-pill">Observee Workflow · Step 1</span>
+          <h2>Course and Section Selection</h2>
+          <p className="s01-subtitle">
+            Register an active course section and choose your preferred
+            classroom observation dates.
+          </p>
+        </div>
+
+        <div className="s01-header-meta">
+          {registration?.cycle_name && (
+            <span className="a01-cycle-badge">
+              Cycle: {registration.cycle_name}
+            </span>
+          )}
+          {registration?.signup_deadline && (
+            <span className="a01-phase-pill">
+              Signup Deadline: {formatDate(registration.signup_deadline)}
+            </span>
+          )}
+        </div>
+      </div>
 
       {success && (
         <div role="status" className="feedback-banner-success">
           <strong>Success:</strong> {success}
           {datesSaved && (
-            <p style={{ marginTop: "0.25rem" }}>
-              Click <Link to="/observee/observer-selection">here</Link> to continue to Observer Selection.
+            <p className="banner-followup-note">
+              Click <Link to="/observee/observer-selection">here</Link> to
+              continue to Observer Selection.
             </p>
           )}
         </div>
       )}
 
-      {/* Pending AC Approval Banner & Summary Card */}
       {pendingRequest && (
-        <section
-          className="table-container theme-orange"
-          style={{
-            padding: "1.25rem 1.5rem",
-            borderLeft: "4px solid #f59e0b",
-            marginBottom: "1rem",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "0.75rem",
-              marginBottom: "0.5rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
+        <section className="e01-pending-card">
+          <div className="e01-pending-header">
+            <div className="e01-pending-title-group">
+              <h3 className="e01-pending-title">
                 Pending Course Change Request
               </h3>
-              <span
-                className="card-status"
-                style={{ backgroundColor: "#fef3c7", color: "#92400e" }}
-              >
-                PENDING AC APPROVAL
-              </span>
+              <span className="e01-pending-pill">PENDING AC APPROVAL</span>
             </div>
 
             <button
               type="button"
               className="btn-secondary"
-              style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
               onClick={handleWithdrawRequest}
             >
               Withdraw Request
             </button>
           </div>
 
-          <p style={{ margin: "0.25rem 0", fontSize: "0.925rem" }}>
-            <strong>Requested Course:</strong> {pendingRequest.requested_course_label} (Section{" "}
-            {pendingRequest.requested_section})
-          </p>
-          <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
-            <strong>Schedule:</strong> {pendingRequest.requested_schedule}
-          </p>
-          <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
-            <strong>Proposed Dates ({pendingRequest.requested_dates.length}):</strong>{" "}
-            {pendingRequest.requested_dates
-              .map((d) =>
-                new Date(`${d}T00:00:00`).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })
-              )
-              .join(", ")}
-          </p>
-          {pendingRequest.reason && (
-            <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
-              <strong>Reason:</strong> {pendingRequest.reason}
-            </p>
-          )}
-          <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.8rem", opacity: 0.75 }}>
-            Your current registered course remains active until an Assessment Committee member approves this request.
+          <div className="form-summary-grid-4">
+            <div className="form-summary-cell">
+              <span className="summary-field-label">Requested Course</span>
+              <p className="summary-field-val">
+                {pendingRequest.requested_course_label} (Section{" "}
+                {pendingRequest.requested_section})
+              </p>
+            </div>
+
+            <div className="form-summary-cell">
+              <span className="summary-field-label">Schedule</span>
+              <p className="summary-field-val">
+                {pendingRequest.requested_schedule}
+              </p>
+            </div>
+
+            <div className="form-summary-cell">
+              <span className="summary-field-label">
+                Proposed Dates ({pendingRequest.requested_dates.length})
+              </span>
+              <p className="summary-field-val">
+                {pendingRequest.requested_dates
+                  .map((d) =>
+                    new Date(`${d}T00:00:00`).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })
+                  )
+                  .join(", ")}
+              </p>
+            </div>
+
+            <div className="form-summary-cell">
+              <span className="summary-field-label">Reason</span>
+              <p className="summary-field-val">
+                {pendingRequest.reason || "No reason provided"}
+              </p>
+            </div>
+          </div>
+
+          <p className="e01-pending-footnote">
+            Your current registered course remains active until an Assessment
+            Committee member approves this request.
           </p>
         </section>
       )}
 
-      {registration && (
-        <section className="dashboard-phase">
-          <h3>{registration.cycle_name} Registration</h3>
-          <p style={{ marginBottom: "0.75rem" }}>
-            <strong>Signup deadline:</strong> {formatDate(registration.signup_deadline)}
-          </p>
-
-          {savedCourse && (
-            <div className="table-instruction" style={{ marginTop: "0.5rem" }}>
-              <h3 style={{ fontSize: "0.95rem" }}>
-                Your Active Registered Course{pendingRequest ? " (Current)" : ""}
+      {savedCourse && (
+        <section className="e01-active-course-card">
+          <div className="e02-card-header">
+            <div>
+              <h3 className="e02-card-title">
+                Your Active Registered Course
+                {pendingRequest ? " (Current)" : ""}
               </h3>
-              <p style={{ margin: "0.25rem 0" }}>{courseName(savedCourse)}</p>
-              <p style={{ margin: "0.25rem 0" }}>Section: {savedCourse.section}</p>
-              <p style={{ margin: "0.25rem 0" }}>Meeting times: {savedCourse.schedule}</p>
-              <p style={{ margin: "0.25rem 0" }}>
-                Classroom: {savedCourse.classroom || "Not provided"}
+              <p className="e02-card-subtitle">
+                Registered for the {registration?.cycle_name || "current"}{" "}
+                observation cycle.
               </p>
             </div>
-          )}
+            <span className="status-pill-active">Registered</span>
+          </div>
+
+          <div className="form-summary-grid-4">
+            <div className="form-summary-cell">
+              <span className="summary-field-label">Course</span>
+              <p className="summary-field-val">{courseName(savedCourse)}</p>
+            </div>
+            <div className="form-summary-cell">
+              <span className="summary-field-label">Section</span>
+              <p className="summary-field-val">{savedCourse.section}</p>
+            </div>
+            <div className="form-summary-cell">
+              <span className="summary-field-label">Meeting Times</span>
+              <p className="summary-field-val">{savedCourse.schedule}</p>
+            </div>
+            <div className="form-summary-cell">
+              <span className="summary-field-label">Classroom</span>
+              <p className="summary-field-val">
+                {savedCourse.classroom || "Not provided"}
+              </p>
+            </div>
+          </div>
         </section>
       )}
 
       <section className="dashboard-phase">
-        <h3>
-          {requiresApprovalForChanges
-            ? "Request a Course Section Change"
-            : "Select a Course Section"}
-        </h3>
+        <div className="a01-phase-title-group">
+          <span className="a01-phase-pill">Course Directory</span>
+          <h3>
+            {requiresApprovalForChanges
+              ? "Request a Course Section Change"
+              : "Select a Course Section"}
+          </h3>
+        </div>
 
-        <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
+        <div className="e02-callout-notice">
           {requiresApprovalForChanges ? (
             <>
-              <strong>APPROVAL REQUIRED FOR CHANGES:</strong>{" "}
+              <strong>Approval Required for Changes:</strong>{" "}
               {hasMatchedObservers && isPastRegistrationDeadline
                 ? "The standard signup deadline has passed and matched observers have already been assigned to your registration."
                 : hasMatchedObservers
@@ -573,28 +625,31 @@ export default function E01CourseSelection() {
                 : `The standard signup deadline (${
                     registration ? formatDate(registration.signup_deadline) : ""
                   }) has passed.`}{" "}
-              You can still view all sections and propose updates below, but any changes will remain{" "}
-              <strong>pending</strong> until approved by an Assessment Committee member.
+              You can still view all sections and propose updates below, but any
+              changes will remain <strong>pending</strong> until approved by an
+              Assessment Committee member.
             </>
           ) : (
             <>
-              <strong>IMPORTANT:</strong> Course registration closes{" "}
-              {registration && formatDate(registration.signup_deadline)} at 11:59 PM. You must select and register 1 active course section.
+              <strong>Registration Window:</strong> Course registration closes{" "}
+              {registration && formatDate(registration.signup_deadline)} at
+              11:59 PM. Select and register 1 active course section below.
             </>
           )}
         </div>
 
         {courses.length === 0 ? (
-          <p>
-            No current course sections were returned for your account. Ask the team to check the demo account's course assignments.
-          </p>
+          <div className="empty-state-banner">
+            No current course sections were returned for your account. Ask the
+            team to check the demo account's course assignments.
+          </div>
         ) : (
           <div className="table-container theme-green">
             <div className="table-scroll-wrapper">
               <table className="custom-data-table">
                 <thead>
                   <tr>
-                    <th>Select</th>
+                    <th className="col-checkbox">Select</th>
                     <th>Course</th>
                     <th>Section</th>
                     <th>Meeting Times</th>
@@ -602,32 +657,56 @@ export default function E01CourseSelection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {courses.map((course) => (
-                    <tr key={course.course_id}>
-                      <td>
-                        <input
-                          type="radio"
-                          name="course"
-                          value={course.course_id}
-                          checked={selectedCourseId === course.course_id}
-                          onChange={() => setSelectedCourseId(course.course_id)}
-                          disabled={saving}
-                          aria-label={`Select ${courseName(course)}, section ${course.section}`}
-                        />
-                      </td>
-                      <td>{courseName(course)}</td>
-                      <td>{course.section}</td>
-                      <td>{course.schedule}</td>
-                      <td>{course.classroom || "Not provided"}</td>
-                    </tr>
-                  ))}
+                  {courses.map((course) => {
+                    const isSelected = selectedCourseId === course.course_id;
+                    const isCurrentActive =
+                      registration?.selected_course_id === course.course_id;
+                    return (
+                      <tr
+                        key={course.course_id}
+                        className={isSelected ? "e01-selected-row" : undefined}
+                        onClick={() => {
+                          if (!saving) setSelectedCourseId(course.course_id);
+                        }}
+                      >
+                        <td className="align-center">
+                          <input
+                            type="radio"
+                            name="course"
+                            value={course.course_id}
+                            checked={isSelected}
+                            onChange={() =>
+                              setSelectedCourseId(course.course_id)
+                            }
+                            disabled={saving}
+                            aria-label={`Select ${courseName(
+                              course
+                            )}, section ${course.section}`}
+                          />
+                        </td>
+                        <td>
+                          <div className="e01-course-name-cell">
+                            <span className="e02-observer-name">
+                              {courseName(course)}
+                            </span>
+                            {isCurrentActive && (
+                              <span className="e01-current-tag">Current</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>{course.section}</td>
+                        <td>{course.schedule}</td>
+                        <td>{course.classroom || "Not provided"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+        <div className="e01-actions-end">
           <button
             type="button"
             className="btn-primary"
@@ -643,71 +722,82 @@ export default function E01CourseSelection() {
         </div>
       </section>
 
-      {/* Calendar Section */}
       {showCalendarSection && confirmedCourse && (
-        <section ref={bottomRef} className="dashboard-phase" style={{ marginTop: "2rem" }}>
-          <h3>
-            {requiresApprovalForChanges
-              ? "Select Proposed Observation Dates for Change Request"
-              : "Select Proposed Observation Dates"}
-          </h3>
+        <section ref={bottomRef} className="dashboard-phase phase-spacing">
+          <div className="a01-phase-title-group">
+            <span className="a01-phase-pill">Availability Window</span>
+            <h3>
+              {requiresApprovalForChanges
+                ? "Select Proposed Observation Dates for Change Request"
+                : "Select Proposed Observation Dates"}
+            </h3>
+          </div>
 
-          <div className="yellow-banner" style={{ marginBottom: "1rem" }}>
-            <strong>IMPORTANT:</strong> Please make sure ALL proposed Observation Dates fall on or before{" "}
-            {registration && formatDate(registration.observation_deadline)}. Select 4 to 8 dates.
+          <div className="e02-callout-notice">
+            <strong>Scheduling Window:</strong> Please make sure all proposed
+            observation dates fall on or before{" "}
+            {registration && formatDate(registration.observation_deadline)}.
+            Select 4 to 8 dates.
           </div>
 
           {calendarError && (
-            <p style={{ color: "#ef4444", fontWeight: 600, fontSize: "0.9rem", margin: "0 0 1rem 0" }}>
+            <p role="alert" className="observer-validation-error">
               {calendarError}
             </p>
           )}
 
-          <div className="table-container theme-orange" style={{ padding: "1.5rem" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: "2rem",
-                alignItems: "center",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.6rem",
-                  justifyContent: "center",
-                }}
-              >
-                <h3 style={{ fontSize: "1.15rem", marginBottom: "0.15rem", color: "inherit" }}>
-                  {requiresApprovalForChanges
-                    ? "Requested Course Change Preview"
-                    : "Your Registered Course Preview"}
-                </h3>
-                <p style={{ margin: 0, lineHeight: "1.4" }}>
-                  <strong>Course:</strong> {courseName(confirmedCourse)}
-                </p>
-                <p style={{ margin: 0, lineHeight: "1.4" }}>
-                  <strong>Section:</strong> {confirmedCourse.section}
-                </p>
-                <p style={{ margin: 0, lineHeight: "1.4" }}>
-                  <strong>Meeting Time:</strong> {confirmedCourse.schedule}
-                </p>
-                <p style={{ margin: 0, lineHeight: "1.4" }}>
-                  <strong>Classroom:</strong> {confirmedCourse.classroom || "Not provided"}
-                </p>
+          <div className="e01-calendar-card">
+            <div className="e01-calendar-grid">
+              <div className="e01-preview-col">
+                <div className="e01-preview-header">
+                  <h4 className="e01-preview-heading">
+                    {requiresApprovalForChanges
+                      ? "Requested Course Change Preview"
+                      : "Your Registered Course Preview"}
+                  </h4>
+                  <span
+                    className={`e02-date-count-tag ${
+                      selectedDates.length >= 4 && selectedDates.length <= 8
+                        ? "is-valid"
+                        : "is-warning"
+                    }`}
+                  >
+                    {selectedDates.length} / 8 dates selected
+                  </span>
+                </div>
+
+                <div className="e01-preview-meta-list">
+                  <div className="e01-preview-meta-item">
+                    <span className="summary-field-label">Course</span>
+                    <span className="e01-preview-meta-val">
+                      {courseName(confirmedCourse)}
+                    </span>
+                  </div>
+                  <div className="e01-preview-meta-item">
+                    <span className="summary-field-label">Section</span>
+                    <span className="e01-preview-meta-val">
+                      {confirmedCourse.section}
+                    </span>
+                  </div>
+                  <div className="e01-preview-meta-item">
+                    <span className="summary-field-label">Meeting Time</span>
+                    <span className="e01-preview-meta-val">
+                      {confirmedCourse.schedule}
+                    </span>
+                  </div>
+                  <div className="e01-preview-meta-item">
+                    <span className="summary-field-label">Classroom</span>
+                    <span className="e01-preview-meta-val">
+                      {confirmedCourse.classroom || "Not provided"}
+                    </span>
+                  </div>
+                </div>
 
                 {requiresApprovalForChanges && (
-                  <div style={{ marginTop: "0.5rem" }}>
+                  <div className="e01-reason-field">
                     <label
                       htmlFor="changeReasonInput"
-                      style={{
-                        display: "block",
-                        fontSize: "0.85rem",
-                        fontWeight: 600,
-                        marginBottom: "0.35rem",
-                      }}
+                      className="e01-reason-label"
                     >
                       Reason for Course Change (Optional)
                     </label>
@@ -718,28 +808,43 @@ export default function E01CourseSelection() {
                       placeholder="e.g., Section time conflict or teaching reassignment"
                       value={changeReason}
                       onChange={(e) => setChangeReason(e.target.value)}
-                      style={{ width: "100%", padding: "0.5rem 0.75rem", borderRadius: "6px" }}
                     />
                   </div>
                 )}
 
-                <div style={{ marginTop: "0.5rem" }}>
-                  <p style={{ margin: "0 0 0.35rem 0", fontSize: "0.85rem", opacity: 0.75 }}>
-                    <em>Selected Dates: {selectedDates.length} / 8 (minimum 4 required)</em>
-                  </p>
-                  {selectedDates.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                <div className="e01-selected-dates-box">
+                  <div className="e01-selected-dates-head">
+                    <span className="summary-field-label">
+                      Chosen Dates (Minimum 4 Required)
+                    </span>
+                    {selectedDates.length > 0 && (
+                      <button
+                        type="button"
+                        className="signin-toggle-pw"
+                        onClick={() => setSelectedDates([])}
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+
+                  {selectedDates.length === 0 ? (
+                    <p className="font-slate font-sm">
+                      Click eligible class meeting days on the calendar to add
+                      them.
+                    </p>
+                  ) : (
+                    <div className="e01-date-pills">
                       {[...selectedDates].sort().map((dateStr, idx) => {
-                        const formatted = new Date(`${dateStr}T00:00:00`).toLocaleDateString(
-                          "en-US",
-                          { month: "short", day: "numeric" }
-                        );
+                        const formatted = new Date(
+                          `${dateStr}T00:00:00`
+                        ).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        });
                         return (
-                          <span
-                            key={idx}
-                            className="version-pill font-semibold"
-                            style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
-                          >
+                          <span key={idx} className="e02-saved-date-chip">
                             {formatted}
                           </span>
                         );
@@ -749,7 +854,7 @@ export default function E01CourseSelection() {
                 </div>
               </div>
 
-              <div>
+              <div className="e01-calendar-widget-col">
                 <Calendar
                   selectedDates={selectedDates}
                   onDateSelectionChange={handleDateSelectionChange}
@@ -764,8 +869,12 @@ export default function E01CourseSelection() {
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1rem" }}>
-            <button type="button" className="btn-secondary" onClick={handleScrollToTop}>
+          <div className="e01-actions-between">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleScrollToTop}
+            >
               Select a Different Course or Section
             </button>
             <button
@@ -784,7 +893,6 @@ export default function E01CourseSelection() {
         </section>
       )}
 
-      {/* Bottom Centered Return Button */}
       <div className="dashboard-center-action">
         <Link to="/shared/faculty-dashboard" className="btn-secondary">
           Return to Dashboard
