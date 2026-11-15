@@ -1,170 +1,184 @@
 /* ==========================================
-   CALENDAR COMPONENT
+   CALENDAR COMPONENT (Compact UTD Editorial Theme)
    ========================================== */
-
 .calendar-container {
   width: 100%;
-  max-width: 320px;
+  max-width: 100%;
   min-width: 280px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1rem;
-  background-color: #ffffff;
-  color: #111827;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1.25rem 1.35rem;
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .calendar-selects {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
 .calendar-selects select {
   min-width: 0;
-  padding: 0.35rem;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background-color: #ffffff;
-  color: #111827;
-  font-size: 0.85rem;
+  padding: 0.34rem 0.55rem;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-selects select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-soft-bg);
 }
 
 .nav-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  color: inherit;
+  color: var(--text-secondary);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-btn:hover {
+  background-color: var(--accent-soft-bg);
+  border-color: var(--accent-soft-border);
+  color: var(--accent-soft-text);
 }
 
 .calendar-weekdays,
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  justify-items: center;
   text-align: center;
 }
 
 .calendar-weekdays {
-  font-size: 0.8rem;
-  color: #6b7280;
-  margin-bottom: 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.45rem;
 }
 
 .weekday-label {
-  font-weight: 600;
-  padding: 0.35rem 0;
+  font-weight: 700;
+  padding: 0.25rem 0;
 }
 
 .calendar-grid {
-  gap: 0.25rem;
+  row-gap: 0.45rem;
 }
 
 .calendar-day {
-  width: 100%;
-  min-width: 0;
-  aspect-ratio: 1;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: none;
-  background-color: #f3f4f6;
-  color: #111827;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  border: 1.5px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(24, 24, 23, 0.06);
+  transition: background-color 0.14s ease, border-color 0.14s ease,
+    color 0.14s ease, transform 0.1s ease, box-shadow 0.14s ease;
+}
+
+.calendar-day:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 /* Hover effect ONLY for unselected active days */
 .calendar-day:not(.selected):hover:not(:disabled) {
-  background-color: #dbeafe;
+  background-color: var(--accent-soft-bg);
+  border-color: var(--accent-primary);
+  color: var(--accent-soft-text);
+  box-shadow: 0 2px 5px rgba(21, 71, 52, 0.14);
+  transform: translateY(-1px);
 }
 
-/* Solid Selected State (Light Mode) */
+/* Solid Selected State (UTD Forest Green in Light, Slate Teal in Dark) */
 .calendar-day.selected {
-  background-color: #2563eb;
+  background-color: var(--accent-primary);
   color: #ffffff;
   font-weight: 700;
-  border: 1px solid #1d4ed8;
+  border: 1.5px solid var(--accent-primary);
+  box-shadow: 0 2px 6px rgba(21, 71, 52, 0.28);
 }
 
 .calendar-day.selected:hover:not(:disabled) {
-  background-color: #1d4ed8;
+  background-color: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
   color: #ffffff;
 }
 
 .calendar-day.disabled {
   background-color: transparent;
-  color: #d1d5db;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  font-weight: 500;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .calendar-day.empty {
   background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
   pointer-events: none;
 }
 
-/* Dark mode */
-html.dark-mode .calendar-container {
-  background-color: #18181b;
-  border-color: #3f3f46;
-  color: #f4f4f5;
-}
-
-html.dark-mode .calendar-selects select {
-  background-color: #27272a;
-  border-color: #52525b;
-  color: #f4f4f5;
-}
-
-html.dark-mode .calendar-weekdays {
-  color: #a1a1aa;
-}
-
-html.dark-mode .calendar-day {
-  background-color: #27272a;
-  color: #f4f4f5;
-}
-
-/* Hover effect ONLY for unselected active days in Dark Mode */
-html.dark-mode .calendar-day:not(.selected):hover:not(:disabled) {
-  background-color: #3f3f46;
-}
-
-/* Solid Selected State (Dark Mode) */
-html.dark-mode .calendar-day.selected {
-  background-color: #2563eb;
-  color: #ffffff;
-  font-weight: 700;
-  border: 2px solid #60a5fa;
-  box-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
-}
-
-html.dark-mode .calendar-day.selected:hover:not(:disabled) {
-  background-color: #1d4ed8;
-  color: #ffffff;
-  border-color: #93c5fd;
-}
-
-html.dark-mode .calendar-day.disabled,
-html.dark-mode .calendar-day.empty {
-  background-color: transparent;
-  color: #52525b;
-}
-
-@media (max-width: 600px) {
+@media (max-width: 400px) {
   .calendar-container {
     max-width: 100%;
     min-width: 0;
+    padding: 0.85rem;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    column-gap: 0.25rem;
+  }
+
+  .calendar-day {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
   }
 }

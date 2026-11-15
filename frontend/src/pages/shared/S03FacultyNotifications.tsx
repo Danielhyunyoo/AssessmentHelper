@@ -6,6 +6,7 @@ import type { Notification } from "../../api/types";
 
 const CLEARED_STORAGE_KEY = "cleared_notification_ids";
 const UNREAD_STORAGE_KEY = "manual_unread_notification_ids";
+const READ_STORAGE_KEY = "manual_read_notification_ids";
 
 type FilterTab = "all" | "unread" | "read";
 
@@ -65,9 +66,211 @@ function getNotificationCategory(notification: Notification): {
   return { label: "Cycle Notice", toneClass: "" };
 }
 
+function resolveNotificationDestination(notification: Notification): {
+  to: string;
+  label: string;
+} {
+  const typeLower = (notification.type || "").toLowerCase().trim();
+  const titleLower = (notification.title || "").toLowerCase();
+  const messageLower = (notification.message || "").toLowerCase();
+
+  if (
+    titleLower.includes("observation confirmed") ||
+    titleLower.includes("pairing confirmed") ||
+    titleLower.includes("assignment confirmed") ||
+    messageLower.includes("observation assignment has been confirmed") ||
+    messageLower.includes("confirmed your observation")
+  ) {
+    return {
+      to: "/shared/current-past-observations",
+      label: "View Current and Past Observations →",
+    };
+  }
+
+  if (
+    titleLower.includes("invitation response") ||
+    titleLower.includes("invitation accepted") ||
+    titleLower.includes("invitation declined") ||
+    titleLower.includes("invitation expired") ||
+    messageLower.includes("accepted your invitation") ||
+    messageLower.includes("accepted your observation") ||
+    messageLower.includes("declined your invitation") ||
+    messageLower.includes("declined your observation")
+  ) {
+    return {
+      to: "/observee/observer-selection#responses",
+      label: "Review Observer Response →",
+    };
+  }
+
+  if (
+    titleLower.includes("observer candidate") ||
+    titleLower.includes("matched observer") ||
+    messageLower.includes("ready for selection") ||
+    messageLower.includes("released")
+  ) {
+    return {
+      to: "/observee/observer-selection",
+      label: "Go to Observer Selection →",
+    };
+  }
+
+  switch (typeLower) {
+    case "registration":
+    case "registration_open":
+    case "registration_reminder":
+    case "course_selection":
+    case "course_change_approved":
+    case "course_change_declined":
+    case "availability_reminder":
+      return {
+        to: "/observee/course-selection",
+        label: "Go to Course Selection →",
+      };
+
+    case "candidate_selection":
+    case "observer_candidates":
+    case "matches_released":
+      return {
+        to: "/observee/observer-selection",
+        label: "Go to Observer Selection →",
+      };
+
+    case "invitation_accepted":
+    case "invitation_declined":
+    case "invitation_expired":
+    case "invitation_response":
+    case "confirm_pairing":
+      return {
+        to: "/observee/observer-selection#responses",
+        label: "Review Observer Response →",
+      };
+
+    case "invitation":
+    case "observation_invitation":
+    case "observation_request":
+    case "invite_received":
+    case "invitation_reminder":
+      return {
+        to: "/observer/observation-request",
+        label: "View Observation Request →",
+      };
+
+    case "pairing_confirmed":
+    case "observation_confirmed":
+    case "assignment_confirmed":
+    case "observation_scheduled":
+    case "upcoming_observation":
+    case "observation_reminder":
+    case "observation_complete":
+    case "observation_completed":
+    case "record_submitted":
+    case "form_submitted":
+    case "survey_available":
+    case "survey_reminder":
+    case "post_evaluation_survey":
+      return {
+        to: "/shared/current-past-observations",
+        label: "View Current and Past Observations →",
+      };
+
+    case "profile_updated":
+    case "evaluation_status":
+    case "cycle_assigned":
+    case "cycle_transferred":
+      return {
+        to: "/shared/profile",
+        label: "View Profile and Status →",
+      };
+
+    case "course_change_request":
+      return {
+        to: "/committee/faculty-matching",
+        label: "Review in Faculty Matching →",
+      };
+
+    case "pending_record_review":
+      return {
+        to: "/committee/pending-records",
+        label: "Review Pending Records →",
+      };
+
+    case "committee_survey_tracking":
+      return {
+        to: "/committee/survey-tracking",
+        label: "View Survey Tracking →",
+      };
+
+    default:
+      if (
+        titleLower.includes("observation invitation") ||
+        titleLower.includes("observation request") ||
+        messageLower.includes("new observation request") ||
+        messageLower.includes("invited you to observe") ||
+        messageLower.includes("respond to observation")
+      ) {
+        return {
+          to: "/observer/observation-request",
+          label: "View Observation Request →",
+        };
+      }
+
+      if (
+        titleLower.includes("course change request") ||
+        messageLower.includes("requested a course change")
+      ) {
+        return {
+          to: "/committee/faculty-matching",
+          label: "Review in Faculty Matching →",
+        };
+      }
+
+      if (
+        titleLower.includes("registration") ||
+        titleLower.includes("course selection") ||
+        titleLower.includes("course change") ||
+        messageLower.includes("select a course") ||
+        messageLower.includes("signup deadline")
+      ) {
+        return {
+          to: "/observee/course-selection",
+          label: "Go to Course Selection →",
+        };
+      }
+
+      if (
+        titleLower.includes("profile") ||
+        titleLower.includes("evaluation status") ||
+        titleLower.includes("cycle")
+      ) {
+        return {
+          to: "/shared/profile",
+          label: "View Profile and Status →",
+        };
+      }
+
+      if (
+        titleLower.includes("scheduled") ||
+        titleLower.includes("survey") ||
+        titleLower.includes("record") ||
+        titleLower.includes("observation") ||
+        messageLower.includes("observation")
+      ) {
+        return {
+          to: "/shared/current-past-observations",
+          label: "View Current and Past Observations →",
+        };
+      }
+
+      return {
+        to: "/shared/faculty-dashboard",
+        label: "Go to Dashboard →",
+      };
+  }
+}
+
 export default function S03FacultyNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -83,18 +286,21 @@ export default function S03FacultyNotifications() {
       const response = await facultyApi.notifications();
       const clearedIds = getStoredIds(CLEARED_STORAGE_KEY);
       const manualUnreadIds = getStoredIds(UNREAD_STORAGE_KEY);
+      const manualReadIds = getStoredIds(READ_STORAGE_KEY);
 
       const activeNotifications = (response.notifications ?? [])
         .filter((n) => !clearedIds.includes(n.notification_id))
-        .map((n) => ({
-          ...n,
-          is_read: manualUnreadIds.includes(n.notification_id)
-            ? false
-            : n.is_read,
-        }));
+        .map((n) => {
+          let isRead = Boolean(n.is_read);
+          if (manualUnreadIds.includes(n.notification_id)) {
+            isRead = false;
+          } else if (manualReadIds.includes(n.notification_id)) {
+            isRead = true;
+          }
+          return { ...n, is_read: isRead };
+        });
 
       setNotifications(activeNotifications);
-      setUnreadCount(activeNotifications.filter((n) => !n.is_read).length);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to load notifications."
@@ -119,6 +325,37 @@ export default function S03FacultyNotifications() {
     };
   }, []);
 
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.is_read).length,
+    [notifications]
+  );
+
+  async function markNotificationRead(notificationId: number) {
+    const manualUnreadIds = getStoredIds(UNREAD_STORAGE_KEY).filter(
+      (id) => id !== notificationId
+    );
+    const manualReadIds = Array.from(
+      new Set([...getStoredIds(READ_STORAGE_KEY), notificationId])
+    );
+
+    saveStoredIds(UNREAD_STORAGE_KEY, manualUnreadIds);
+    saveStoredIds(READ_STORAGE_KEY, manualReadIds);
+
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.notification_id === notificationId ? { ...n, is_read: true } : n
+      )
+    );
+
+    try {
+      await facultyApi.markRead(notificationId);
+    } catch {
+      // Local storage keeps read state consistent
+    }
+
+    window.dispatchEvent(new Event("notifications-changed"));
+  }
+
   async function handleMarkAllRead() {
     setSaving(true);
     setError("");
@@ -126,9 +363,15 @@ export default function S03FacultyNotifications() {
 
     try {
       await facultyApi.markAllRead();
+      const allIds = notifications.map((n) => n.notification_id);
       saveStoredIds(UNREAD_STORAGE_KEY, []);
+      saveStoredIds(
+        READ_STORAGE_KEY,
+        Array.from(new Set([...getStoredIds(READ_STORAGE_KEY), ...allIds]))
+      );
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       window.dispatchEvent(new Event("notifications-changed"));
-      await loadNotifications();
       setSuccess("All notifications marked as read.");
     } catch (err) {
       setError(
@@ -143,36 +386,41 @@ export default function S03FacultyNotifications() {
     setError("");
     setSuccess("");
 
-    const isCurrentlyRead = notification.is_read;
-    const manualUnreadIds = getStoredIds(UNREAD_STORAGE_KEY);
+    const id = notification.notification_id;
+    const willBeRead = !notification.is_read;
 
-    let updatedManualUnread: number[];
-    if (isCurrentlyRead) {
-      updatedManualUnread = Array.from(
-        new Set([...manualUnreadIds, notification.notification_id])
+    const manualUnreadIds = getStoredIds(UNREAD_STORAGE_KEY);
+    const manualReadIds = getStoredIds(READ_STORAGE_KEY);
+
+    if (willBeRead) {
+      saveStoredIds(
+        UNREAD_STORAGE_KEY,
+        manualUnreadIds.filter((item) => item !== id)
+      );
+      saveStoredIds(
+        READ_STORAGE_KEY,
+        Array.from(new Set([...manualReadIds, id]))
       );
     } else {
-      updatedManualUnread = manualUnreadIds.filter(
-        (id) => id !== notification.notification_id
+      saveStoredIds(
+        READ_STORAGE_KEY,
+        manualReadIds.filter((item) => item !== id)
+      );
+      saveStoredIds(
+        UNREAD_STORAGE_KEY,
+        Array.from(new Set([...manualUnreadIds, id]))
       );
     }
-    saveStoredIds(UNREAD_STORAGE_KEY, updatedManualUnread);
 
     setNotifications((prev) =>
       prev.map((n) =>
-        n.notification_id === notification.notification_id
-          ? { ...n, is_read: !isCurrentlyRead }
-          : n
+        n.notification_id === id ? { ...n, is_read: willBeRead } : n
       )
     );
 
-    setUnreadCount((prev) =>
-      isCurrentlyRead ? prev + 1 : Math.max(0, prev - 1)
-    );
-
-    if (!isCurrentlyRead) {
+    if (willBeRead) {
       try {
-        await facultyApi.markRead(notification.notification_id);
+        await facultyApi.markRead(id);
       } catch {
         // Ignore backend endpoint errors if any
       }
@@ -199,245 +447,6 @@ export default function S03FacultyNotifications() {
     window.dispatchEvent(new Event("notifications-changed"));
   };
 
-  function renderNotificationLink(notification: Notification) {
-    const typeLower = (notification.type || "").toLowerCase().trim();
-    const titleLower = (notification.title || "").toLowerCase();
-    const messageLower = (notification.message || "").toLowerCase();
-
-    if (
-      titleLower.includes("observation confirmed") ||
-      titleLower.includes("pairing confirmed") ||
-      titleLower.includes("assignment confirmed") ||
-      messageLower.includes("observation assignment has been confirmed") ||
-      messageLower.includes("confirmed your observation")
-    ) {
-      return (
-        <Link
-          to="/shared/current-past-observations"
-          className="notif-action-link"
-        >
-          View Current and Past Observations →
-        </Link>
-      );
-    }
-
-    if (
-      titleLower.includes("invitation response") ||
-      titleLower.includes("invitation accepted") ||
-      titleLower.includes("invitation declined") ||
-      titleLower.includes("invitation expired") ||
-      messageLower.includes("accepted your invitation") ||
-      messageLower.includes("accepted your observation") ||
-      messageLower.includes("declined your invitation") ||
-      messageLower.includes("declined your observation")
-    ) {
-      return (
-        <Link
-          to="/observee/observer-selection#responses"
-          className="notif-action-link"
-        >
-          Review Observer Response →
-        </Link>
-      );
-    }
-
-    if (
-      titleLower.includes("observer candidate") ||
-      titleLower.includes("matched observer") ||
-      messageLower.includes("ready for selection") ||
-      messageLower.includes("released")
-    ) {
-      return (
-        <Link to="/observee/observer-selection" className="notif-action-link">
-          Go to Observer Selection →
-        </Link>
-      );
-    }
-
-    switch (typeLower) {
-      case "registration":
-      case "registration_open":
-      case "registration_reminder":
-      case "course_selection":
-      case "course_change_approved":
-      case "course_change_declined":
-      case "availability_reminder":
-        return (
-          <Link to="/observee/course-selection" className="notif-action-link">
-            Go to Course Selection →
-          </Link>
-        );
-
-      case "candidate_selection":
-      case "observer_candidates":
-      case "matches_released":
-        return (
-          <Link to="/observee/observer-selection" className="notif-action-link">
-            Go to Observer Selection →
-          </Link>
-        );
-
-      case "invitation_accepted":
-      case "invitation_declined":
-      case "invitation_expired":
-      case "invitation_response":
-      case "confirm_pairing":
-        return (
-          <Link
-            to="/observee/observer-selection#responses"
-            className="notif-action-link"
-          >
-            Review Observer Response →
-          </Link>
-        );
-
-      case "invitation":
-      case "observation_invitation":
-      case "observation_request":
-      case "invite_received":
-      case "invitation_reminder":
-        return (
-          <Link to="/observer/observation-request" className="notif-action-link">
-            View Observation Request →
-          </Link>
-        );
-
-      case "pairing_confirmed":
-      case "observation_confirmed":
-      case "assignment_confirmed":
-      case "observation_scheduled":
-      case "upcoming_observation":
-      case "observation_reminder":
-      case "observation_complete":
-      case "observation_completed":
-      case "record_submitted":
-      case "form_submitted":
-      case "survey_available":
-      case "survey_reminder":
-      case "post_evaluation_survey":
-        return (
-          <Link
-            to="/shared/current-past-observations"
-            className="notif-action-link"
-          >
-            View Current and Past Observations →
-          </Link>
-        );
-
-      case "profile_updated":
-      case "evaluation_status":
-      case "cycle_assigned":
-      case "cycle_transferred":
-        return (
-          <Link to="/shared/profile" className="notif-action-link">
-            View Profile and Status →
-          </Link>
-        );
-
-      case "course_change_request":
-        return (
-          <Link to="/committee/faculty-matching" className="notif-action-link">
-            Review in Faculty Matching →
-          </Link>
-        );
-
-      case "pending_record_review":
-        return (
-          <Link to="/committee/pending-records" className="notif-action-link">
-            Review Pending Records →
-          </Link>
-        );
-
-      case "committee_survey_tracking":
-        return (
-          <Link to="/committee/survey-tracking" className="notif-action-link">
-            View Survey Tracking →
-          </Link>
-        );
-
-      default:
-        if (
-          titleLower.includes("observation invitation") ||
-          titleLower.includes("observation request") ||
-          messageLower.includes("new observation request") ||
-          messageLower.includes("invited you to observe") ||
-          messageLower.includes("respond to observation")
-        ) {
-          return (
-            <Link
-              to="/observer/observation-request"
-              className="notif-action-link"
-            >
-              View Observation Request →
-            </Link>
-          );
-        }
-
-        if (
-          titleLower.includes("course change request") ||
-          messageLower.includes("requested a course change")
-        ) {
-          return (
-            <Link
-              to="/committee/faculty-matching"
-              className="notif-action-link"
-            >
-              Review in Faculty Matching →
-            </Link>
-          );
-        }
-
-        if (
-          titleLower.includes("registration") ||
-          titleLower.includes("course selection") ||
-          titleLower.includes("course change") ||
-          messageLower.includes("select a course") ||
-          messageLower.includes("signup deadline")
-        ) {
-          return (
-            <Link to="/observee/course-selection" className="notif-action-link">
-              Go to Course Selection →
-            </Link>
-          );
-        }
-
-        if (
-          titleLower.includes("profile") ||
-          titleLower.includes("evaluation status") ||
-          titleLower.includes("cycle")
-        ) {
-          return (
-            <Link to="/shared/profile" className="notif-action-link">
-              View Profile and Status →
-            </Link>
-          );
-        }
-
-        if (
-          titleLower.includes("scheduled") ||
-          titleLower.includes("survey") ||
-          titleLower.includes("record") ||
-          titleLower.includes("observation") ||
-          messageLower.includes("observation")
-        ) {
-          return (
-            <Link
-              to="/shared/current-past-observations"
-              className="notif-action-link"
-            >
-              View Current and Past Observations →
-            </Link>
-          );
-        }
-
-        return (
-          <Link to="/shared/faculty-dashboard" className="notif-action-link">
-            Go to Dashboard →
-          </Link>
-        );
-    }
-  }
-
   const filteredNotifications = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return notifications.filter((n) => {
@@ -463,7 +472,6 @@ export default function S03FacultyNotifications() {
         </Link>
       </div>
 
-      {/* Header matching A03-A08 */}
       <div className="committee-page-header">
         <h2>Notifications</h2>
 
@@ -494,7 +502,6 @@ export default function S03FacultyNotifications() {
         </div>
       ) : (
         <>
-          {/* Card-Wrapped Filter Tabs + Search Bar */}
           <div className="s03-toolbar">
             <div className="s03-filter-tabs" role="tablist">
               <button
@@ -584,7 +591,7 @@ export default function S03FacultyNotifications() {
                           key={notification.notification_id}
                           notification={notification}
                           onToggleStatus={handleToggleReadStatus}
-                          renderLink={renderNotificationLink}
+                          onNavigateRead={markNotificationRead}
                         />
                       ))}
                     </div>
@@ -622,7 +629,7 @@ export default function S03FacultyNotifications() {
                           key={notification.notification_id}
                           notification={notification}
                           onToggleStatus={handleToggleReadStatus}
-                          renderLink={renderNotificationLink}
+                          onNavigateRead={markNotificationRead}
                         />
                       ))}
                     </div>
@@ -646,13 +653,13 @@ export default function S03FacultyNotifications() {
 function NotificationCard({
   notification,
   onToggleStatus,
-  renderLink,
+  onNavigateRead,
 }: {
   notification: Notification;
   onToggleStatus: (notification: Notification) => void;
-  renderLink: (notification: Notification) => React.ReactNode;
+  onNavigateRead: (notificationId: number) => Promise<void>;
 }) {
-  const linkElement = renderLink(notification);
+  const destination = resolveNotificationDestination(notification);
   const category = getNotificationCategory(notification);
 
   return (
@@ -700,7 +707,17 @@ function NotificationCard({
           })}
         </span>
 
-        {linkElement}
+        <Link
+          to={destination.to}
+          className="notif-action-link"
+          onClick={() => {
+            if (!notification.is_read) {
+              void onNavigateRead(notification.notification_id);
+            }
+          }}
+        >
+          {destination.label}
+        </Link>
       </div>
     </article>
   );

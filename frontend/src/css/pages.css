@@ -305,57 +305,67 @@ html.dark-mode {
   transform: translateY(1px);
 }
 
-/* Primary Button (Warm Charcoal in Light, Warm Ivory in Dark) */
+/* Primary Button (Deep UTD Forest Green in Light, Slate Teal in Dark) */
 .btn-primary,
-.signin-submit-btn {
+.signin-submit-btn,
+.home-main-btn {
   padding: 0.58rem 1.2rem;
   font-size: 0.875rem;
-  background-color: #292524;
-  color: #faf9f6;
-  border: 1px solid #292524;
-  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.16);
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  border: 1px solid var(--accent-primary);
+  box-shadow: 0 1px 2px rgba(24, 24, 23, 0.14);
 }
 
 .btn-primary:hover:not(:disabled),
-.signin-submit-btn:hover:not(:disabled) {
-  background-color: #1c1917;
-  border-color: #1c1917;
-  box-shadow: 0 3px 8px rgba(28, 25, 23, 0.22);
+.signin-submit-btn:hover:not(:disabled),
+.home-main-btn:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgba(24, 24, 23, 0.2);
 }
 
 html.dark-mode .btn-primary,
-html.dark-mode .signin-submit-btn {
-  background-color: #edeae3;
-  color: #171614;
-  border-color: #d6d2c9;
+html.dark-mode .signin-submit-btn,
+html.dark-mode .home-main-btn {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 html.dark-mode .btn-primary:hover:not(:disabled),
-html.dark-mode .signin-submit-btn:hover:not(:disabled) {
-  background-color: #ffffff;
-  border-color: #ffffff;
+html.dark-mode .signin-submit-btn:hover:not(:disabled),
+html.dark-mode .home-main-btn:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+  color: #ffffff;
 }
 
-/* Secondary & Back Navigation Buttons (Soft Tactile Stone) */
+/* Secondary, Back & L01 Card Buttons */
 .btn-secondary,
-.back-dashboard-link {
+.back-dashboard-link,
+.home-committee-btn,
+.home-box-btn {
   padding: 0.55rem 1.15rem;
   font-size: 0.875rem;
   background-color: var(--bg-muted);
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+  box-shadow: 0 1px 2px rgba(24, 24, 23, 0.05);
 }
 
 .btn-secondary:hover:not(:disabled),
-.back-dashboard-link:hover {
+.back-dashboard-link:hover,
+.home-committee-btn:hover,
+.home-box-btn:hover {
   background-color: var(--bg-hover);
   border-color: var(--text-faint);
-  box-shadow: 0 2px 5px rgba(28, 25, 23, 0.09);
+  color: var(--text-primary);
+  box-shadow: 0 2px 5px rgba(24, 24, 23, 0.09);
 }
 
-/* Primary Accent Button (Muted Slate-Teal) */
 .btn-accent-blue {
   padding: 0.52rem 1.08rem;
   font-size: 0.85rem;
@@ -368,17 +378,8 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
 .btn-accent-blue:hover:not(:disabled) {
   background-color: var(--accent-primary-hover);
   border-color: var(--accent-primary-hover);
+  color: #ffffff;
   box-shadow: 0 3px 8px rgba(47, 82, 96, 0.3);
-}
-
-/* Compact Table Pill Triggers */
-.btn-pill-blue,
-.a04-email-pill-btn,
-.btn-pill-green,
-.a05-view-details-btn {
-  padding: 0.32rem 0.85rem;
-  font-size: 0.79rem;
-  border-radius: 9999px;
 }
 
 .btn-pill-blue,
@@ -390,7 +391,9 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
 
 .btn-pill-blue:hover:not(:disabled),
 .a04-email-pill-btn:hover:not(:disabled) {
-  filter: brightness(0.96);
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
 }
 
 .btn-pill-green,
@@ -1441,14 +1444,18 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
 
 .e01-calendar-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 1.15fr;
-  gap: 1.75rem;
-  align-items: start;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 1.35rem;
+  align-items: stretch;
 }
 
 @media (max-width: 860px) {
   .e01-calendar-grid {
     grid-template-columns: 1fr;
+  }
+
+  .e01-calendar-widget-col {
+    justify-content: center;
   }
 }
 
@@ -1479,33 +1486,63 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
   color: var(--text-primary);
 }
 
-.e01-preview-meta-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-@media (max-width: 480px) {
-  .e01-preview-meta-list {
-    grid-template-columns: 1fr;
-  }
-}
-
-.e01-preview-meta-item {
+.e01-unified-course-block {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.65rem 0.8rem;
-  border-radius: 8px;
-  background-color: var(--bg-surface);
+  gap: 0.45rem;
+  padding: 0.95rem 1.15rem;
+  border-radius: 9px;
+  background-color: var(--bg-subtle);
   border: 1px solid var(--border-subtle);
 }
 
-.e01-preview-meta-val {
-  font-size: 0.88rem;
-  font-weight: 600;
+.e01-unified-course-block.is-compact {
+  background-color: var(--bg-surface);
+  padding: 0.85rem 1rem;
+}
+
+.e01-unified-primary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.e01-unified-course-title {
+  font-size: 0.98rem;
+  font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.35;
+}
+
+.e01-unified-section-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.18rem 0.6rem;
+  border-radius: 9999px;
+  background-color: var(--accent-soft-bg);
+  color: var(--accent-soft-text);
+  border: 1px solid var(--accent-soft-border);
+  white-space: nowrap;
+}
+
+.e01-unified-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.e01-unified-meta-row strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.e01-unified-dot {
+  color: var(--border-strong);
+  user-select: none;
 }
 
 .e01-reason-field {
@@ -1554,7 +1591,9 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
 
 .e01-calendar-widget-col {
   display: flex;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 100%;
 }
 
 /* ------------------------------------------
@@ -2857,7 +2896,7 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
 
 .a03-empty-cell {
   text-align: center;
-  padding: 1.75rem 1rem !important;
+  padding: 1.75rem 1rem;
   color: var(--text-muted);
 }
 
@@ -6305,8 +6344,8 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
   margin: 0;
   padding: 0;
   border: none;
-  border-bottom: none !important;
-  text-decoration: none !important;
+  border-bottom: none;
+  text-decoration: none;
   font-size: 1.65rem;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -6314,8 +6353,8 @@ html.dark-mode .signin-submit-btn:hover:not(:disabled) {
 
 .committee-page-title-row h2::after,
 .dashboard-container .committee-page-header h2::after {
-  display: none !important;
-  content: none !important;
+  display: none;
+  content: none;
 }
 
 .committee-page-header-meta {

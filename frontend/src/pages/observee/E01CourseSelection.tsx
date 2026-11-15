@@ -580,24 +580,26 @@ export default function E01CourseSelection() {
             <span className="status-pill-active">Registered</span>
           </div>
 
-          <div className="form-summary-grid-4">
-            <div className="form-summary-cell">
-              <span className="summary-field-label">Course</span>
-              <p className="summary-field-val">{courseName(savedCourse)}</p>
+          <div className="e01-unified-course-block">
+            <div className="e01-unified-primary-row">
+              <span className="e01-unified-course-title">
+                {courseName(savedCourse)}
+              </span>
+              <span className="e01-unified-section-pill">
+                Section {savedCourse.section}
+              </span>
             </div>
-            <div className="form-summary-cell">
-              <span className="summary-field-label">Section</span>
-              <p className="summary-field-val">{savedCourse.section}</p>
-            </div>
-            <div className="form-summary-cell">
-              <span className="summary-field-label">Meeting Times</span>
-              <p className="summary-field-val">{savedCourse.schedule}</p>
-            </div>
-            <div className="form-summary-cell">
-              <span className="summary-field-label">Classroom</span>
-              <p className="summary-field-val">
+            <div className="e01-unified-meta-row">
+              <span>
+                <strong>Schedule:</strong> {savedCourse.schedule}
+              </span>
+              <span className="e01-unified-dot" aria-hidden="true">
+                •
+              </span>
+              <span>
+                <strong>Classroom:</strong>{" "}
                 {savedCourse.classroom || "Not provided"}
-              </p>
+              </span>
             </div>
           </div>
         </section>
@@ -765,28 +767,24 @@ export default function E01CourseSelection() {
                   </span>
                 </div>
 
-                <div className="e01-preview-meta-list">
-                  <div className="e01-preview-meta-item">
-                    <span className="summary-field-label">Course</span>
-                    <span className="e01-preview-meta-val">
+                  <div className="e01-unified-course-block is-compact">
+                  <div className="e01-unified-primary-row">
+                    <span className="e01-unified-course-title">
                       {courseName(confirmedCourse)}
                     </span>
-                  </div>
-                  <div className="e01-preview-meta-item">
-                    <span className="summary-field-label">Section</span>
-                    <span className="e01-preview-meta-val">
-                      {confirmedCourse.section}
+                    <span className="e01-unified-section-pill">
+                      Sec {confirmedCourse.section}
                     </span>
                   </div>
-                  <div className="e01-preview-meta-item">
-                    <span className="summary-field-label">Meeting Time</span>
-                    <span className="e01-preview-meta-val">
-                      {confirmedCourse.schedule}
+                  <div className="e01-unified-meta-row">
+                    <span>
+                      <strong>Time:</strong> {confirmedCourse.schedule}
                     </span>
-                  </div>
-                  <div className="e01-preview-meta-item">
-                    <span className="summary-field-label">Classroom</span>
-                    <span className="e01-preview-meta-val">
+                    <span className="e01-unified-dot" aria-hidden="true">
+                      •
+                    </span>
+                    <span>
+                      <strong>Room:</strong>{" "}
                       {confirmedCourse.classroom || "Not provided"}
                     </span>
                   </div>
@@ -858,7 +856,7 @@ export default function E01CourseSelection() {
                   selectedDates={selectedDates}
                   onDateSelectionChange={handleDateSelectionChange}
                   allowedDaysOfWeek={allowedDays as DayOfWeek[]}
-                  maxSelections={99}
+                  maxSelections={8}
                   minDate={earliestAllowedDate}
                   maxDate={registration?.observation_deadline}
                   initialMonth={calendarStart.getMonth()}
