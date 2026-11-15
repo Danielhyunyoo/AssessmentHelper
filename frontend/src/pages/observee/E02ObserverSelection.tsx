@@ -548,19 +548,21 @@ export default function E02ObserverSelection() {
         </Link>
       </div>
 
-      <div className="a01-page-header">
-        <div className="a01-phase-title-group">
-          <span className="a01-phase-pill">Observee Workflow · Step 2</span>
-          <h2>Observer Selection</h2>
-          <p className="s01-subtitle">
-            Invite eligible peer observers and finalize your confirmed
-            classroom visit pairing.
-          </p>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <span className="a01-phase-pill">Observee Workflow: Step 2</span>
+          <div className="committee-page-title-row">
+            <h2>Observer Selection</h2>
+          </div>
         </div>
+
         {observationDeadline && (
-          <span className="a01-cycle-badge">
-            Deadline: {formatDate(observationDeadline)}
-          </span>
+          <div className="committee-page-header-meta">
+            <span className="status-chip a02-chip-warning">
+              DEADLINE: {formatDate(observationDeadline).toUpperCase()}
+            </span>
+          </div>
         )}
       </div>
 
@@ -594,7 +596,7 @@ export default function E02ObserverSelection() {
             <span className="summary-field-label">Course</span>
             <p className="summary-field-val">
               {registeredCourse
-                ? `${registeredCourse.department_code} ${registeredCourse.course_number} — ${
+                ? `${registeredCourse.department_code} ${registeredCourse.course_number} - ${
                     registeredCourse.title || "Title Unavailable"
                   }`
                 : "No course selected"}
@@ -609,7 +611,7 @@ export default function E02ObserverSelection() {
           </div>
 
           <div className="form-summary-cell">
-            <span className="summary-field-label">Meeting Days &amp; Times</span>
+            <span className="summary-field-label">Meeting Days and Times</span>
             <p className="summary-field-val">
               {registeredCourse?.schedule || "Not available"}
             </p>

@@ -1210,22 +1210,17 @@ export default function A02FacultyMatching() {
         </Link>
       </div>
 
-      {/* Editorial Page Header */}
-      <div className="a01-page-header" style={{ marginBottom: "1.5rem" }}>
-        <div className="a02-section-title-group">
-          <span className="a01-phase-pill">Phase 1 · Committee Matching</span>
-          <h2 className="a02-section-heading">
-            Observer Selection and Matching
-          </h2>
-          <p className="s01-subtitle">
-            Manage registration windows, resolve course change requests, and
-            release observer candidate pools.
-          </p>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Observer Selection and Matching</h2>
+          </div>
         </div>
 
-        <div className="s01-header-meta">
-          <span className="a01-cycle-badge">
-            {shownActive.length} Active · {shownConfirmed.length} Confirmed
+        <div className="committee-page-header-meta">
+          <span className="status-chip chip-draft">
+            {shownActive.length} ACTIVE, {shownConfirmed.length} CONFIRMED
           </span>
           {queuedForA03Count > 0 && (
             <Link to="/committee/unmatched" className="btn-secondary">
@@ -1332,11 +1327,11 @@ export default function A02FacultyMatching() {
                   const actionButtonLabel = isProcessingThis
                     ? "Applying..."
                     : action === "approve_and_select_observers"
-                    ? "Approve & Select Observers"
+                    ? "Approve and Select Observers"
                     : action === "approve_keep_observers"
-                    ? "Approve & Keep Observers"
+                    ? "Approve and Keep Observers"
                     : action === "reassign_course"
-                    ? "Reassign & Select Observers"
+                    ? "Reassign and Select Observers"
                     : action === "transfer_cycle"
                     ? "Move to Unmatched (A03)"
                     : "Deny Request";
@@ -1433,20 +1428,20 @@ export default function A02FacultyMatching() {
                             disabled={isProcessingThis}
                           >
                             <option value="approve_and_select_observers">
-                              Approve course &amp; select observers
+                              Approve course and select observers
                             </option>
                             <option value="approve_keep_observers">
-                              Approve course &amp; keep current observers
+                              Approve course and keep current observers
                             </option>
                             <option value="reassign_course">
-                              Reassign to different course &amp; select
+                              Reassign to different course and select
                               observers
                             </option>
                             <option value="transfer_cycle">
                               Move to Unmatched Observees (A03) for next cycle
                             </option>
                             <option value="deny_request">
-                              Deny request &amp; keep current course
+                              Deny request and keep current course
                             </option>
                           </select>
 

@@ -201,23 +201,31 @@ export default function O01ObservationRequest() {
         </Link>
       </div>
 
-      <div className="a01-page-header">
-        <div className="a02-section-title-group">
-          <span className="a01-phase-pill">Observer Workflow · Invitation</span>
-          <h2>Observation Request</h2>
-          <p className="s01-subtitle">
-            Review the requesting faculty member&apos;s course details and
-            choose an available class session.
-          </p>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Observation Request</h2>
+          </div>
         </div>
 
         {invitation && (
-          <div className="s01-header-meta">
-            <span className={`e02-status-pill ${statusPillClass}`}>
+          <div className="committee-page-header-meta">
+            <span
+              className={`status-chip ${
+                invitation.status === "accepted" ||
+                invitation.status === "confirmed"
+                  ? "chip-draft"
+                  : invitation.status === "declined" ||
+                    invitation.status === "expired" ||
+                    invitation.status === "rejected"
+                  ? "chip-locked"
+                  : "a02-chip-warning"
+              }`}
+            >
               {invitation.status === "pending"
-                ? "Action Required"
-                : invitation.status.charAt(0).toUpperCase() +
-                  invitation.status.slice(1)}
+                ? "ACTION REQUIRED"
+                : invitation.status.toUpperCase()}
             </span>
           </div>
         )}

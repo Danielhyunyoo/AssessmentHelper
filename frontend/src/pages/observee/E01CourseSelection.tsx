@@ -463,25 +463,24 @@ export default function E01CourseSelection() {
         </Link>
       </div>
 
-      <div className="a01-page-header">
-        <div className="a01-phase-title-group">
-          <span className="a01-phase-pill">Observee Workflow · Step 1</span>
-          <h2>Course and Section Selection</h2>
-          <p className="s01-subtitle">
-            Register an active course section and choose your preferred
-            classroom observation dates.
-          </p>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <span className="a01-phase-pill">Observee Workflow: Step 1</span>
+          <div className="committee-page-title-row">
+            <h2>Course and Section Selection</h2>
+          </div>
         </div>
 
-        <div className="s01-header-meta">
+        <div className="committee-page-header-meta">
           {registration?.cycle_name && (
-            <span className="a01-cycle-badge">
-              Cycle: {registration.cycle_name}
+            <span className="status-chip chip-draft">
+              CYCLE: {registration.cycle_name.toUpperCase()}
             </span>
           )}
           {registration?.signup_deadline && (
-            <span className="a01-phase-pill">
-              Signup Deadline: {formatDate(registration.signup_deadline)}
+            <span className="status-chip a02-chip-warning">
+              DEADLINE: {formatDate(registration.signup_deadline).toUpperCase()}
             </span>
           )}
         </div>
