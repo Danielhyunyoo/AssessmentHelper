@@ -118,14 +118,6 @@ export default function A01CommitteeDashboard() {
         )}
       </div>
 
-      {/* Top Committee Reminder Banner */}
-      <div className="yellow-banner" role="status">
-        <strong>Committee Reminder:</strong> Assessment Committee members are
-        exempt from personal course registration. Key cycle deadlines: Signup
-        Cutoff ({signupDeadlineLabel}), Observations ({observationDeadlineLabel}
-        ), and Surveys ({surveyDeadlineLabel}).
-      </div>
-
       {/* Collapsible Detailed Module Guide */}
       <CycleModuleGuideBanner
         storageKey="a01_committee_module_guide_open"

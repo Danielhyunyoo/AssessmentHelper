@@ -794,162 +794,177 @@ export default function S01FacultyDashboard() {
         modules={
           isCommitteeMember ? COMMITTEE_MODULES_GUIDE : FACULTY_MODULES_GUIDE
         }
-        defaultOpen={true}
+        defaultOpen={false}
       />
 
+      {/* Unified Collapsible Workspace (Cycle Overview + My Checklist together) */}
       <section className="dashboard-phase s01-planner-section">
-        <div className="a01-phase-title-group">
-          <span className="a01-phase-pill">Workspace</span>
-          <h3>
-            {isCommitteeMember
-              ? "Cycle Oversight and Committee Checklist"
-              : "Current Cycle Status and My Checklist"}
-          </h3>
+        <div
+          className="a01-phase-header"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div className="a01-phase-title-group">
+            <span className="a01-phase-pill">Workspace</span>
+            <h3>
+              {isCommitteeMember
+                ? "Cycle Oversight and Committee Checklist"
+                : "Current Cycle Status and My Checklist"}
+            </h3>
+          </div>
+
+          <div className="checklist-header-controls">
+            <span className="s01-progress-badge">
+              {completedItems} / {totalItems} Tasks Done
+            </span>
+            <button
+              type="button"
+              className="btn-secondary checklist-toggle-btn"
+              aria-expanded={isChecklistOpen}
+              onClick={toggleChecklistOpen}
+            >
+              {isChecklistOpen ? "Hide Task List ▲" : "Show Task List ▼"}
+            </button>
+          </div>
         </div>
 
-        <div className="yellow-banner" role="status">
-          <strong>
-            {isCommitteeMember
-              ? "Committee Notice:"
-              : isDueForEvaluation
-              ? "Cycle Deadlines:"
-              : "Evaluation Status:"}
-          </strong>{" "}
-          {dashboardLoading
-            ? "Checking evaluation cycle deadlines..."
-            : isCommitteeMember
-            ? `Assessment Committee members are exempt from course registration. Signup cutoff is ${signupDeadlineLabel}, observations close ${observationEnd}, and surveys are due ${surveyEnd}.`
-            : isRegistered
-            ? `You are registered for the current cycle and placed in the Observer Pool. Observations close ${observationEnd} and surveys are due ${surveyEnd}.`
-            : isDueForEvaluation
-            ? `Action Required: You are ${
-                isOverdue ? "overdue" : "due"
-              } for evaluation this cycle. Please register 1 course section by ${signupDeadlineLabel} (observations close ${observationEnd}).`
-            : nextDueSemester
-            ? `You are not due for observation this semester (next due: ${nextDueSemester}). Course registration is not required unless you are participating.`
-            : "You are not due for observation this semester. Course registration is only required for faculty who are due or overdue."}
-        </div>
-
-        {dashboardError && (
-          <p className="signin-error-banner" role="alert">
-            Could not load live dashboard data: {dashboardError}
-          </p>
-        )}
-
-        <div className="s01-top-workspace">
-          <div className="s01-status-card s05-section-accent-primary">
-            <div className="s01-card-top-bar">
-              <h3>Cycle Overview</h3>
-              {dashboard && (
-                <span
-                  className={`s01-reg-pill ${
-                    isCommitteeMember || isRegistered || !isDueForEvaluation
-                      ? "is-registered"
-                      : "is-unregistered"
-                  }`}
-                >
-                  {isCommitteeMember
-                    ? "Committee Oversight"
-                    : isRegistered
-                    ? "Registered"
-                    : isDueForEvaluation
-                    ? isOverdue
-                      ? "Overdue"
-                      : "Registration Due"
-                    : "Not Due"}
-                </span>
-              )}
+        {isChecklistOpen ? (
+          <>
+            <div className="yellow-banner" role="status">
+              <strong>
+                {isCommitteeMember
+                  ? "Committee Notice:"
+                  : isDueForEvaluation
+                  ? "Cycle Deadlines:"
+                  : "Evaluation Status:"}
+              </strong>{" "}
+              {dashboardLoading
+                ? "Checking evaluation cycle deadlines..."
+                : isCommitteeMember
+                ? `Assessment Committee members are exempt from course registration. Signup cutoff is ${signupDeadlineLabel}, observations close ${observationEnd}, and surveys are due ${surveyEnd}.`
+                : isRegistered
+                ? `You are registered for the current cycle and placed in the Observer Pool. Observations close ${observationEnd} and surveys are due ${surveyEnd}.`
+                : isDueForEvaluation
+                ? `Action Required: You are ${
+                    isOverdue ? "overdue" : "due"
+                  } for evaluation this cycle. Please register 1 course section by ${signupDeadlineLabel} (observations close ${observationEnd}).`
+                : nextDueSemester
+                ? `You are not due for observation this semester (next due: ${nextDueSemester}). Course registration is not required unless you are participating.`
+                : "You are not due for observation this semester. Course registration is only required for faculty who are due or overdue."}
             </div>
 
-            {dashboardLoading ? (
-              <p className="s01-subtitle">Loading cycle status...</p>
-            ) : isCommitteeMember ? (
-              <div className="s01-status-metrics">
-                <div className="s01-stat-box">
-                  <span className="s01-stat-label">Participant Role</span>
-                  <span className="s01-stat-val">Exempt (Committee)</span>
+            {dashboardError && (
+              <p className="signin-error-banner" role="alert">
+                Could not load live dashboard data: {dashboardError}
+              </p>
+            )}
+
+            <div className="s01-top-workspace">
+              <div className="s01-status-card s05-section-accent-primary">
+                <div className="s01-card-top-bar">
+                  <h3>Cycle Overview</h3>
+                  {dashboard && (
+                    <span
+                      className={`s01-reg-pill ${
+                        isCommitteeMember || isRegistered || !isDueForEvaluation
+                          ? "is-registered"
+                          : "is-unregistered"
+                      }`}
+                    >
+                      {isCommitteeMember
+                        ? "Committee Oversight"
+                        : isRegistered
+                        ? "Registered"
+                        : isDueForEvaluation
+                        ? isOverdue
+                          ? "Overdue"
+                          : "Registration Due"
+                        : "Not Due"}
+                    </span>
+                  )}
                 </div>
 
-                <div className="s01-stat-box">
-                  <span className="s01-stat-label">Observation Deadline</span>
-                  <span className="s01-stat-val">{observationEnd}</span>
-                </div>
+                {dashboardLoading ? (
+                  <p className="s01-subtitle">Loading cycle status...</p>
+                ) : isCommitteeMember ? (
+                  <div className="s01-status-metrics">
+                    <div className="s01-stat-box">
+                      <span className="s01-stat-label">Participant Role</span>
+                      <span className="s01-stat-val">Exempt (Committee)</span>
+                    </div>
 
-                <div className="s01-stat-box">
-                  <span className="s01-stat-label">Survey Deadline</span>
-                  <span className="s01-stat-val">{surveyEnd}</span>
-                </div>
+                    <div className="s01-stat-box">
+                      <span className="s01-stat-label">
+                        Observation Deadline
+                      </span>
+                      <span className="s01-stat-val">{observationEnd}</span>
+                    </div>
+
+                    <div className="s01-stat-box">
+                      <span className="s01-stat-label">Survey Deadline</span>
+                      <span className="s01-stat-val">{surveyEnd}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="s01-status-metrics">
+                    <div className="s01-stat-box">
+                      <span className="s01-stat-label">Cycle Status</span>
+                      <span className="s01-stat-val">
+                        {isRegistered
+                          ? "Registered"
+                          : isDueForEvaluation
+                          ? "Action Needed"
+                          : nextDueSemester
+                          ? `Due ${nextDueSemester}`
+                          : "Not Due"}
+                      </span>
+                    </div>
+
+                    <div className="s01-stat-box">
+                      <span className="s01-stat-label">
+                        Observation Deadline
+                      </span>
+                      <span className="s01-stat-val">{observationEnd}</span>
+                    </div>
+
+                    <div className="s01-stat-box">
+                      <span className="s01-stat-label">Faculty Rank</span>
+                      <span className="s01-stat-val">{displayRank}</span>
+                    </div>
+                  </div>
+                )}
+
+                {isCommitteeMember ? (
+                  <Link to="/committee/dashboard" className="btn-accent-blue">
+                    Open Committee Command Center →
+                  </Link>
+                ) : (
+                  !isRegistered &&
+                  isDueForEvaluation &&
+                  canUseFacultyModules && (
+                    <Link
+                      to="/observee/course-selection"
+                      className="btn-accent-blue"
+                    >
+                      Complete Registration →
+                    </Link>
+                  )
+                )}
               </div>
-            ) : (
-              <div className="s01-status-metrics">
-                <div className="s01-stat-box">
-                  <span className="s01-stat-label">Cycle Status</span>
-                  <span className="s01-stat-val">
-                    {isRegistered
-                      ? "Registered"
-                      : isDueForEvaluation
-                      ? "Action Needed"
-                      : nextDueSemester
-                      ? `Due ${nextDueSemester}`
-                      : "Not Due"}
+
+              <div className="s01-checklist-card s05-section-accent-sage">
+                <div className="s01-card-top-bar">
+                  <h3>My Cycle To-Do and Notebook</h3>
+                  <span className="s01-progress-badge">
+                    {progressPercent}% Complete
                   </span>
                 </div>
 
-                <div className="s01-stat-box">
-                  <span className="s01-stat-label">Observation Deadline</span>
-                  <span className="s01-stat-val">{observationEnd}</span>
-                </div>
-
-                <div className="s01-stat-box">
-                  <span className="s01-stat-label">Faculty Rank</span>
-                  <span className="s01-stat-val">{displayRank}</span>
-                </div>
-              </div>
-            )}
-
-            {isCommitteeMember ? (
-              <Link to="/committee/dashboard" className="btn-accent-blue">
-                Open Committee Command Center →
-              </Link>
-            ) : (
-              !isRegistered &&
-              isDueForEvaluation &&
-              canUseFacultyModules && (
-                <Link
-                  to="/observee/course-selection"
-                  className="btn-accent-blue"
-                >
-                  Complete Registration →
-                </Link>
-              )
-            )}
-          </div>
-
-          {/* Collapsible Checklist Card */}
-          <div className="s01-checklist-card s05-section-accent-sage">
-            <div
-              className={`s01-card-top-bar ${
-                !isChecklistOpen ? "is-collapsed" : ""
-              }`}
-            >
-              <h3>My Cycle To-Do and Notebook</h3>
-              <div className="checklist-header-controls">
-                <span className="s01-progress-badge">
-                  {completedItems} / {totalItems} Done
-                </span>
-                <button
-                  type="button"
-                  className="btn-secondary checklist-toggle-btn"
-                  aria-expanded={isChecklistOpen}
-                  onClick={toggleChecklistOpen}
-                >
-                  {isChecklistOpen ? "Hide ▲" : "Show ▼"}
-                </button>
-              </div>
-            </div>
-
-            {isChecklistOpen ? (
-              <>
                 <div
                   className="s01-progress-track"
                   role="progressbar"
@@ -1206,15 +1221,17 @@ export default function S01FacultyDashboard() {
                     + Add
                   </button>
                 </form>
-              </>
-            ) : (
-              <p className="checklist-collapsed-hint">
-                Checklist collapsed ({completedItems} of {totalItems} tasks
-                completed). Click <strong>Show</strong> to view or add tasks.
-              </p>
-            )}
-          </div>
-        </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="checklist-collapsed-hint">
+            Workspace collapsed ({completedItems} of {totalItems} tasks
+            completed · Observations close <strong>{observationEnd}</strong> ·
+            Surveys due <strong>{surveyEnd}</strong>). Click{" "}
+            <strong>Show Task List</strong> to expand.
+          </p>
+        )}
       </section>
 
       <section className="dashboard-phase">

@@ -47,6 +47,21 @@ export function savePendingCourseChangeRequest(
   }
 }
 
+function getApprovedCourseOverrideForUser(fullName: string): Course | null {
+  if (!fullName) return null;
+  try {
+    const raw = localStorage.getItem("ac_approved_course_overrides");
+    if (!raw) return null;
+    const map = JSON.parse(raw) as Record<
+      string,
+      { course?: Course }
+    >;
+    return map[fullName.trim().toLowerCase()]?.course ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function extractCourseStartTime(schedule: string): string {
   const match = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i);
 
@@ -628,7 +643,14 @@ export default function E01CourseSelection() {
                   }) has passed.`}{" "}
               You can still view all sections and propose updates below, but any
               changes will remain <strong>pending</strong> until approved by an
-              Assessment Committee member.
+              Assessment Committee member. For more information, please {" "}
+              <a
+                href="mailto:assessment-committee@utdallas.edu?subject=Course%20Registration%20Change%20Support"
+                className="s04-inline-link"
+              >
+                contact the Assessment Committee
+              </a>
+              .
             </>
           ) : (
             <>

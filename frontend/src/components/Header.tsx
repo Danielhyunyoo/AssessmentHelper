@@ -2,10 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Logo } from "./NightModeToggle";
-import home from "../assets/home_icon.png";
-import bellDefault from "../assets/default_bell_icon.png";
-import bellActive from "../assets/active_notifications_bell_icon.png";
-import profileIcon from "../assets/profile_icon.png";
 import { authApi, facultyApi } from "../api/endpoints";
 import type { Notification, Professor } from "../api/types";
 
@@ -14,6 +10,157 @@ interface NotificationPreview {
   title: string;
   time: string;
   unread: boolean;
+}
+
+function HomeShortcutIcon() {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Roof overhang */}
+      <path
+        className="icon-stroke-primary"
+        d="M3.5 13.5L14 5L24.5 13.5"
+      />
+      {/* House walls */}
+      <path
+        className="icon-stroke-primary"
+        d="M6.5 12V21.5C6.5 22.05 6.95 22.5 7.5 22.5H20.5C21.05 22.5 21.5 22.05 21.5 21.5V12"
+      />
+      {/* Doorway only filled */}
+      <path
+        className="icon-fill-orange icon-stroke-primary"
+        d="M11.5 22.5V16.2C11.5 15.54 12.04 15 12.7 15H15.3C15.96 15 16.5 15.54 16.5 16.2V22.5"
+      />
+    </svg>
+  );
+}
+
+function ContactCommitteeIcon() {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Top flap only filled */}
+      <path
+        className="icon-fill-green"
+        d="M4.2 7.4C4.6 6.85 5.25 6.5 6 6.5H22C22.75 6.5 23.4 6.85 23.8 7.4L14.9 14.4C14.37 14.82 13.63 14.82 13.1 14.4L4.2 7.4Z"
+      />
+      {/* Envelope outer frame */}
+      <rect
+        className="icon-stroke-primary"
+        x="3.5"
+        y="6.5"
+        width="21"
+        height="15"
+        rx="3"
+      />
+      {/* Envelope flap crease */}
+      <path
+        className="icon-stroke-primary"
+        d="M4.3 7.6L13.1 14.4C13.63 14.82 14.37 14.82 14.9 14.4L23.7 7.6"
+      />
+    </svg>
+  );
+}
+
+function BellShortcutIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Clean bell outline */}
+      <path
+        className="icon-stroke-primary"
+        d="M14 5.5C9.86 5.5 6.8 8.65 6.8 12.7V16.8L4.8 19.2C4.45 19.62 4.75 20.25 5.3 20.25H22.7C23.25 20.25 23.55 19.62 23.2 19.2L21.2 16.8V12.7C21.2 8.65 18.14 5.5 14 5.5Z"
+      />
+      {/* Top finial */}
+      <path className="icon-stroke-primary" d="M14 3.5V5.5" />
+      {/* Clapper */}
+      <path
+        className="icon-stroke-primary"
+        d="M11.2 21C11.65 22.35 12.72 23.25 14 23.25C15.28 23.25 16.35 22.35 16.8 21"
+      />
+      {/* Red unread indicator dot */}
+      {active && (
+        <circle
+          className="icon-unread-dot"
+          cx="21"
+          cy="7.4"
+          r="4"
+        />
+      )}
+    </svg>
+  );
+}
+
+function ProfileShortcutIcon() {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Outer ring */}
+      <circle
+        className="icon-stroke-primary"
+        cx="14"
+        cy="14"
+        r="10.2"
+      />
+      {/* Person head shaded */}
+      <circle
+        className="icon-fill-green icon-stroke-primary"
+        cx="14"
+        cy="11.1"
+        r="3.3"
+      />
+      {/* Person shoulders shaded */}
+      <path
+        className="icon-fill-green icon-stroke-primary"
+        d="M7.9 21.7C9.1 18.6 11.3 17.1 14 17.1C16.7 17.1 18.9 18.6 20.1 21.7C18.4 23.2 16.3 24.1 14 24.1C11.7 24.1 9.6 23.2 7.9 21.7Z"
+      />
+    </svg>
+  );
+}
+
+function MenuShortcutIcon() {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Subtle accent pill behind middle line */}
+      <rect
+        className="icon-fill-orange"
+        x="4.5"
+        y="12"
+        width="19"
+        height="4"
+        rx="2"
+      />
+      <path className="icon-stroke-primary" d="M5 8.5H23" />
+      <path className="icon-stroke-primary" d="M5 14H23" />
+      <path className="icon-stroke-primary" d="M5 19.5H23" />
+    </svg>
+  );
 }
 
 function getInitials(name: string): string {
@@ -303,8 +450,17 @@ export default function Header() {
 
         <nav id="user-shortcuts">
           <Link to="/" title="Go to Home" onClick={closeAllMenus}>
-            <img className="icon" src={home} alt="Home" />
+            <HomeShortcutIcon />
           </Link>
+
+          <a
+            href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
+            title="Contact Assessment Committee"
+            aria-label="Contact Assessment Committee"
+            onClick={closeAllMenus}
+          >
+            <ContactCommitteeIcon />
+          </a>
 
           <div ref={notifRef} className="header-popover-container">
             <button
@@ -313,14 +469,8 @@ export default function Header() {
               title="Notifications"
               className="header-icon-btn"
             >
-              <img
-                className="icon"
-                src={
-                  unreadCount > 0 && hasUnreadNotifications
-                    ? bellActive
-                    : bellDefault
-                }
-                alt="Notifications"
+              <BellShortcutIcon
+                active={unreadCount > 0 && hasUnreadNotifications}
               />
             </button>
 
@@ -410,7 +560,7 @@ export default function Header() {
               className="header-icon-btn"
             >
               {!isLoggedIn ? (
-                <img className="icon" src={profileIcon} alt="Profile" />
+                <ProfileShortcutIcon />
               ) : hasCustomAvatar ? (
                 <img
                   className="icon header-user-avatar"
@@ -484,11 +634,12 @@ export default function Header() {
 
           <button
             type="button"
-            className="hamburger-btn"
+            className="header-icon-btn hamburger-btn"
             onClick={toggleMenu}
             aria-label="Toggle Navigation Menu"
+            title="Navigation Menu"
           >
-            &#9776;
+            <MenuShortcutIcon />
           </button>
         </nav>
       </header>
@@ -661,6 +812,16 @@ export default function Header() {
                   </Link>
                 </div>
               )}
+
+              <div className="menu-section">
+                <h4>Support</h4>
+                <a
+                  href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
+                  onClick={closeAllMenus}
+                >
+                  Contact Assessment Committee
+                </a>
+              </div>
 
               <div className="menu-section">
                 <h4>Account</h4>

@@ -35,6 +35,21 @@ header {
   align-items: center;
   gap: 1rem;
   position: relative;
+  color: var(--text-primary);
+}
+
+#user-shortcuts > a {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+#user-shortcuts > a:hover {
+  opacity: 0.85;
 }
 
 .icon,
@@ -47,12 +62,61 @@ header .icon,
 }
 
 .header-icon-btn {
-  background: none;
-  border: none;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
   padding: 0;
+  margin: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
+  color: var(--text-primary);
+}
+
+.header-icon-btn:hover {
+  opacity: 0.85;
+}
+
+/* ==========================================
+   HEADER SHORTCUT SVG THEME & SELECTIVE ACCENTS
+   ========================================== */
+.header-shortcut-svg {
+  color: var(--text-primary);
+}
+
+.icon-stroke-primary {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-fill-green {
+  fill: rgba(21, 71, 52, 0.36);
+}
+
+.icon-fill-orange {
+  fill: rgba(232, 117, 0, 0.36);
+}
+
+.icon-unread-dot {
+  fill: #dc2626;
+  stroke: var(--bg-surface);
+  stroke-width: 1.75;
+}
+
+/* Higher contrast shading in dark mode */
+[data-theme="dark"] .icon-fill-green,
+.dark-mode .icon-fill-green,
+.dark .icon-fill-green {
+  fill: rgba(46, 158, 99, 0.45);
+}
+
+[data-theme="dark"] .icon-fill-orange,
+.dark-mode .icon-fill-orange,
+.dark .icon-fill-orange {
+  fill: rgba(232, 117, 0, 0.48);
 }
 
 .header-error-text {
@@ -212,6 +276,17 @@ header .icon,
   height: 28px;
 }
 
+.header-initials-avatar,
+.profile-popover-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
 .profile-popover-name {
   margin: 0;
   font-size: 0.95rem;
@@ -244,17 +319,7 @@ header .icon,
   margin-bottom: 0.75rem;
 }
 
-/* Hamburger & Slide-Over Drawer */
-.hamburger-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-}
-
+/* Slide-Over Drawer */
 .menu-overlay {
   position: fixed;
   top: 0;

@@ -10,6 +10,14 @@ function formatDay(isoDate: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function getRankTier(rank?: string): number {
+  const r = (rank ?? "").toLowerCase();
+  if (r.includes("full") || r === "professor") return 3;
+  if (r.includes("associate")) return 2;
+  if (r.includes("assistant")) return 1;
+  return 0;
+}
+
 function SearchIcon() {
   return (
     <svg
@@ -27,8 +35,16 @@ function SearchIcon() {
 }
 
 export const CYCLE_TRANSFER_STORAGE_KEY = "ac_cycle_transfers";
+export const APPROVED_COURSE_OVERRIDES_KEY = "ac_approved_course_overrides";
 const PENDING_COURSE_CHANGE_KEY = "pending_course_change_requests";
 const LEGACY_PENDING_COURSE_CHANGE_KEY = "pending_course_change_request";
+
+export interface ApprovedCourseOverride {
+  professor_name: string;
+  course: Course;
+  approved_at: string;
+  note?: string;
+}
 
 export interface CycleTransferRecord {
   signup_id?: number | null;
@@ -70,6 +86,38 @@ type ResolutionActionType =
   | "reassign_course"
   | "transfer_cycle"
   | "deny_request";
+
+function readApprovedCourseOverrides(): Record<string, ApprovedCourseOverride> {
+  try {
+    const raw = localStorage.getItem(APPROVED_COURSE_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeApprovedCourseOverride(
+  professorName: string,
+  course: Course,
+  note?: string
+) {
+  try {
+    const existing = readApprovedCourseOverrides();
+    existing[professorName.toLowerCase()] = {
+      professor_name: professorName,
+      course,
+      approved_at: new Date().toISOString(),
+      note,
+    };
+    localStorage.setItem(
+      APPROVED_COURSE_OVERRIDES_KEY,
+      JSON.stringify(existing)
+    );
+    window.dispatchEvent(new Event("course-change-request-updated"));
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 function normalizeRequestItem(
   raw: unknown,
@@ -511,10 +559,17 @@ export default function A02FacultyMatching() {
         )} at 11:59 PM`
       );
 
-      const eligibleObservees: FacultyRow[] = roster.faculty.filter(
-        (faculty: FacultyRow) =>
-          faculty.signup_id !== null && faculty.course !== null
-      );
+      const approvedOverrides = readApprovedCourseOverrides();
+
+      const eligibleObservees: FacultyRow[] = roster.faculty
+        .filter(
+          (faculty: FacultyRow) =>
+            faculty.signup_id !== null && faculty.course !== null
+        )
+        .map((faculty: FacultyRow) => {
+          const override = approvedOverrides[faculty.name.toLowerCase()];
+          return override ? { ...faculty, course: override.course } : faculty;
+        });
 
       const courseMap = new Map<number, Course>();
       (Array.isArray(coursesResp) ? coursesResp : []).forEach((c: Course) =>
@@ -523,6 +578,11 @@ export default function A02FacultyMatching() {
       roster.faculty.forEach((f: FacultyRow) => {
         if (f.course) {
           courseMap.set(f.course.course_id, f.course);
+        }
+      });
+      Object.values(approvedOverrides).forEach((ov) => {
+        if (ov.course) {
+          courseMap.set(ov.course.course_id, ov.course);
         }
       });
       setAvailableCourses(Array.from(courseMap.values()));
@@ -565,13 +625,14 @@ export default function A02FacultyMatching() {
           const signupId = faculty.signup_id!;
           const facultyRec = faculty as unknown as Record<string, unknown>;
           const localInfo = localConfirmed[faculty.name.toLowerCase()];
+          const observeeRankTier = getRankTier(faculty.academic_rank);
 
           try {
             const result = (await committeeApi.candidatePool(
               signupId
             )) as Record<string, unknown>;
 
-            const candidates = Array.isArray(result.candidates)
+            const rawCandidates = Array.isArray(result.candidates)
               ? (result.candidates as {
                   id: number;
                   name: string;
@@ -580,6 +641,55 @@ export default function A02FacultyMatching() {
                   problems?: string[];
                 }[])
               : [];
+
+            // Ensure rank & course-level eligibility rules are consistent
+            const candidates = rawCandidates
+              .map((cand) => {
+                const candTier = getRankTier(cand.academic_level);
+                const rawProblems = Array.isArray(cand.problems)
+                  ? cand.problems
+                  : [];
+
+                // Check if candidate's rank is strictly below the observee's rank
+                if (
+                  observeeRankTier > 0 &&
+                  candTier > 0 &&
+                  candTier < observeeRankTier
+                ) {
+                  const filtered = rawProblems.filter(
+                    (p) => !p.toLowerCase().includes("does not teach a course")
+                  );
+                  return {
+                    ...cand,
+                    eligible: false,
+                    problems: [
+                      `academic rank (${cand.academic_level}) is below observee (${faculty.academic_rank})`,
+                      ...filtered,
+                    ],
+                  };
+                }
+
+                // Clear false-positive course-level blocks when backend flagged a peer/senior professor
+                const nonCourseLevelProblems = rawProblems.filter(
+                  (p) => !p.toLowerCase().includes("does not teach a course")
+                );
+                const isEligible =
+                  nonCourseLevelProblems.length === 0 ? true : false;
+
+                return {
+                  ...cand,
+                  eligible: isEligible,
+                  problems: nonCourseLevelProblems,
+                };
+              })
+              .sort((a, b) => {
+                const aElig = a.eligible !== false ? 0 : 1;
+                const bElig = b.eligible !== false ? 0 : 1;
+                if (aElig !== bElig) return aElig - bElig;
+                return (
+                  getRankTier(b.academic_level) - getRankTier(a.academic_level)
+                );
+              });
 
             const releasedObserverIds: number[] = Array.isArray(
               result.released_observer_ids
@@ -831,24 +941,56 @@ export default function A02FacultyMatching() {
         action === "approve_and_select_observers" ||
         action === "approve_keep_observers"
       ) {
-        try {
-          await facultyApi.selectCourse(req.requested_course_id);
-        } catch {
-          // Allow UI completion even if AC session lacks observee token
-        }
+        const existingCourse =
+          availableCourses.find(
+            (c) => c.course_id === req.requested_course_id
+          ) ??
+          availableCourses[0] ??
+          matchedObservee?.course ??
+          observeeList.find((o) => o.course !== null)?.course;
 
-        const targetCourse = availableCourses.find(
-          (c) => c.course_id === req.requested_course_id
+        const [deptCode = "", numPart = ""] = req.requested_course_label
+          .split("-")[0]
+          .trim()
+          .split(/\s+/);
+
+        const parsedTitle =
+          req.requested_course_label.split("-").slice(1).join("-").trim() ||
+          req.requested_course_label;
+
+        const targetCourse: Course = existingCourse
+          ? {
+              ...existingCourse,
+              course_id: req.requested_course_id,
+              department_code: deptCode || existingCourse.department_code,
+              course_number: numPart || existingCourse.course_number,
+              section: req.requested_section,
+              title: parsedTitle,
+              schedule: req.requested_schedule,
+            }
+          : ({
+              course_id: req.requested_course_id,
+              department_code: deptCode || "CS",
+              course_number: numPart || String(req.requested_course_id),
+              section: req.requested_section,
+              title: parsedTitle,
+              schedule: req.requested_schedule,
+              classroom: "TBD",
+            } as unknown as Course);
+
+        writeApprovedCourseOverride(
+          observeeName,
+          targetCourse,
+          note.trim() || undefined
         );
-        if (targetCourse) {
-          setObserveeList((prev) =>
-            prev.map((obs) =>
-              obs.name.toLowerCase() === observeeName.toLowerCase()
-                ? { ...obs, course: targetCourse }
-                : obs
-            )
-          );
-        }
+
+        setObserveeList((prev) =>
+          prev.map((obs) =>
+            obs.name.toLowerCase() === observeeName.toLowerCase()
+              ? { ...obs, course: targetCourse }
+              : obs
+          )
+        );
 
         if (
           action === "approve_and_select_observers" &&
@@ -865,7 +1007,6 @@ export default function A02FacultyMatching() {
         const remaining = deletePendingChangeRequest(req);
         setPendingChangeRequests(remaining);
         window.dispatchEvent(new Event("notifications-changed"));
-        await loadMatchingData();
 
         if (action === "approve_and_select_observers") {
           focusObserveeMatchCard(
@@ -891,13 +1032,12 @@ export default function A02FacultyMatching() {
           (c) => c.course_id === Number(reassignedId)
         );
 
-        try {
-          await facultyApi.selectCourse(Number(reassignedId));
-        } catch {
-          // Allow UI completion even if AC session lacks observee token
-        }
-
         if (chosenCourse) {
+          writeApprovedCourseOverride(
+            observeeName,
+            chosenCourse,
+            note.trim() || undefined
+          );
           setObserveeList((prev) =>
             prev.map((obs) =>
               obs.name.toLowerCase() === observeeName.toLowerCase()
@@ -923,7 +1063,6 @@ export default function A02FacultyMatching() {
         const remaining = deletePendingChangeRequest(req);
         setPendingChangeRequests(remaining);
         window.dispatchEvent(new Event("notifications-changed"));
-        await loadMatchingData();
 
         focusObserveeMatchCard(
           observeeName,
@@ -1155,7 +1294,6 @@ export default function A02FacultyMatching() {
     );
   });
 
-  // Filtered Confirmed Observer Matches
   const filteredConfirmedObservees = shownConfirmed.filter((person) => {
     const sid = person.signup_id!;
     const confirmedInfo = confirmedBySignupId[sid];
@@ -1223,7 +1361,7 @@ export default function A02FacultyMatching() {
             {shownActive.length} ACTIVE, {shownConfirmed.length} CONFIRMED
           </span>
           {queuedForA03Count > 0 && (
-            <Link to="/committee/unmatched" className="btn-secondary">
+            <Link to="/committee/unmatched-observees" className="btn-secondary">
               Unmatched Observees ({queuedForA03Count}) →
             </Link>
           )}
@@ -1244,7 +1382,7 @@ export default function A02FacultyMatching() {
         <div role="status" className="feedback-banner-success a02-banner-row">
           <span>{matchSuccess}</span>
           {showA03LinkBanner && (
-            <Link to="/committee/unmatched" className="btn-secondary">
+            <Link to="/committee/unmatched-observees" className="btn-secondary">
               Go to Unmatched Observees (A03) →
             </Link>
           )}
@@ -2079,7 +2217,7 @@ export default function A02FacultyMatching() {
         </div>
       </section>
 
-      {/* 4. Confirmed Observer Matches (Upgraded Searchable Card Grid) */}
+      {/* 4. Confirmed Observer Matches */}
       {shownConfirmed.length > 0 && (
         <section className="dashboard-phase section-margin-top">
           <div className="a02-section-header-bar">
@@ -2104,7 +2242,6 @@ export default function A02FacultyMatching() {
           </div>
 
           <div className="table-container theme-blue summary-card-padding">
-            {/* Polished Confirmed Search & Filter Toolbar */}
             <div className="a02-match-toolbar a02-toolbar-flush">
               <div className="a02-search-field">
                 <SearchIcon />
