@@ -1,6 +1,6 @@
 // src/pages/login/L03SignIn2.tsx
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor, RegistrationStatus } from "../../api/types";
 import { formatDate } from "../../api/format";
@@ -27,8 +27,14 @@ const TIME_WINDOWS = [
 
 const AVAILABILITY_STORAGE_KEY = "observer_availability_v1";
 
+interface LocationState {
+  redirectTo?: string;
+}
+
 export default function L03SignIn2() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = (location.state as LocationState | null)?.redirectTo;
 
   const [user, setUser] = useState<Professor | null>(null);
   const [registration, setRegistration] = useState<RegistrationStatus | null>(
@@ -126,6 +132,7 @@ export default function L03SignIn2() {
 
   const isCommittee = user?.role === "admin";
   const cycleName = registration?.cycle_name || "Current Evaluation Cycle";
+  const facultyDestination = redirectTo || "/shared/faculty-dashboard";
 
   const firstName = (() => {
     if (!user) return "";
@@ -170,7 +177,7 @@ export default function L03SignIn2() {
 
       await facultyApi.register();
       window.dispatchEvent(new Event("observer-availability-changed"));
-      navigate("/shared/faculty-dashboard");
+      navigate(facultyDestination);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to register for the cycle."
@@ -293,7 +300,7 @@ export default function L03SignIn2() {
               <button
                 type="button"
                 className="btn-primary l03-primary-cta"
-                onClick={() => navigate("/committee/dashboard")}
+                onClick={() => navigate(redirectTo || "/committee/dashboard")}
               >
                 Go to Committee Dashboard →
               </button>
@@ -314,7 +321,7 @@ export default function L03SignIn2() {
           <span className="a01-phase-pill">Peer Evaluation Portal</span>
           <h2>Welcome{firstName ? `, ${firstName}` : ""}</h2>
           <p className="l03-subtitle">
-            Take a quick moment to check this semester's dates and let us know
+            Take a quick moment to check this semester&apos;s dates and let us know
             when you are free to observe colleagues.
           </p>
         </div>
@@ -326,7 +333,6 @@ export default function L03SignIn2() {
         )}
 
         <div className="registration-card">
-          {/* Dates Bar */}
           {registration && (
             <div className="l03-dates-bar">
               <div className="l03-date-pair">
@@ -350,9 +356,7 @@ export default function L03SignIn2() {
             </div>
           )}
 
-          {/* Balanced Two-Column Layout */}
           <div className="l03-two-col">
-            {/* Left Column: Warm, Simple Overview */}
             <div className="l03-col-section">
               <div className="l03-section-head">
                 <span className="a01-phase-pill">Quick Overview</span>
@@ -385,7 +389,6 @@ export default function L03SignIn2() {
               </p>
             </div>
 
-            {/* Right Column: Observer Availability Customizer */}
             <div className="l03-col-section is-right">
               <div className="l03-section-head">
                 <span className="a01-phase-pill">Optional Setup</span>
@@ -460,7 +463,6 @@ export default function L03SignIn2() {
             </div>
           </div>
 
-          {/* Footer CTA / Status */}
           {isRegistered ? (
             <div className="l03-footer-bar">
               <div className="feedback-banner-success s04-zero-margin">
@@ -471,9 +473,9 @@ export default function L03SignIn2() {
               <button
                 type="button"
                 className="btn-primary l03-primary-cta"
-                onClick={() => navigate("/shared/faculty-dashboard")}
+                onClick={() => navigate(facultyDestination)}
               >
-                Go to My Dashboard →
+                {redirectTo ? "Continue to Requested Page →" : "Go to My Dashboard →"}
               </button>
             </div>
           ) : isPastDeadline ? (
@@ -486,20 +488,17 @@ export default function L03SignIn2() {
               <button
                 type="button"
                 className="btn-primary l03-primary-cta"
-                onClick={() => navigate("/shared/faculty-dashboard")}
+                onClick={() => navigate(facultyDestination)}
               >
-                Go to My Dashboard →
+                {redirectTo ? "Continue to Requested Page →" : "Go to My Dashboard →"}
               </button>
             </div>
           ) : (
             <div className="l03-footer-bar">
               <div className="registration-link-container">
                 <span className="l03-avail-hint">Not due this semester? </span>
-                <Link
-                  to="/shared/faculty-dashboard"
-                  className="registration-link"
-                >
-                  Skip to My Dashboard
+                <Link to={facultyDestination} className="registration-link">
+                  {redirectTo ? "Skip to Requested Page" : "Skip to My Dashboard"}
                 </Link>
               </div>
 
