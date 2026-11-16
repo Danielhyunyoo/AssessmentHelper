@@ -1,6 +1,6 @@
 // src/components/Footer.tsx
 import { Link, useLocation } from "react-router-dom";
-import { Logo } from "./NightModeToggle";
+import darkModeLogo from "../assets/dark_mode_logo.png";
 
 export default function Footer() {
   const location = useLocation();
@@ -19,7 +19,7 @@ export default function Footer() {
         {/* Left Column: Logo, Copyright & Institutional Info */}
         <div className="footer-left-col">
           <div className="footer-brand">
-            <Logo alt="UTD Assessment Helper Logo" className="footer-logo" />
+            <img src={darkModeLogo} alt="UTD Assessment Helper Logo" className="footer-logo" />
             <span className="footer-title">UTD Assessment Helper</span>
           </div>
 

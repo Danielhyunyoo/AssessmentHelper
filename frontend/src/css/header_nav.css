@@ -1,14 +1,17 @@
 /* ==========================================
-   HEADER & NAVIGATION STYLES
+   HEADER & NAVIGATION STYLES (UTD BRAND BAR)
    ========================================== */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 2rem;
-  background-color: var(--bg-surface);
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-primary);
+  padding: 0.95rem 2rem;
+  background: linear-gradient(90deg, #123d2d 0%, #154734 55%, #19533d 100%);
+  border-bottom: 3px solid #e87500;
+  box-shadow: 0 3px 12px rgba(15, 35, 26, 0.22);
+  color: #ffffff;
+  position: relative;
+  z-index: 50;
 }
 
 #logo {
@@ -16,12 +19,14 @@ header {
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
-  color: inherit;
+  color: #ffffff;
 }
 
 #logo h1 {
   font-size: 1.25rem;
   margin: 0;
+  color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
 .header-logo {
@@ -33,9 +38,9 @@ header {
 #user-shortcuts {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.05rem;
   position: relative;
-  color: var(--text-primary);
+  color: #ffffff;
 }
 
 #user-shortcuts > a {
@@ -44,21 +49,22 @@ header {
   background: none;
   border: none;
   padding: 0;
-  color: var(--text-primary);
+  color: #ffffff;
   text-decoration: none;
-}
-
-#user-shortcuts > a:hover {
-  opacity: 0.85;
 }
 
 .icon,
 header .icon,
-#user-shortcuts .icon {
+#user-shortcuts .icon,
+.header-shortcut-svg {
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   object-fit: contain;
   display: block;
+  flex-shrink: 0;
+  color: #ffffff;
 }
 
 .header-icon-btn {
@@ -71,18 +77,13 @@ header .icon,
   cursor: pointer;
   display: flex;
   align-items: center;
-  color: var(--text-primary);
+  color: #ffffff;
 }
 
+#user-shortcuts > a:hover,
 .header-icon-btn:hover {
-  opacity: 0.85;
-}
-
-/* ==========================================
-   HEADER SHORTCUT SVG THEME & SELECTIVE ACCENTS
-   ========================================== */
-.header-shortcut-svg {
-  color: var(--text-primary);
+  color: #ffd7b0;
+  opacity: 0.95;
 }
 
 .icon-stroke-primary {
@@ -93,35 +94,23 @@ header .icon,
 }
 
 .icon-fill-green {
-  fill: rgba(21, 71, 52, 0.36);
+  fill: rgba(255, 255, 255, 0.22);
 }
 
 .icon-fill-orange {
-  fill: rgba(232, 117, 0, 0.36);
+  fill: rgba(232, 117, 0, 0.65);
 }
 
 .icon-unread-dot {
-  fill: #dc2626;
-  stroke: var(--bg-surface);
+  fill: #ff5a36;
+  stroke: #154734;
   stroke-width: 1.75;
 }
 
-/* Higher contrast shading in dark mode */
-[data-theme="dark"] .icon-fill-green,
-.dark-mode .icon-fill-green,
-.dark .icon-fill-green {
-  fill: rgba(46, 158, 99, 0.45);
-}
-
-[data-theme="dark"] .icon-fill-orange,
-.dark-mode .icon-fill-orange,
-.dark .icon-fill-orange {
-  fill: rgba(232, 117, 0, 0.48);
-}
-
 .header-error-text {
-  color: var(--danger-accent);
+  color: #ffd7b0;
   font-size: 0.8rem;
+  margin: 0;
 }
 
 .header-popover-container {
@@ -263,17 +252,18 @@ header .icon,
 .header-user-avatar {
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-strong);
 }
 
 .profile-popover-avatar {
   width: 42px;
   height: 42px;
+  border: 2px solid var(--border-strong);
 }
 
 .header-user-avatar {
   width: 28px;
   height: 28px;
+  border: 2px solid rgba(255, 255, 255, 0.75);
 }
 
 .header-initials-avatar,
@@ -281,10 +271,15 @@ header .icon,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-subtle);
-  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
   font-weight: 700;
   font-size: 0.75rem;
+}
+
+.profile-popover-initials {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
 }
 
 .profile-popover-name {
