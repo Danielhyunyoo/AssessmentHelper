@@ -246,7 +246,7 @@ def notify_course_selected(signup):
         title="Course selection saved",
         message=f"{signup.course} is your course for the {signup.cycle.semester} evaluation cycle.",
         type="registration",
-        destination="/dashboard",
+        destination="/observee/course-selection",
     )
 
 
@@ -709,29 +709,37 @@ def display_name(user):
     return user.get_full_name() or user.username
 
 
+def course_label(course):
+    return f"{course} {course.title}" if course.title else str(course)
+
+
+def when(value):
+    return timezone.localtime(value).strftime("%a, %b %d at %I:%M %p").replace(" 0", " ")
+
+
 def process_invitation_deadlines():
     """Expire unanswered invitations and remind observers a day before they lapse."""
     now = clock.now()
     with transaction.atomic():
         overdue = Invitation.objects.select_for_update().filter(status="pending", expires_at__lte=now)
-        for inv in overdue.select_related("sender", "recipient"):
+        for inv in overdue.select_related("sender", "recipient", "course__department"):
             inv.status = "expired"
             inv.save(update_fields=["status"])
             send_workflow_notification(inv.sender, "Invitation expired",
-                                       f"{display_name(inv.recipient)} did not answer within 48 hours. You can invite them again.",
+                                       f"{display_name(inv.recipient)} did not answer your request for {course_label(inv.course)} within 48 hours. You can invite them again.",
                                        "/observee/observer-selection")
             send_workflow_notification(inv.recipient, "Invitation expired",
-                                       f"The observation request from {display_name(inv.sender)} expired.",
+                                       f"The request from {display_name(inv.sender)} to observe {course_label(inv.course)} expired.",
                                        "/observer/observation-request")
         expiring = Invitation.objects.select_for_update().filter(
             status="pending", reminded_at__isnull=True, expires_at__gt=now, expires_at__lte=now + timedelta(hours=24),
         )
-        for inv in expiring.select_related("sender", "recipient"):
+        for inv in expiring.select_related("sender", "recipient", "course__department"):
             inv.reminded_at = now
             inv.save(update_fields=["reminded_at"])
-            expires = timezone.localtime(inv.expires_at).strftime("%b %d at %I:%M %p").replace(" 0", " ")
+            expires = when(inv.expires_at)
             send_workflow_notification(inv.recipient, "Invitation expires soon",
-                                       f"The observation request from {display_name(inv.sender)} expires {expires}.",
+                                       f"The request from {display_name(inv.sender)} to observe {course_label(inv.course)} expires {expires}. Pick a date or decline before then.",
                                        "/observer/observation-request")
 
 
@@ -831,7 +839,9 @@ def committee_release_candidates(request, signup_id):
             MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
             signup.matches_released_at = clock.now()
             signup.save(update_fields=["matches_released_at"])
-            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observee/observer-selection")
+            send_workflow_notification(signup.user, "Observer candidates available",
+                                       f"The committee released {len(ids)} observer candidates for {course_label(signup.course)}. Invite one or more with your dates.",
+                                       "/observee/observer-selection")
     return Response({"signup_id": signup.pk, "released": True, "observer_ids": ids})
 
 
@@ -983,7 +993,9 @@ def send_invitation(request):
         inv = Invitation.objects.create(cycle=cycle, sender=sender, recipient_id=observer_id,
                                         course=signup.course, expires_at=now + timedelta(hours=48))
         ProposedDate.objects.bulk_create([ProposedDate(invitation=inv, proposed_datetime=d) for d in dates])
-        send_workflow_notification(inv.recipient, "Observation invitation", "You have a new observation request.", "/observer/observation-request")
+        send_workflow_notification(inv.recipient, "Observation invitation",
+                                   f"{display_name(sender)} asked you to observe {course_label(inv.course)}. Pick one of {len(dates)} dates by {when(inv.expires_at)}.",
+                                   "/observer/observation-request")
     return Response(invitation_json(inv), status=status.HTTP_201_CREATED)
 
 
@@ -1030,12 +1042,13 @@ def respond_to_invitation(request, invitation_id):
             date.status = "accepted"
             date.save(update_fields=["status"])
             inv.status = "accepted"
+            message = f"{display_name(user)} accepted to observe {course_label(inv.course)} on {when(date.proposed_datetime)}. Confirm them to finalize the pairing."
         else:
             inv.status = "declined"
+            message = f"{display_name(user)} declined to observe {course_label(inv.course)}."
         inv.responded_at = clock.now()
         inv.save(update_fields=["status", "responded_at"])
-        send_workflow_notification(inv.sender, "Invitation response",
-                                   f"{display_name(inv.recipient)} {inv.status} your invitation.", "/observee/observer-selection")
+        send_workflow_notification(inv.sender, "Invitation response", message, "/observee/observer-selection")
     return Response(invitation_json(inv))
 
 
@@ -1044,7 +1057,7 @@ def _reject(inv):
     inv.responded_at = inv.responded_at or clock.now()
     inv.save(update_fields=["status", "responded_at"])
     send_workflow_notification(inv.recipient, "Invitation withdrawn",
-                               f"{display_name(inv.sender)} withdrew their observation request.",
+                               f"{display_name(inv.sender)} withdrew the request to observe {course_label(inv.course)}.",
                                "/observer/observation-request")
 
 
@@ -1128,8 +1141,12 @@ def confirm_pairing(request):
         Invitation.objects.filter(pk__in=[other.pk for other in other_invitations]).update(status="closed")
         for other in other_invitations:
             send_workflow_notification(other.recipient, "Invitation closed",
-                                       "The observee confirmed another observer.", "/observer-requests")
-        send_workflow_notification(inv.recipient, "Observation confirmed", "Your observation assignment has been confirmed.", "/observer-assignments")
+                                       f"{display_name(observee)} confirmed another observer for {course_label(inv.course)}.",
+                                       "/observer/observation-request")
+        room = f" in {inv.course.classroom}" if inv.course.classroom else ""
+        send_workflow_notification(inv.recipient, "Observation confirmed",
+                                   f"{display_name(observee)} confirmed you as the observer for {course_label(inv.course)} on {when(date.proposed_datetime)}{room}.",
+                                   "/shared/current-past-observations")
     return Response({"pairing_id": pairing.pk, "observer_id": pairing.observer_id,
                      "course_id": pairing.course_id, "confirmed_datetime": pairing.confirmed_datetime}, status=status.HTTP_201_CREATED)
 
@@ -1341,14 +1358,14 @@ def sign_observation(request, observation_id):
             observation.status = "awaiting_observee_signature"
             observation.save(update_fields=["observer_signed", "observer_signed_at", "status"])
             send_workflow_notification(observation.pairing.observee, "Observation ready to sign",
-                                       "The observer submitted the evaluation record.", f"/shared/observation-record/{observation.pk}")
+                                       f"{display_name(user)} signed the record for {course_label(observation.pairing.course)}. Review and sign it to lock the record.", f"/shared/observation-record/{observation.pk}")
         else:
             observation.observee_signed = True
             observation.observee_signed_at = clock.now()
             observation.status = "completed"
             observation.save(update_fields=["observee_signed", "observee_signed_at", "status"])
             send_workflow_notification(observation.pairing.observer, "Observation completed",
-                                       "Both participants have signed the observation record.", f"/shared/observation-record/{observation.pk}")
+                                       f"{display_name(user)} signed the record for {course_label(observation.pairing.course)}. The record is now locked.", f"/shared/observation-record/{observation.pk}")
     return Response(_observation_json(observation, user))
 
 
@@ -1370,11 +1387,12 @@ def cancel_observation(request, observation_id):
         # next-cycle scheduling workflow is not yet implemented.
         other_user = observation.pairing.observee if user.pk == observation.pairing.observer_id else observation.pairing.observer
         send_workflow_notification(other_user, "Observation reported incomplete",
-                                   "The observation has been reported as not completed.", f"/observations/{observation.pk}")
+                                   f"{display_name(user)} reported that the observation for {course_label(observation.pairing.course)} did not happen.",
+                                   f"/shared/observation-record/{observation.pk}")
         for member in User.objects.filter(is_active=True).filter(Q(role="admin") | Q(is_staff=True) | Q(is_superuser=True)).distinct():
             send_workflow_notification(member, "Observation cancellation alert",
-                                       f"Observation {observation.pk} was cancelled: {observation.cancellation_reason}",
-                                       f"/committee/observations/{observation.pk}")
+                                       f"{display_name(user)} reported that the observation of {display_name(observation.pairing.observee)} for {course_label(observation.pairing.course)} did not happen. Reason: {observation.cancellation_reason}",
+                                       "/committee/pending-records")
     return Response(_observation_json(observation, user))
 
 
@@ -2218,7 +2236,7 @@ def committee_carry_forward(request):
             Notification.objects.create(
                 user=signup.user, title="Evaluation moved to next cycle",
                 message=f"Your incomplete matching case will be due in {target.semester}. Reason: {reason}",
-                type="carry_forward", is_urgent=True, destination="/profile",
+                type="carry_forward", is_urgent=True, destination="/shared/profile",
             )
     return Response({
         "source_cycle_id": cycle.pk,

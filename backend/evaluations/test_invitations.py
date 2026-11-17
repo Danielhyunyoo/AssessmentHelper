@@ -57,6 +57,28 @@ class InvitationTests(APITestCase):
     def titles(self, user):
         return list(Notification.objects.filter(user=user).values_list("title", flat=True))
 
+    def latest_message(self, user):
+        return Notification.objects.filter(user=user).latest("pk").message
+
+    def test_notifications_name_the_person_course_and_date(self):
+        course = str(Course.objects.get(instructor=self.professor_a, course_number="2337"))
+        b = self.invite(self.professor_b).data["invitation_id"]
+        invite = self.latest_message(self.professor_b)
+        self.assertIn("Professor A", invite)
+        self.assertIn(course, invite)
+        self.assertIn("5 dates", invite)
+
+        self.accept(self.professor_b, b, 1)
+        accepted = self.latest_message(self.professor_a)
+        self.assertIn("Professor B accepted", accepted)
+        self.assertIn(course, accepted)
+        self.assertIn("Wed, Sep 9 at 10:00 AM", accepted)
+
+        self.confirm(b)
+        confirmed = self.latest_message(self.professor_b)
+        self.assertIn("Professor A confirmed you", confirmed)
+        self.assertIn("Wed, Sep 9 at 10:00 AM", confirmed)
+
     def test_confirming_one_of_two_accepted_observers_closes_the_other(self):
         b = self.invite(self.professor_b).data["invitation_id"]
         c = self.invite(self.professor_c).data["invitation_id"]
