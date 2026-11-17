@@ -9,6 +9,7 @@ const PAGE_SIZE = 25;
 
 export interface CommitteeReply {
   id: string;
+  senderRole?: "faculty" | "committee";
   responderName: string;
   body: string;
   createdAt: string;
@@ -16,9 +17,13 @@ export interface CommitteeReply {
 
 export interface CommitteeInquiry {
   id: string;
+  initiatedBy?: "faculty" | "committee";
   senderUserId: string;
   senderName: string;
   senderEmail: string;
+  recipientUserId?: string;
+  recipientName?: string;
+  recipientEmail?: string;
   topic: string;
   courseContext: string;
   subject: string;
@@ -30,13 +35,28 @@ export interface CommitteeInquiry {
   createdAt: string;
 }
 
-const TOPIC_OPTIONS = [
+interface FacultyRecipientOption {
+  userId: string;
+  name: string;
+  email: string;
+}
+
+const FACULTY_TOPIC_OPTIONS = [
   "Course Selection or Section Change",
   "Observer Matching and Pairing Request",
   "Schedule Conflict or Deadline Extension",
   "Observation Form or Signature Issue",
   "Post-Evaluation Survey Question",
   "General Assessment Cycle Inquiry",
+];
+
+const COMMITTEE_TOPIC_OPTIONS = [
+  "Course Selection or Section Follow-Up",
+  "Observer Matching Update",
+  "Upcoming Observation Deadline Reminder",
+  "Observation Form or Signature Request",
+  "Post-Evaluation Survey Reminder",
+  "General Committee Notice",
 ];
 
 const COMMITTEE_EMAIL = "assessment-committee@utdallas.edu";
@@ -81,14 +101,41 @@ function getUserIdentity(user: Professor | null): {
   };
 }
 
+function getFacultyParticipant(item: CommitteeInquiry): {
+  userId: string;
+  name: string;
+  email: string;
+} {
+  if (item.initiatedBy === "committee") {
+    return {
+      userId: item.recipientUserId || "",
+      name: item.recipientName || "Faculty Member",
+      email: item.recipientEmail || "",
+    };
+  }
+  return {
+    userId: item.senderUserId,
+    name: item.senderName,
+    email: item.senderEmail,
+  };
+}
+
 function belongsToFaculty(
   item: CommitteeInquiry,
   user: Professor | null
 ): boolean {
   const { userId, email } = getUserIdentity(user);
   if (!userId && !email) return false;
-  if (userId && item.senderUserId && item.senderUserId === userId) return true;
-  if (email && item.senderEmail && item.senderEmail.toLowerCase() === email) {
+
+  const participant = getFacultyParticipant(item);
+  if (userId && participant.userId && participant.userId === userId) {
+    return true;
+  }
+  if (
+    email &&
+    participant.email &&
+    participant.email.toLowerCase() === email
+  ) {
     return true;
   }
   return false;
@@ -133,15 +180,19 @@ export function hasUnseenCommitteeMessages(user?: Professor | null): boolean {
 export default function S07ContactCommittee() {
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [rosterRecipients, setRosterRecipients] = useState<
+    FacultyRecipientOption[]
+  >([]);
 
-  // Contact form state
-  const [topic, setTopic] = useState(TOPIC_OPTIONS[0]);
+  // Shared compose form state (used by faculty contacting committee OR committee messaging faculty)
+  const [selectedRecipientKey, setSelectedRecipientKey] = useState("");
+  const [topic, setTopic] = useState(FACULTY_TOPIC_OPTIONS[0]);
   const [courseContext, setCourseContext] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [urgent, setUrgent] = useState(false);
 
-  // Inbox state (supports 1000+ threads via search + pagination)
+  // Inbox state (supports 1000+ threads via search and pagination)
   const [isInboxVisible, setIsInboxVisible] = useState(true);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [inboxFilter, setInboxFilter] = useState<"all" | "replied">("all");
@@ -166,6 +217,16 @@ export default function S07ContactCommittee() {
   const dashboardPath = isCommittee
     ? "/committee/dashboard"
     : "/shared/faculty-dashboard";
+
+  const activeTopicOptions = isCommittee
+    ? COMMITTEE_TOPIC_OPTIONS
+    : FACULTY_TOPIC_OPTIONS;
+
+  useEffect(() => {
+    setTopic(
+      isCommittee ? COMMITTEE_TOPIC_OPTIONS[0] : FACULTY_TOPIC_OPTIONS[0]
+    );
+  }, [isCommittee]);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,8 +255,49 @@ export default function S07ContactCommittee() {
         setCurrentUser(resolvedUser);
 
         if (resolvedUser) {
-          const stored = loadStoredInquiries();
           const adminUser = isCommitteeAccount(resolvedUser);
+
+          if (adminUser) {
+            try {
+              const apiRecord = facultyApi as unknown as Record<
+                string,
+                (() => Promise<Record<string, unknown>>) | undefined
+              >;
+              const listFn =
+                apiRecord.list ||
+                apiRecord.all ||
+                apiRecord.roster ||
+                apiRecord.directory;
+
+              if (typeof listFn === "function") {
+                const res = await listFn();
+                const rawList = (res?.professors ??
+                  res?.faculty ??
+                  res?.data ??
+                  []) as Professor[];
+
+                if (!cancelled && Array.isArray(rawList)) {
+                  const mapped: FacultyRecipientOption[] = rawList
+                    .filter((prof) => !isCommitteeAccount(prof))
+                    .map((prof) => {
+                      const identity = getUserIdentity(prof);
+                      return {
+                        userId: identity.userId,
+                        name: identity.name,
+                        email: prof.email || "",
+                      };
+                    })
+                    .filter((opt) => opt.name);
+
+                  setRosterRecipients(mapped);
+                }
+              }
+            } catch {
+              // Fallback recipients will be derived from existing threads if roster endpoint is unavailable
+            }
+          }
+
+          const stored = loadStoredInquiries();
           let changed = false;
 
           const updated = stored.map((item) => {
@@ -253,6 +355,52 @@ export default function S07ContactCommittee() {
     };
   }, []);
 
+  // Build deduplicated faculty recipient options for committee members
+  const facultyRecipients = useMemo(() => {
+    const map = new Map<string, FacultyRecipientOption>();
+
+    rosterRecipients.forEach((opt) => {
+      const key = opt.email.toLowerCase() || opt.userId || opt.name;
+      if (key && !map.has(key)) {
+        map.set(key, opt);
+      }
+    });
+
+    allInquiries.forEach((item) => {
+      const participant = getFacultyParticipant(item);
+      const key =
+        participant.email.toLowerCase() ||
+        participant.userId ||
+        participant.name;
+      if (key && !map.has(key)) {
+        map.set(key, participant);
+      }
+    });
+
+    return Array.from(map.entries()).map(([key, value]) => ({
+      key,
+      ...value,
+    }));
+  }, [rosterRecipients, allInquiries]);
+
+  useEffect(() => {
+    if (
+      isCommittee &&
+      facultyRecipients.length > 0 &&
+      !selectedRecipientKey
+    ) {
+      setSelectedRecipientKey(facultyRecipients[0].key);
+    }
+  }, [isCommittee, facultyRecipients, selectedRecipientKey]);
+
+  const activeRecipient = useMemo(
+    () =>
+      facultyRecipients.find((r) => r.key === selectedRecipientKey) ??
+      facultyRecipients[0] ??
+      null,
+    [facultyRecipients, selectedRecipientKey]
+  );
+
   // Strict role-based visibility
   const visibleThreads = useMemo(() => {
     if (!currentUser) return [];
@@ -272,10 +420,11 @@ export default function S07ContactCommittee() {
         return false;
       }
       if (!q) return true;
+      const participant = getFacultyParticipant(item);
       return (
         item.subject.toLowerCase().includes(q) ||
-        item.senderName.toLowerCase().includes(q) ||
-        item.senderEmail.toLowerCase().includes(q) ||
+        participant.name.toLowerCase().includes(q) ||
+        participant.email.toLowerCase().includes(q) ||
         item.topic.toLowerCase().includes(q) ||
         item.courseContext.toLowerCase().includes(q) ||
         item.message.toLowerCase().includes(q) ||
@@ -284,7 +433,6 @@ export default function S07ContactCommittee() {
     });
   }, [visibleThreads, inboxFilter, searchQuery]);
 
-  // Pagination so 1,000+ emails stay fast and clean
   const totalPages = Math.max(1, Math.ceil(filteredThreads.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paginatedThreads = useMemo(() => {
@@ -301,7 +449,11 @@ export default function S07ContactCommittee() {
     );
   }, [filteredThreads, paginatedThreads, selectedThreadId]);
 
-  const mailtoHref = `mailto:${COMMITTEE_EMAIL}?subject=${encodeURIComponent(
+  const targetEmail = isCommittee
+    ? activeRecipient?.email || ""
+    : COMMITTEE_EMAIL;
+
+  const mailtoHref = `mailto:${targetEmail}?subject=${encodeURIComponent(
     subject.trim()
       ? `[${topic}] ${subject.trim()}`
       : `UTD Assessment Helper: ${topic}`
@@ -312,8 +464,9 @@ export default function S07ContactCommittee() {
   )}`;
 
   const handleCopyEmail = async () => {
+    if (!targetEmail) return;
     try {
-      await navigator.clipboard.writeText(COMMITTEE_EMAIL);
+      await navigator.clipboard.writeText(targetEmail);
       setCopiedEmail(true);
       setTimeout(() => setCopiedEmail(false), 2500);
     } catch {
@@ -321,19 +474,24 @@ export default function S07ContactCommittee() {
     }
   };
 
-  const handleSubmitInquiry = (e: React.FormEvent) => {
+  const handleSubmitNewThread = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
+    if (isCommittee && !activeRecipient) {
+      setError("Please select a faculty recipient before sending.");
+      return;
+    }
+
     if (!subject.trim()) {
-      setError("Please enter a short subject line for your inquiry.");
+      setError("Please enter a short subject line for your message.");
       return;
     }
 
     if (message.trim().length < 10) {
       setError(
-        "Please enter at least 10 characters describing your question or request."
+        "Please enter at least 10 characters describing your message."
       );
       return;
     }
@@ -341,21 +499,42 @@ export default function S07ContactCommittee() {
     setSubmitting(true);
 
     const newId = `inq-${Date.now()}`;
-    const newInquiry: CommitteeInquiry = {
-      id: newId,
-      senderUserId: userId,
-      senderName,
-      senderEmail: currentUser?.email || "",
-      topic,
-      courseContext: courseContext.trim(),
-      subject: subject.trim(),
-      message: message.trim(),
-      urgent,
-      unreadForFaculty: false,
-      unreadForCommittee: true,
-      replies: [],
-      createdAt: new Date().toISOString(),
-    };
+    const newInquiry: CommitteeInquiry = isCommittee
+      ? {
+          id: newId,
+          initiatedBy: "committee",
+          senderUserId: userId,
+          senderName: senderName || "Assessment Committee",
+          senderEmail: currentUser?.email || COMMITTEE_EMAIL,
+          recipientUserId: activeRecipient?.userId || "",
+          recipientName: activeRecipient?.name || "Faculty Member",
+          recipientEmail: activeRecipient?.email || "",
+          topic,
+          courseContext: courseContext.trim(),
+          subject: subject.trim(),
+          message: message.trim(),
+          urgent,
+          unreadForFaculty: true,
+          unreadForCommittee: false,
+          replies: [],
+          createdAt: new Date().toISOString(),
+        }
+      : {
+          id: newId,
+          initiatedBy: "faculty",
+          senderUserId: userId,
+          senderName,
+          senderEmail: currentUser?.email || "",
+          topic,
+          courseContext: courseContext.trim(),
+          subject: subject.trim(),
+          message: message.trim(),
+          urgent,
+          unreadForFaculty: false,
+          unreadForCommittee: true,
+          replies: [],
+          createdAt: new Date().toISOString(),
+        };
 
     const updated = [newInquiry, ...allInquiries];
     setAllInquiries(updated);
@@ -369,11 +548,13 @@ export default function S07ContactCommittee() {
     setUrgent(false);
     setSubmitting(false);
     setSuccess(
-      "Your inquiry has been delivered to the Assessment Committee inbox."
+      isCommittee
+        ? `Your message has been delivered to ${activeRecipient?.name}'s inbox.`
+        : "Your inquiry has been delivered to the Assessment Committee inbox."
     );
   };
 
-  const handleSendCommitteeReply = (inquiryId: string) => {
+  const handleSendThreadReply = (inquiryId: string) => {
     const draft = (replyDrafts[inquiryId] || "").trim();
     if (!draft) {
       setError("Please enter a response before sending.");
@@ -383,7 +564,9 @@ export default function S07ContactCommittee() {
     setError("");
     const newReply: CommitteeReply = {
       id: `rep-${Date.now()}`,
-      responderName: senderName || "Assessment Committee",
+      senderRole: isCommittee ? "committee" : "faculty",
+      responderName:
+        senderName || (isCommittee ? "Assessment Committee" : "Faculty Member"),
       body: draft,
       createdAt: new Date().toISOString(),
     };
@@ -392,8 +575,8 @@ export default function S07ContactCommittee() {
       if (item.id !== inquiryId) return item;
       return {
         ...item,
-        unreadForFaculty: true,
-        unreadForCommittee: false,
+        unreadForFaculty: isCommittee ? true : false,
+        unreadForCommittee: isCommittee ? false : true,
         replies: [...item.replies, newReply],
       };
     });
@@ -401,7 +584,11 @@ export default function S07ContactCommittee() {
     setAllInquiries(updated);
     saveStoredInquiries(updated);
     setReplyDrafts((prev) => ({ ...prev, [inquiryId]: "" }));
-    setSuccess("Your response has been sent to the faculty member's inbox.");
+    setSuccess(
+      isCommittee
+        ? "Your response has been sent to the faculty member's inbox."
+        : "Your reply has been sent to the Assessment Committee."
+    );
   };
 
   return (
@@ -412,7 +599,6 @@ export default function S07ContactCommittee() {
         </Link>
       </div>
 
-      {/* Clean Header without the redundant response count badge */}
       <div className="committee-page-header">
         <div className="committee-page-title-block">
           <span className="a01-phase-pill">
@@ -420,8 +606,8 @@ export default function S07ContactCommittee() {
           </span>
           <h2>
             {isCommittee
-              ? "Assessment Committee Inbox"
-              : "Messages and Contact Assessment Committee"}
+              ? "Assessment Committee Messages"
+              : "Contact Assessment Committee"}
           </h2>
         </div>
       </div>
@@ -439,7 +625,7 @@ export default function S07ContactCommittee() {
       )}
 
       {/* ============================================================
-          SECTION 1: SCALABLE INBOX (HANDLES 1000+ MESSAGES CLEANLY)
+          SECTION 1: SCALABLE TWO-WAY INBOX
           ============================================================ */}
       <section className="s07-inbox-section" aria-labelledby="s07-inbox-heading">
         <div className="s07-section-banner s07-section-banner--inbox">
@@ -455,8 +641,8 @@ export default function S07ContactCommittee() {
             </div>
             <h3 id="s07-inbox-heading">
               {isCommittee
-                ? "Incoming Faculty Inquiries"
-                : "Personal Responses from the Assessment Committee"}
+                ? "Faculty Inquiries and Committee Conversations"
+                : "Your Conversations with the Assessment Committee"}
             </h3>
           </div>
 
@@ -532,10 +718,10 @@ export default function S07ContactCommittee() {
                 {searchQuery.trim()
                   ? "No messages matched your search."
                   : isCommittee
-                  ? "No faculty inquiries have been submitted yet."
+                  ? "No messages in the committee inbox yet. Use the form below to message a faculty member."
                   : inboxFilter === "replied"
-                  ? "You have not received any responses from the Assessment Committee yet."
-                  : "Your personal inbox is empty. Use the Contact Assessment Committee form below to send a message."}
+                  ? "No threads have replies yet."
+                  : "Your personal inbox is empty. Use the form below to start a conversation."}
               </div>
             ) : (
               <div className="s07-gmail-shell">
@@ -549,6 +735,7 @@ export default function S07ContactCommittee() {
                     {paginatedThreads.map((item) => {
                       const isSelected = activeThread?.id === item.id;
                       const hasReplies = item.replies.length > 0;
+                      const participant = getFacultyParticipant(item);
                       const latestPreview = hasReplies
                         ? item.replies[item.replies.length - 1].body
                         : item.message;
@@ -567,7 +754,7 @@ export default function S07ContactCommittee() {
                           <div className="s07-gmail-row-top">
                             <span className="s07-gmail-sender">
                               {isCommittee
-                                ? item.senderName
+                                ? participant.name
                                 : "Assessment Committee"}
                             </span>
                             <span className="s07-gmail-date">
@@ -586,6 +773,10 @@ export default function S07ContactCommittee() {
                               <span className="s07-mini-badge is-replied">
                                 Replied
                               </span>
+                            ) : item.initiatedBy === "committee" ? (
+                              <span className="s07-mini-badge is-committee-tag">
+                                Committee
+                              </span>
                             ) : (
                               <span className="s07-mini-badge is-pending">
                                 Open
@@ -599,7 +790,7 @@ export default function S07ContactCommittee() {
                     })}
                   </div>
 
-                  {/* Pagination Footer (Always keeps height fixed even with 1,000+ emails) */}
+                  {/* Pagination Footer */}
                   <div className="s07-pagination-bar">
                     <span className="s07-pagination-info">
                       {(safePage - 1) * PAGE_SIZE + 1} to{" "}
@@ -631,127 +822,177 @@ export default function S07ContactCommittee() {
                   </div>
                 </div>
 
-                {/* Right Column: Clean Conversation Reading Pane (Vertical Scroll Only) */}
-                {activeThread && (
-                  <div className="s07-gmail-pane">
-                    <div className="s07-pane-header">
-                      <div className="s07-pane-title-row">
-                        <h4 className="s07-pane-subject">
-                          {activeThread.subject}
-                        </h4>
-                        <div className="s07-history-meta">
-                          <span className="s07-topic-pill">
-                            {activeThread.topic}
+                {/* Right Column: Clean Conversation Reading Pane */}
+                {activeThread && (() => {
+                  const participant = getFacultyParticipant(activeThread);
+                  const startedByCommittee =
+                    activeThread.initiatedBy === "committee";
+
+                  return (
+                    <div className="s07-gmail-pane">
+                      <div className="s07-pane-header">
+                        <div className="s07-pane-title-row">
+                          <h4 className="s07-pane-subject">
+                            {activeThread.subject}
+                          </h4>
+                          <div className="s07-history-meta">
+                            <span className="s07-topic-pill">
+                              {activeThread.topic}
+                            </span>
+                            {activeThread.urgent && (
+                              <span className="s07-urgent-pill">
+                                Time-Sensitive
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="s07-thread-meta-line">
+                          <span>
+                            <strong>Faculty:</strong> {participant.name}
+                            {participant.email ? ` (${participant.email})` : ""}
                           </span>
-                          {activeThread.urgent && (
-                            <span className="s07-urgent-pill">
-                              Time-Sensitive
+                          {activeThread.courseContext && (
+                            <span className="s07-course-chip">
+                              Course: {activeThread.courseContext}
                             </span>
                           )}
-                        </div>
-                      </div>
-
-                      <div className="s07-thread-meta-line">
-                        {activeThread.courseContext && (
-                          <span className="s07-course-chip">
-                            Course: {activeThread.courseContext}
-                          </span>
-                        )}
-                        <span>
-                          Started{" "}
-                          {new Date(activeThread.createdAt).toLocaleString([], {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Clean Threaded Conversation Feed */}
-                    <div className="s07-thread-stream">
-                      {/* Faculty Inquiry Item */}
-                      <div className="s07-msg-item">
-                        <div className="s07-msg-item-header">
-                          <div className="s07-msg-author">
-                            <span className="s07-avatar-circle is-faculty">
-                              {getInitials(activeThread.senderName)}
-                            </span>
-                            <div>
-                              <strong className="s07-author-name">
-                                {activeThread.senderName}
-                              </strong>
-                              {activeThread.senderEmail && (
-                                <span className="s07-author-email">
-                                  {activeThread.senderEmail}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <span className="s07-history-time">
+                          <span>
+                            Started{" "}
                             {new Date(activeThread.createdAt).toLocaleString(
                               [],
                               {
                                 month: "short",
                                 day: "numeric",
+                                year: "numeric",
                                 hour: "numeric",
                                 minute: "2-digit",
                               }
                             )}
                           </span>
                         </div>
-                        <p className="s07-msg-body">{activeThread.message}</p>
                       </div>
 
-                      {/* Committee Replies */}
-                      {activeThread.replies.map((rep) => (
+                      {/* Threaded Conversation Feed */}
+                      <div className="s07-thread-stream">
+                        {/* Initial Message */}
                         <div
-                          key={rep.id}
-                          className="s07-msg-item is-committee-msg"
+                          className={`s07-msg-item ${
+                            startedByCommittee ? "is-committee-msg" : ""
+                          }`}
                         >
                           <div className="s07-msg-item-header">
                             <div className="s07-msg-author">
-                              <span className="s07-avatar-circle is-committee">
-                                AC
+                              <span
+                                className={`s07-avatar-circle ${
+                                  startedByCommittee
+                                    ? "is-committee"
+                                    : "is-faculty"
+                                }`}
+                              >
+                                {startedByCommittee
+                                  ? "AC"
+                                  : getInitials(activeThread.senderName)}
                               </span>
                               <div>
                                 <strong className="s07-author-name">
-                                  Assessment Committee
+                                  {startedByCommittee
+                                    ? "Assessment Committee"
+                                    : activeThread.senderName}
                                 </strong>
                                 <span className="s07-author-email">
-                                  Responded by {rep.responderName}
+                                  {startedByCommittee
+                                    ? `Sent by ${activeThread.senderName}`
+                                    : activeThread.senderEmail ||
+                                      "Faculty Member"}
                                 </span>
                               </div>
                             </div>
                             <span className="s07-history-time">
-                              {new Date(rep.createdAt).toLocaleString([], {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
+                              {new Date(activeThread.createdAt).toLocaleString(
+                                [],
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </span>
                           </div>
-                          <p className="s07-msg-body">{rep.body}</p>
+                          <p className="s07-msg-body">{activeThread.message}</p>
                         </div>
-                      ))}
-                    </div>
 
-                    {/* Inline Reply Box for Assessment Committee */}
-                    {isCommittee && (
+                        {/* Subsequent Replies */}
+                        {activeThread.replies.map((rep) => {
+                          const isCommitteeReply =
+                            rep.senderRole !== "faculty";
+                          return (
+                            <div
+                              key={rep.id}
+                              className={`s07-msg-item ${
+                                isCommitteeReply ? "is-committee-msg" : ""
+                              }`}
+                            >
+                              <div className="s07-msg-item-header">
+                                <div className="s07-msg-author">
+                                  <span
+                                    className={`s07-avatar-circle ${
+                                      isCommitteeReply
+                                        ? "is-committee"
+                                        : "is-faculty"
+                                    }`}
+                                  >
+                                    {isCommitteeReply
+                                      ? "AC"
+                                      : getInitials(rep.responderName)}
+                                  </span>
+                                  <div>
+                                    <strong className="s07-author-name">
+                                      {isCommitteeReply
+                                        ? "Assessment Committee"
+                                        : rep.responderName}
+                                    </strong>
+                                    <span className="s07-author-email">
+                                      {isCommitteeReply
+                                        ? `Responded by ${rep.responderName}`
+                                        : "Faculty Follow-Up"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span className="s07-history-time">
+                                  {new Date(rep.createdAt).toLocaleString([], {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                              <p className="s07-msg-body">{rep.body}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Two-Way Reply Composer */}
                       <div className="s07-pane-reply-box">
                         <label
                           htmlFor={`reply-input-${activeThread.id}`}
                           className="s07-reply-composer-label"
                         >
-                          Reply to {activeThread.senderName}
+                          {isCommittee
+                            ? `Reply to ${participant.name}`
+                            : "Reply to Assessment Committee"}
                         </label>
                         <textarea
                           id={`reply-input-${activeThread.id}`}
                           className="s07-textarea s07-reply-textarea"
-                          placeholder={`Write a personal response to ${activeThread.senderName}...`}
+                          placeholder={
+                            isCommittee
+                              ? `Write a personal response to ${participant.name}...`
+                              : "Add a follow-up message to this thread..."
+                          }
                           value={replyDrafts[activeThread.id] || ""}
                           onChange={(e) =>
                             setReplyDrafts((prev) => ({
@@ -765,16 +1006,16 @@ export default function S07ContactCommittee() {
                             type="button"
                             className="btn-primary"
                             onClick={() =>
-                              handleSendCommitteeReply(activeThread.id)
+                              handleSendThreadReply(activeThread.id)
                             }
                           >
-                            Send Response
+                            Send Reply
                           </button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </>
@@ -782,193 +1023,241 @@ export default function S07ContactCommittee() {
       </section>
 
       {/* ============================================================
-          SECTION 2: CONTACT ASSESSMENT COMMITTEE FORM
+          SECTION 2: NEW MESSAGE FORM (FACULTY OR COMMITTEE)
           ============================================================ */}
-      {!isCommittee && (
-        <>
-          <div className="s07-section-divider" role="separator">
-            <span>New Message</span>
+      <div className="s07-section-divider" role="separator">
+        <span>New Message</span>
+      </div>
+
+      <section
+        className="s07-contact-section"
+        aria-labelledby="s07-form-heading"
+      >
+        <div className="s07-section-banner s07-section-banner--form">
+          <div className="s07-section-banner-left">
+            <span className="s07-zone-badge s07-zone-badge--form">
+              {isCommittee ? "Committee Outreach" : "Contact Form"}
+            </span>
+            <h3 id="s07-form-heading">
+              {isCommittee
+                ? "Send a New Message to a Faculty Member"
+                : "Send a New Message to the Assessment Committee"}
+            </h3>
+            <p className="s07-card-subtext">
+              {isCommittee
+                ? "Start a direct thread with a faculty member. It will appear in their personal inbox and notify them right away."
+                : "Submit a new inquiry below. Once the Assessment Committee replies, their response will appear in Your Personal Inbox above."}
+            </p>
           </div>
+        </div>
 
-          <section
-            className="s07-contact-section"
-            aria-labelledby="s07-form-heading"
-          >
-            <div className="s07-section-banner s07-section-banner--form">
-              <div className="s07-section-banner-left">
-                <span className="s07-zone-badge s07-zone-badge--form">
-                  Contact Form
-                </span>
-                <h3 id="s07-form-heading">
-                  Send a New Message to the Assessment Committee
-                </h3>
-                <p className="s07-card-subtext">
-                  Submit a new inquiry below. Once the Assessment Committee
-                  replies, their response will appear in Your Personal Inbox
-                  above.
-                </p>
-              </div>
-            </div>
-
-            <div className="s07-workspace-grid">
-              {/* Left Column: In-App Inquiry Form */}
-              <div className="s07-form-card">
-                <form className="s07-form" onSubmit={handleSubmitInquiry}>
-                  <div className="s07-form-row-2">
-                    <div className="s07-field-group">
-                      <label htmlFor="s07-sender-name">Your Name</label>
-                      <input
-                        id="s07-sender-name"
-                        type="text"
-                        className="s07-input"
-                        value={loadingUser ? "Loading..." : senderName}
-                        disabled
-                      />
-                    </div>
-
-                    <div className="s07-field-group">
-                      <label htmlFor="s07-sender-email">UTD Email</label>
-                      <input
-                        id="s07-sender-email"
-                        type="email"
-                        className="s07-input"
-                        value={
-                          loadingUser
-                            ? "Loading..."
-                            : userEmail || "Signed-in faculty account"
-                        }
-                        disabled
-                      />
-                    </div>
-                  </div>
-
-                  <div className="s07-form-row-2">
-                    <div className="s07-field-group">
-                      <label htmlFor="s07-topic">
-                        Inquiry Topic <span className="s07-required-star">*</span>
-                      </label>
-                      <select
-                        id="s07-topic"
-                        className="s07-select"
-                        value={topic}
-                        onChange={(e) => setTopic(e.target.value)}
-                      >
-                        {TOPIC_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="s07-field-group">
-                      <label htmlFor="s07-course">
-                        Related Course / Section (Optional)
-                      </label>
-                      <input
-                        id="s07-course"
-                        type="text"
-                        className="s07-input"
-                        placeholder="e.g., CS 3345.002"
-                        value={courseContext}
-                        onChange={(e) => setCourseContext(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
+        <div className="s07-workspace-grid">
+          {/* Left Column: In-App Message Form */}
+          <div className="s07-form-card">
+            <form className="s07-form" onSubmit={handleSubmitNewThread}>
+              <div className="s07-form-row-2">
+                {isCommittee ? (
                   <div className="s07-field-group">
-                    <label htmlFor="s07-subject">
-                      Subject <span className="s07-required-star">*</span>
-                    </label>
-                    <input
-                      id="s07-subject"
-                      type="text"
-                      className="s07-input"
-                      placeholder="Brief summary of your question or request"
-                      maxLength={120}
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="s07-field-group">
-                    <label htmlFor="s07-message">
-                      Message Details{" "}
+                    <label htmlFor="s07-recipient">
+                      Faculty Recipient{" "}
                       <span className="s07-required-star">*</span>
                     </label>
-                    <textarea
-                      id="s07-message"
-                      className="s07-textarea"
-                      placeholder="Include relevant dates, observer names, or details so the Assessment Committee can assist quickly..."
-                      maxLength={1200}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                    <select
+                      id="s07-recipient"
+                      className="s07-select"
+                      value={selectedRecipientKey}
+                      onChange={(e) => setSelectedRecipientKey(e.target.value)}
                       required
-                    />
-                    <div className="s07-char-row">
-                      <span>
-                        Responses typically arrive within 1 to 2 business days.
-                      </span>
-                      <span>{message.length} / 1200</span>
-                    </div>
+                    >
+                      {facultyRecipients.length === 0 ? (
+                        <option value="">No faculty accounts found</option>
+                      ) : (
+                        facultyRecipients.map((opt) => (
+                          <option key={opt.key} value={opt.key}>
+                            {opt.name}
+                            {opt.email ? ` (${opt.email})` : ""}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   </div>
-
-                  <label className="s07-checkbox-row">
+                ) : (
+                  <div className="s07-field-group">
+                    <label htmlFor="s07-sender-name">Your Name</label>
                     <input
-                      type="checkbox"
-                      checked={urgent}
-                      onChange={(e) => setUrgent(e.target.checked)}
+                      id="s07-sender-name"
+                      type="text"
+                      className="s07-input"
+                      value={loadingUser ? "Loading..." : senderName}
+                      disabled
                     />
-                    <span>
-                      Flag as time-sensitive (e.g., observation scheduled within
-                      48 hours or approaching cycle deadline)
-                    </span>
-                  </label>
-
-                  <div className="s07-form-actions">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => {
-                        setSubject("");
-                        setCourseContext("");
-                        setMessage("");
-                        setUrgent(false);
-                        setError("");
-                        setSuccess("");
-                      }}
-                    >
-                      Clear Form
-                    </button>
-
-                    <button
-                      type="submit"
-                      className="btn-primary"
-                      disabled={submitting}
-                    >
-                      {submitting ? "Sending..." : "Send Message to Committee"}
-                    </button>
                   </div>
-                </form>
+                )}
+
+                <div className="s07-field-group">
+                  <label htmlFor="s07-sender-email">
+                    {isCommittee ? "Sending As" : "UTD Email"}
+                  </label>
+                  <input
+                    id="s07-sender-email"
+                    type="text"
+                    className="s07-input"
+                    value={
+                      loadingUser
+                        ? "Loading..."
+                        : isCommittee
+                        ? `${senderName} (Assessment Committee)`
+                        : userEmail || "Signed-in faculty account"
+                    }
+                    disabled
+                  />
+                </div>
               </div>
 
-              {/* Right Column: External Email Option */}
-              <aside className="s07-side-stack">
-                <div className="s07-info-card">
-                  <div className="s07-card-header">
-                    <span className="a01-phase-pill">External Email Option</span>
-                    <h3>Prefer to Use Your Email Client?</h3>
-                    <p className="s07-card-subtext">
-                      You can also email the Assessment Committee directly,
-                      especially if you need to attach syllabi, PDFs, or
-                      external documents.
-                    </p>
-                  </div>
+              <div className="s07-form-row-2">
+                <div className="s07-field-group">
+                  <label htmlFor="s07-topic">
+                    Message Topic <span className="s07-required-star">*</span>
+                  </label>
+                  <select
+                    id="s07-topic"
+                    className="s07-select"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  >
+                    {activeTopicOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="s07-email-box">
-                    <span className="s07-email-address">{COMMITTEE_EMAIL}</span>
-                    <div className="s07-email-actions">
+                <div className="s07-field-group">
+                  <label htmlFor="s07-course">
+                    Related Course / Section (Optional)
+                  </label>
+                  <input
+                    id="s07-course"
+                    type="text"
+                    className="s07-input"
+                    placeholder="e.g., CS 3345.002"
+                    value={courseContext}
+                    onChange={(e) => setCourseContext(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="s07-field-group">
+                <label htmlFor="s07-subject">
+                  Subject <span className="s07-required-star">*</span>
+                </label>
+                <input
+                  id="s07-subject"
+                  type="text"
+                  className="s07-input"
+                  placeholder={
+                    isCommittee
+                      ? "Brief summary of your committee notice or follow-up"
+                      : "Brief summary of your question or request"
+                  }
+                  maxLength={120}
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="s07-field-group">
+                <label htmlFor="s07-message">
+                  Message Details <span className="s07-required-star">*</span>
+                </label>
+                <textarea
+                  id="s07-message"
+                  className="s07-textarea"
+                  placeholder={
+                    isCommittee
+                      ? "Include relevant deadlines, pairing details, or action items for the faculty member..."
+                      : "Include relevant dates, observer names, or details so the Assessment Committee can assist quickly..."
+                  }
+                  maxLength={1200}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  required
+                />
+                <div className="s07-char-row">
+                  <span>
+                    {isCommittee
+                      ? "Delivered directly to the selected faculty member's inbox."
+                      : "Responses typically arrive within 1 to 2 business days."}
+                  </span>
+                  <span>{message.length} / 1200</span>
+                </div>
+              </div>
+
+              <label className="s07-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={urgent}
+                  onChange={(e) => setUrgent(e.target.checked)}
+                />
+                <span>
+                  Flag as time-sensitive (e.g., observation scheduled within 48
+                  hours or approaching cycle deadline)
+                </span>
+              </label>
+
+              <div className="s07-form-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setSubject("");
+                    setCourseContext("");
+                    setMessage("");
+                    setUrgent(false);
+                    setError("");
+                    setSuccess("");
+                  }}
+                >
+                  Clear Form
+                </button>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={submitting || (isCommittee && !activeRecipient)}
+                >
+                  {submitting
+                    ? "Sending..."
+                    : isCommittee
+                    ? "Send Message to Faculty"
+                    : "Send Message to Committee"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Right Column: External Email Option */}
+          <aside className="s07-side-stack">
+            <div className="s07-info-card">
+              <div className="s07-card-header">
+                <span className="a01-phase-pill">External Email Option</span>
+                <h3>Prefer to Use Your Email Client?</h3>
+                <p className="s07-card-subtext">
+                  {isCommittee
+                    ? "You can also email the selected faculty member directly if you need to attach documents or forms."
+                    : "You can also email the Assessment Committee directly, especially if you need to attach syllabi, PDFs, or external documents."}
+                </p>
+              </div>
+
+              <div className="s07-email-box">
+                <span className="s07-email-address">
+                  {targetEmail || "Select a faculty recipient"}
+                </span>
+                <div className="s07-email-actions">
+                  {targetEmail && (
+                    <>
                       <a href={mailtoHref} className="btn-primary">
                         Open in Email App ↗
                       </a>
@@ -979,28 +1268,41 @@ export default function S07ContactCommittee() {
                       >
                         {copiedEmail ? "Copied!" : "Copy Email"}
                       </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4>Common Reasons to Reach Out</h4>
-                    <ul className="s07-topic-list">
-                      <li>Requesting a mid-cycle course or section swap</li>
-                      <li>
-                        Reporting a schedule conflict with a matched observer
-                      </li>
-                      <li>Asking for an extension on evaluation sign-off</li>
-                      <li>
-                        Clarifying evaluation cycle eligibility or deferral
-                      </li>
-                    </ul>
-                  </div>
+                    </>
+                  )}
                 </div>
-              </aside>
+              </div>
+
+              <div>
+                <h4>
+                  {isCommittee
+                    ? "Common Committee Follow-Ups"
+                    : "Common Reasons to Reach Out"}
+                </h4>
+                {isCommittee ? (
+                  <ul className="s07-topic-list">
+                    <li>Following up on pending course section selections</li>
+                    <li>Notifying faculty of manual observer pairings</li>
+                    <li>Reminding participants of upcoming sign-off deadlines</li>
+                    <li>Sharing post-evaluation survey instructions</li>
+                  </ul>
+                ) : (
+                  <ul className="s07-topic-list">
+                    <li>Requesting a mid-cycle course or section swap</li>
+                    <li>
+                      Reporting a schedule conflict with a matched observer
+                    </li>
+                    <li>Asking for an extension on evaluation sign-off</li>
+                    <li>
+                      Clarifying evaluation cycle eligibility or deferral
+                    </li>
+                  </ul>
+                )}
+              </div>
             </div>
-          </section>
-        </>
-      )}
+          </aside>
+        </div>
+      </section>
 
       <div className="dashboard-center-action">
         <Link to={dashboardPath} className="btn-secondary">

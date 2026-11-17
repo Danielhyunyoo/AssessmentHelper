@@ -317,6 +317,11 @@
   color: #2c5e39;
 }
 
+.s07-mini-badge.is-committee-tag {
+  background-color: var(--accent-soft-bg);
+  color: var(--accent-soft-text);
+}
+
 .s07-mini-badge.is-pending {
   background-color: var(--amber-soft-bg);
   color: var(--amber-soft-text);
