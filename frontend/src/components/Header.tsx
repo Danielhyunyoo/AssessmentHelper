@@ -459,9 +459,14 @@ export default function Header() {
 
     void loadHeaderData();
 
+    const handleDemoReset = () => {
+      setAvatarFailed(false);
+      void loadHeaderData();
+    };
+
     window.addEventListener("notifications-changed", loadHeaderData);
     window.addEventListener("profile-changed", loadHeaderData);
-    window.addEventListener("demo-reset", loadHeaderData);
+    window.addEventListener("demo-reset", handleDemoReset);
 
     return () => {
       cancelled = true;

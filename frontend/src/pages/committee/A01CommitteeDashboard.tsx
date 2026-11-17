@@ -76,6 +76,16 @@ export default function A01CommitteeDashboard() {
 
   useEffect(() => {
     void loadDashboard();
+
+    const handleDemoReset = () => {
+      void loadDashboard();
+    };
+
+    window.addEventListener("demo-reset", handleDemoReset);
+
+    return () => {
+      window.removeEventListener("demo-reset", handleDemoReset);
+    };
   }, []);
 
   const metrics = dashboard?.metrics;

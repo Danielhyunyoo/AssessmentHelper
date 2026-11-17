@@ -288,7 +288,19 @@ export default function S02Profile(): React.ReactElement {
     }
 
     const handleDemoReset = () => {
+      setSaveMessage("");
+      setProfileError("");
+      setIsEditingInfo(false);
       setProfilePhoto("");
+
+      setAvailDays(["Tue", "Thu"]);
+      setAvailWindows(["Morning (8:00 AM - 12:00 PM)"]);
+      setSpecificDates([]);
+      setNewDateInput("");
+      setAvailNotes("");
+      setAvailSavedStatus("");
+
+      void loadProfile();
     };
 
     void loadProfile();

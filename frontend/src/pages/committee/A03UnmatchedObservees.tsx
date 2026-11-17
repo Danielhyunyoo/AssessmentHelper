@@ -221,11 +221,26 @@ export default function A03UnmatchedObservees() {
     const handleSync = () => {
       void loadUnmatched();
     };
+
+    const handleDemoReset = () => {
+      setSelectedIds([]);
+      setTargetCycleId("");
+      setReason("");
+      setSearchQuery("");
+      setDepartmentFilter("");
+      setError("");
+      setMessage("");
+      void loadUnmatched();
+    };
+
     window.addEventListener("cycle-transfers-updated", handleSync);
     window.addEventListener("storage", handleSync);
+    window.addEventListener("demo-reset", handleDemoReset);
+
     return () => {
       window.removeEventListener("cycle-transfers-updated", handleSync);
       window.removeEventListener("storage", handleSync);
+      window.removeEventListener("demo-reset", handleDemoReset);
     };
   }, []);
 

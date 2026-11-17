@@ -25,6 +25,8 @@ function clearDemoLocalState() {
   const shouldRemoveKey = (key: string) =>
     key.startsWith("faculty_planner_") ||
     key.startsWith("profile_photo_") ||
+    key === "observer_availability_v1" ||
+    key === "ac_cycle_transfers" ||
     key === "cleared_notification_ids" ||
     key === "manual_unread_notification_ids";
 
