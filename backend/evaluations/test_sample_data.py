@@ -2,6 +2,7 @@ import tempfile
 from io import StringIO
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.test import override_settings
 
@@ -53,6 +54,15 @@ class SampleDataTests(APITestCase):
         cast = User.objects.exclude(username__startswith="bg_")
 
         self.assertFalse(cast.filter(profile_photo="").exists() or cast.filter(profile_photo__isnull=True).exists())
+
+    def test_reset_replaces_an_uploaded_profile_picture(self):
+        user = User.objects.get(username="professor_a")
+        user.profile_photo.save("upload.png", ContentFile(b"not the seeded avatar"), save=True)
+
+        call_command("seed_sample_data", "--reset", stdout=StringIO())
+
+        user.refresh_from_db()
+        self.assertNotIn("upload", user.profile_photo.name)
 
     def test_adds_one_hundred_background_professors_outside_computer_science(self):
         background = User.objects.filter(username__startswith="bg_")
