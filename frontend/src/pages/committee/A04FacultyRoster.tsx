@@ -228,7 +228,7 @@ export default function A04FacultyRoster() {
       <a
         href={`mailto:${email}`}
         title={`Email ${name} (${email})`}
-        className="a04-email-pill-btn"
+        className="btn-pill-blue"
       >
         <span aria-hidden="true">✉</span>
         <span>Email</span>
