@@ -45,12 +45,15 @@ interface MilestoneTask {
   linkTo?: string;
   linkLabel?: string;
   done: boolean;
-  autoSynced: boolean;
+  systemDone: boolean;
 }
 
 const S01_CHECKLIST_OPEN_KEY = "s01_checklist_open_v1";
 
 function getNumericId(obj: unknown): number | null {
+  if (typeof obj === "number") {
+    return Number.isFinite(obj) && obj > 0 ? obj : null;
+  }
   if (!obj || typeof obj !== "object") return null;
   const rec = obj as Record<string, unknown>;
   const raw = rec.id ?? rec.user_id ?? rec.professor_id;
@@ -97,7 +100,6 @@ export default function S01FacultyDashboard() {
 
   const [hasSelectedCourse, setHasSelectedCourse] = useState(false);
   const [hasSentInvites, setHasSentInvites] = useState(false);
-  const [hasIncomingInvites, setHasIncomingInvites] = useState(false);
   const [hasAcceptedIncoming, setHasAcceptedIncoming] = useState(false);
   const [hasConfirmedVisit, setHasConfirmedVisit] = useState(false);
   const [hasBackendAvailability, setHasBackendAvailability] = useState(false);
@@ -195,6 +197,7 @@ export default function S01FacultyDashboard() {
       if (activeProf) {
         setCurrentUser(activeProf);
       }
+      const activeProfId = getNumericId(activeProf);
 
       setDashboard(dash);
       setRegistration(reg);
@@ -202,10 +205,14 @@ export default function S01FacultyDashboard() {
         profileData ? (profileData as unknown as Record<string, unknown>) : null
       );
 
-      const registeredNow = Boolean(
-        dash?.is_registered || reg?.is_registered || dash?.has_selected_course
+      const hasCourseSelected = Boolean(
+        dash?.has_selected_course ||
+          reg?.has_selected_course ||
+          reg?.selected_course_id ||
+          dash?.selected_course ||
+          profileData?.selected_course
       );
-      setHasSelectedCourse(registeredNow);
+      setHasSelectedCourse(hasCourseSelected);
 
       const backendAvailSlots = Array.isArray(
         (availData as unknown as Record<string, unknown>)?.available_datetimes
@@ -218,8 +225,17 @@ export default function S01FacultyDashboard() {
       setHasBackendAvailability(backendAvailSlots > 0);
 
       const activeCycleId = dash?.cycle?.id;
+      const inactiveInviteStatuses = new Set([
+        "cancelled",
+        "canceled",
+        "declined",
+        "rejected",
+      ]);
+
       const sentList = (Array.isArray(sentInvites) ? sentInvites : []).filter(
         (inv) => {
+          const status = String(inv.status ?? "").toLowerCase();
+          if (inactiveInviteStatuses.has(status)) return false;
           const invCycleId = (inv as unknown as Record<string, unknown>)
             .cycle_id;
           if (
@@ -232,9 +248,12 @@ export default function S01FacultyDashboard() {
           return true;
         }
       );
+
       const incomingList = (
         Array.isArray(incomingInvites) ? incomingInvites : []
       ).filter((inv) => {
+        const status = String(inv.status ?? "").toLowerCase();
+        if (inactiveInviteStatuses.has(status)) return false;
         const invCycleId = (inv as unknown as Record<string, unknown>)
           .cycle_id;
         if (
@@ -246,40 +265,137 @@ export default function S01FacultyDashboard() {
         }
         return true;
       });
+
       const allRecordList = Array.isArray(obsRecords) ? obsRecords : [];
 
-      // Filter strictly to the current evaluation cycle
-      const currentCycleRecords = allRecordList.filter((r) => {
-        if (r.status === "cancelled") return false;
+      const isRecordInCurrentCycle = (r: ObservationRecord) => {
         const recCycleId = (r as unknown as Record<string, unknown>).cycle_id;
         if (activeCycleId && recCycleId !== undefined && recCycleId !== null) {
           return Number(recCycleId) === Number(activeCycleId);
         }
-        return false;
-      });
+        return true;
+      };
+
+      const cycleRecordsIncludingCancelled = allRecordList.filter(
+        isRecordInCurrentCycle
+      );
+      const cancelledRecordsInCycle = cycleRecordsIncludingCancelled.filter(
+        (r) => String(r.status).toLowerCase() === "cancelled"
+      );
+      const hasCancelledRecordInCycle = cancelledRecordsInCycle.length > 0;
+
+      // Active (non-cancelled) observation records in the current cycle
+      const currentCycleRecords = cycleRecordsIncludingCancelled.filter(
+        (r) => String(r.status).toLowerCase() !== "cancelled"
+      );
+
+      const activeObserveeRecords = currentCycleRecords.filter(
+        (r) =>
+          activeProfId !== null && getNumericId(r.observee) === activeProfId
+      );
+      const activeObserverRecords = currentCycleRecords.filter(
+        (r) =>
+          activeProfId !== null && getNumericId(r.observer) === activeProfId
+      );
 
       const activePairingIds = new Set(
         currentCycleRecords.map((r) => r.pairing_id)
       );
       const allSurveys = Array.isArray(surveyList) ? surveyList : [];
       const currentCycleSurveys = allSurveys.filter((s) => {
+        if (activePairingIds.size > 0) {
+          return activePairingIds.has(s.pairing_id);
+        }
+        if (hasCancelledRecordInCycle) return false;
         const sCycleId = (s as unknown as Record<string, unknown>).cycle_id;
         if (activeCycleId && sCycleId !== undefined && sCycleId !== null) {
           return Number(sCycleId) === Number(activeCycleId);
         }
-        return activePairingIds.has(s.pairing_id);
+        return true;
       });
 
-      setHasSentInvites(sentList.length > 0);
-      setHasIncomingInvites(incomingList.length > 0);
+      const cancelledPairingIds = new Set(
+        cancelledRecordsInCycle
+          .map((r) => r.pairing_id)
+          .filter((id) => id !== undefined && id !== null)
+      );
+      const cancelledObserverIds = new Set(
+        cancelledRecordsInCycle
+          .map((r) => getNumericId(r.observer))
+          .filter((id): id is number => id !== null)
+      );
+      const cancelledObserveeIds = new Set(
+        cancelledRecordsInCycle
+          .map((r) => getNumericId(r.observee))
+          .filter((id): id is number => id !== null)
+      );
+
+      // Observee side: filter out invitations tied to a cancelled observation
+      const activeSentList = sentList.filter((inv) => {
+        const invRec = inv as unknown as Record<string, unknown>;
+        const invPairingId = invRec.pairing_id;
+        if (
+          invPairingId !== undefined &&
+          invPairingId !== null &&
+          cancelledPairingIds.has(Number(invPairingId))
+        ) {
+          return false;
+        }
+        const invObserverId = getNumericId(
+          invRec.observer ?? invRec.observer_id
+        );
+        if (
+          hasCancelledRecordInCycle &&
+          activeObserveeRecords.length === 0 &&
+          (invObserverId === null || cancelledObserverIds.has(invObserverId))
+        ) {
+          return false;
+        }
+        if (
+          hasCancelledRecordInCycle &&
+          activeObserveeRecords.length === 0 &&
+          String(inv.status ?? "").toLowerCase() === "confirmed"
+        ) {
+          return false;
+        }
+        return true;
+      });
+
+      // Observer side: only count accepted/confirmed incoming invitations NOT tied to a cancelled record
+      const activeAcceptedIncoming = incomingList.filter((inv) => {
+        const status = String(inv.status ?? "").toLowerCase();
+        if (status !== "accepted" && status !== "confirmed") return false;
+        const invRec = inv as unknown as Record<string, unknown>;
+        const invPairingId = invRec.pairing_id;
+        if (
+          invPairingId !== undefined &&
+          invPairingId !== null &&
+          cancelledPairingIds.has(Number(invPairingId))
+        ) {
+          return false;
+        }
+        const invObserveeId = getNumericId(
+          invRec.observee ?? invRec.observee_id
+        );
+        if (
+          hasCancelledRecordInCycle &&
+          activeObserverRecords.length === 0 &&
+          (invObserveeId === null || cancelledObserveeIds.has(invObserveeId))
+        ) {
+          return false;
+        }
+        return true;
+      });
+
+      setHasSentInvites(activeSentList.length > 0);
       setHasConfirmedVisit(
-        sentList.some((inv) => inv.status === "confirmed") ||
-          currentCycleRecords.length > 0
+        activeObserveeRecords.length > 0 ||
+          activeSentList.some(
+            (inv) => String(inv.status ?? "").toLowerCase() === "confirmed"
+          )
       );
       setHasAcceptedIncoming(
-        incomingList.some(
-          (inv) => inv.status === "accepted" || inv.status === "confirmed"
-        )
+        activeObserverRecords.length > 0 || activeAcceptedIncoming.length > 0
       );
       setRecords(currentCycleRecords);
       setSurveys(currentCycleSurveys);
@@ -485,9 +601,7 @@ export default function S01FacultyDashboard() {
     }
   );
 
-  const isRegistered = Boolean(
-    dashboard?.is_registered || registration?.is_registered || hasSelectedCourse
-  );
+  const isRegistered = hasSelectedCourse;
 
   const evalStatusRaw = (
     getStringField(registration, ["due_status", "evaluation_status", "status"]) ||
@@ -530,11 +644,11 @@ export default function S01FacultyDashboard() {
     (r) => currentUserId !== null && getNumericId(r.observer) === currentUserId
   );
 
+  // Only show Observer Pool tasks once the faculty member has actually accepted a peer's request
+  // (or has an active non-cancelled observer record). Pending invitations alone do not trigger it.
   const isInObserverPool =
     !isCommitteeMember &&
-    (hasIncomingInvites ||
-      hasAcceptedIncoming ||
-      observerRecords.length > 0);
+    (hasAcceptedIncoming || observerRecords.length > 0);
 
   const observeeFormSigned = observeeRecords.some(
     (r) => r.observee_signed || r.status === "completed"
@@ -552,6 +666,28 @@ export default function S01FacultyDashboard() {
 
   const hasSavedAvailability = hasBackendAvailability;
 
+  // Resolves effective state: uses user's manual override if toggled, otherwise falls back to live system state
+  const resolveMilestoneDone = (id: string, systemDone: boolean): boolean => {
+    if (typeof checkedSteps[id] === "boolean") {
+      return checkedSteps[id];
+    }
+    return systemDone;
+  };
+
+  const formatMilestoneMeta = (
+    baseMeta: string,
+    done: boolean,
+    systemDone: boolean
+  ): string => {
+    if (systemDone && !done) {
+      return `${baseMeta} · Completed in system (manually unchecked)`;
+    }
+    if (!systemDone && done) {
+      return `${baseMeta} · Marked done manually`;
+    }
+    return baseMeta;
+  };
+
   const observeeMilestones: MilestoneTask[] = [
     {
       id: "oe-register-course",
@@ -561,8 +697,8 @@ export default function S01FacultyDashboard() {
         : `Required for due and overdue faculty by ${signupDeadlineLabel}`,
       linkTo: "/observee/course-selection",
       linkLabel: "Course Selection",
-      done: isRegistered || Boolean(checkedSteps["oe-register-course"]),
-      autoSynced: isRegistered,
+      systemDone: isRegistered,
+      done: resolveMilestoneDone("oe-register-course", isRegistered),
     },
     {
       id: "oe-invite-observers",
@@ -572,8 +708,8 @@ export default function S01FacultyDashboard() {
         : "Choose up to 5 eligible same-department, same-level peers",
       linkTo: "/observee/observer-selection",
       linkLabel: "Observer Selection",
-      done: hasSentInvites || Boolean(checkedSteps["oe-invite-observers"]),
-      autoSynced: hasSentInvites,
+      systemDone: hasSentInvites,
+      done: resolveMilestoneDone("oe-invite-observers", hasSentInvites),
     },
     {
       id: "oe-confirm-visit",
@@ -583,8 +719,8 @@ export default function S01FacultyDashboard() {
         : "Confirm 1 date once an observer accepts your request",
       linkTo: "/observee/observer-selection",
       linkLabel: "Confirm Visit",
-      done: hasConfirmedVisit || Boolean(checkedSteps["oe-confirm-visit"]),
-      autoSynced: hasConfirmedVisit,
+      systemDone: hasConfirmedVisit,
+      done: resolveMilestoneDone("oe-confirm-visit", hasConfirmedVisit),
     },
     {
       id: "oe-sign-form",
@@ -596,8 +732,8 @@ export default function S01FacultyDashboard() {
         ? `/shared/observation-record/${observeeRecords[0].observation_id}`
         : "/shared/current-past-observations",
       linkLabel: "Observations",
-      done: observeeFormSigned || Boolean(checkedSteps["oe-sign-form"]),
-      autoSynced: observeeFormSigned,
+      systemDone: observeeFormSigned,
+      done: resolveMilestoneDone("oe-sign-form", observeeFormSigned),
     },
     {
       id: "oe-survey",
@@ -609,8 +745,8 @@ export default function S01FacultyDashboard() {
         ? `/shared/post-evaluation-survey?pairingId=${observeeRecords[0].pairing_id}`
         : "/shared/current-past-observations",
       linkLabel: "Survey",
-      done: observeeSurveySubmitted || Boolean(checkedSteps["oe-survey"]),
-      autoSynced: observeeSurveySubmitted,
+      systemDone: observeeSurveySubmitted,
+      done: resolveMilestoneDone("oe-survey", observeeSurveySubmitted),
     },
   ];
 
@@ -623,8 +759,8 @@ export default function S01FacultyDashboard() {
         : "Used to match free timeslots with same-level peers",
       linkTo: "/shared/profile",
       linkLabel: "Availability",
-      done: hasSavedAvailability || Boolean(checkedSteps["or-availability"]),
-      autoSynced: hasSavedAvailability,
+      systemDone: hasSavedAvailability,
+      done: resolveMilestoneDone("or-availability", hasSavedAvailability),
     },
     {
       id: "or-respond-requests",
@@ -635,11 +771,11 @@ export default function S01FacultyDashboard() {
           : "Respond to incoming requests within 48 hours",
       linkTo: "/observer/observation-request",
       linkLabel: "Requests",
-      done:
-        hasAcceptedIncoming ||
-        observerRecords.length > 0 ||
-        Boolean(checkedSteps["or-respond-requests"]),
-      autoSynced: hasAcceptedIncoming || observerRecords.length > 0,
+      systemDone: hasAcceptedIncoming || observerRecords.length > 0,
+      done: resolveMilestoneDone(
+        "or-respond-requests",
+        hasAcceptedIncoming || observerRecords.length > 0
+      ),
     },
     {
       id: "or-complete-sign",
@@ -651,8 +787,8 @@ export default function S01FacultyDashboard() {
         ? `/shared/observation-record/${observerRecords[0].observation_id}`
         : "/shared/current-past-observations",
       linkLabel: "Observations",
-      done: observerFormSigned || Boolean(checkedSteps["or-complete-sign"]),
-      autoSynced: observerFormSigned,
+      systemDone: observerFormSigned,
+      done: resolveMilestoneDone("or-complete-sign", observerFormSigned),
     },
     {
       id: "or-survey",
@@ -664,8 +800,8 @@ export default function S01FacultyDashboard() {
         ? `/shared/post-evaluation-survey?pairingId=${observerRecords[0].pairing_id}`
         : "/shared/current-past-observations",
       linkLabel: "Survey",
-      done: observerSurveySubmitted || Boolean(checkedSteps["or-survey"]),
-      autoSynced: observerSurveySubmitted,
+      systemDone: observerSurveySubmitted,
+      done: resolveMilestoneDone("or-survey", observerSurveySubmitted),
     },
   ];
 
@@ -678,8 +814,8 @@ export default function S01FacultyDashboard() {
         : "Not due for observation this semester (course signup not required)",
       linkTo: "/shared/profile",
       linkLabel: "Profile Status",
-      done: hasSavedAvailability || Boolean(checkedSteps["nd-verify-schedule"]),
-      autoSynced: hasSavedAvailability,
+      systemDone: hasSavedAvailability,
+      done: resolveMilestoneDone("nd-verify-schedule", hasSavedAvailability),
     },
   ];
 
@@ -693,10 +829,12 @@ export default function S01FacultyDashboard() {
           : `${committeeStats.pendingRequests} request(s) awaiting review`,
       linkTo: "/committee/faculty-matching",
       linkLabel: "Faculty Matching",
-      done:
+      systemDone: false,
+      done: resolveMilestoneDone(
+        "ac-review-matching",
         committeeStats.pendingRequests === 0 &&
-        Boolean(checkedSteps["ac-review-matching"]),
-      autoSynced: false,
+          Boolean(checkedSteps["ac-review-matching"])
+      ),
     },
     {
       id: "ac-unmatched",
@@ -707,8 +845,8 @@ export default function S01FacultyDashboard() {
           : `${committeeStats.unmatchedCount} unmatched observee(s) remaining`,
       linkTo: "/committee/unmatched-observees",
       linkLabel: "Unmatched Observees",
-      done: Boolean(checkedSteps["ac-unmatched"]),
-      autoSynced: false,
+      systemDone: false,
+      done: resolveMilestoneDone("ac-unmatched", false),
     },
     {
       id: "ac-pending-records",
@@ -716,8 +854,8 @@ export default function S01FacultyDashboard() {
       meta: `${committeeStats.openRecords} active observation record(s) in cycle`,
       linkTo: "/committee/pending-records",
       linkLabel: "Pending Records",
-      done: Boolean(checkedSteps["ac-pending-records"]),
-      autoSynced: false,
+      systemDone: false,
+      done: resolveMilestoneDone("ac-pending-records", false),
     },
     {
       id: "ac-surveys-kpi",
@@ -725,16 +863,30 @@ export default function S01FacultyDashboard() {
       meta: `${committeeStats.pendingSurveys} pending survey response(s)`,
       linkTo: "/committee/survey-tracking",
       linkLabel: "Survey Tracking",
-      done: Boolean(checkedSteps["ac-surveys-kpi"]),
-      autoSynced: false,
+      systemDone: false,
+      done: resolveMilestoneDone("ac-surveys-kpi", false),
     },
   ];
 
-  const toggleBuiltInStep = (id: string, autoSynced: boolean) => {
-    if (autoSynced) return;
-    const next = { ...checkedSteps, [id]: !checkedSteps[id] };
+  const toggleBuiltInStep = (
+    id: string,
+    currentDone: boolean,
+    systemDone: boolean
+  ) => {
+    const nextDone = !currentDone;
+    const next = { ...checkedSteps };
+    if (nextDone === systemDone) {
+      delete next[id];
+    } else {
+      next[id] = nextDone;
+    }
     setCheckedSteps(next);
     persistPlanner(next, customTasks);
+  };
+
+  const resetManualOverrides = () => {
+    setCheckedSteps({});
+    persistPlanner({}, customTasks);
   };
 
   const handleAddCustomTask = (e: FormEvent) => {
@@ -774,6 +926,10 @@ export default function S01FacultyDashboard() {
     : isInObserverPool
     ? observerMilestones
     : notDueMilestones;
+
+  const hasManualOverrides = activeBuiltInMilestones.some(
+    (m) => typeof checkedSteps[m.id] === "boolean"
+  );
 
   const totalItems = activeBuiltInMilestones.length + customTasks.length;
   const completedItems =
@@ -1007,9 +1163,34 @@ export default function S01FacultyDashboard() {
               <div className="s01-checklist-card s05-section-accent-sage">
                 <div className="s01-card-top-bar">
                   <h3>My Cycle To-Do and Notebook</h3>
-                  <span className="s01-progress-badge">
-                    {progressPercent}% Complete
-                  </span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    {hasManualOverrides && (
+                      <button
+                        type="button"
+                        className="s01-todo-go-link"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          padding: 0,
+                        }}
+                        onClick={resetManualOverrides}
+                        title="Sync all checkboxes back to live system status"
+                      >
+                        Sync to System
+                      </button>
+                    )}
+                    <span className="s01-progress-badge">
+                      {progressPercent}% Complete
+                    </span>
+                  </div>
                 </div>
 
                 <div
@@ -1044,16 +1225,25 @@ export default function S01FacultyDashboard() {
                             <input
                               type="checkbox"
                               checked={item.done}
-                              disabled={item.autoSynced}
                               onChange={() =>
-                                toggleBuiltInStep(item.id, item.autoSynced)
+                                toggleBuiltInStep(
+                                  item.id,
+                                  item.done,
+                                  item.systemDone
+                                )
                               }
                             />
                             <span className="s01-todo-text-wrap">
                               <span className="s01-todo-title">
                                 {item.title}
                               </span>
-                              <span className="s01-todo-meta">{item.meta}</span>
+                              <span className="s01-todo-meta">
+                                {formatMilestoneMeta(
+                                  item.meta,
+                                  item.done,
+                                  item.systemDone
+                                )}
+                              </span>
                             </span>
                           </label>
 
@@ -1090,9 +1280,12 @@ export default function S01FacultyDashboard() {
                                 <input
                                   type="checkbox"
                                   checked={item.done}
-                                  disabled={item.autoSynced}
                                   onChange={() =>
-                                    toggleBuiltInStep(item.id, item.autoSynced)
+                                    toggleBuiltInStep(
+                                      item.id,
+                                      item.done,
+                                      item.systemDone
+                                    )
                                   }
                                 />
                                 <span className="s01-todo-text-wrap">
@@ -1100,7 +1293,11 @@ export default function S01FacultyDashboard() {
                                     {item.title}
                                   </span>
                                   <span className="s01-todo-meta">
-                                    {item.meta}
+                                    {formatMilestoneMeta(
+                                      item.meta,
+                                      item.done,
+                                      item.systemDone
+                                    )}
                                   </span>
                                 </span>
                               </label>
@@ -1142,9 +1339,12 @@ export default function S01FacultyDashboard() {
                                 <input
                                   type="checkbox"
                                   checked={item.done}
-                                  disabled={item.autoSynced}
                                   onChange={() =>
-                                    toggleBuiltInStep(item.id, item.autoSynced)
+                                    toggleBuiltInStep(
+                                      item.id,
+                                      item.done,
+                                      item.systemDone
+                                    )
                                   }
                                 />
                                 <span className="s01-todo-text-wrap">
@@ -1152,7 +1352,11 @@ export default function S01FacultyDashboard() {
                                     {item.title}
                                   </span>
                                   <span className="s01-todo-meta">
-                                    {item.meta}
+                                    {formatMilestoneMeta(
+                                      item.meta,
+                                      item.done,
+                                      item.systemDone
+                                    )}
                                   </span>
                                 </span>
                               </label>
@@ -1190,9 +1394,12 @@ export default function S01FacultyDashboard() {
                                 <input
                                   type="checkbox"
                                   checked={item.done}
-                                  disabled={item.autoSynced}
                                   onChange={() =>
-                                    toggleBuiltInStep(item.id, item.autoSynced)
+                                    toggleBuiltInStep(
+                                      item.id,
+                                      item.done,
+                                      item.systemDone
+                                    )
                                   }
                                 />
                                 <span className="s01-todo-text-wrap">
@@ -1200,7 +1407,11 @@ export default function S01FacultyDashboard() {
                                     {item.title}
                                   </span>
                                   <span className="s01-todo-meta">
-                                    {item.meta}
+                                    {formatMilestoneMeta(
+                                      item.meta,
+                                      item.done,
+                                      item.systemDone
+                                    )}
                                   </span>
                                 </span>
                               </label>
