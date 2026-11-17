@@ -289,6 +289,11 @@ export default function S02Profile(): React.ReactElement {
 
     const handleDemoReset = () => {
       setProfilePhoto("");
+      setAvailDays(["Tue", "Thu"]);
+      setAvailWindows(["Morning (8:00 AM - 12:00 PM)"]);
+      setSpecificDates([]);
+      setAvailNotes("");
+      setAvailSavedStatus("");
     };
 
     void loadProfile();

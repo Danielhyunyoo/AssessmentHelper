@@ -218,8 +218,21 @@ export default function E01CourseSelection() {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
     void loadPage();
+
+    const handleDemoReset = () => {
+      savePendingCourseChangeRequest(null);
+      setPendingRequest(null);
+      setChangeReason("");
+      setSuccess("");
+      setCalendarError("");
+      setDatesSaved(false);
+      void loadPage();
+    };
+
+    window.addEventListener("demo-reset", handleDemoReset);
+    return () => window.removeEventListener("demo-reset", handleDemoReset);
   }, []);
 
   const isPastRegistrationDeadline = Boolean(

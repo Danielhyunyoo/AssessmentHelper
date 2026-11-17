@@ -100,6 +100,7 @@ export default function S01FacultyDashboard() {
   const [hasIncomingInvites, setHasIncomingInvites] = useState(false);
   const [hasAcceptedIncoming, setHasAcceptedIncoming] = useState(false);
   const [hasConfirmedVisit, setHasConfirmedVisit] = useState(false);
+  const [hasBackendAvailability, setHasBackendAvailability] = useState(false);
   const [records, setRecords] = useState<ObservationRecord[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [committeeStats, setCommitteeStats] = useState({
@@ -144,6 +145,7 @@ export default function S01FacultyDashboard() {
         if (
           key &&
           (key.startsWith("faculty_planner_") ||
+            key === S01_CHECKLIST_OPEN_KEY ||
             key === "s04_role_checklist_manual_v1" ||
             key === "observer_availability_v1")
         ) {
@@ -157,6 +159,8 @@ export default function S01FacultyDashboard() {
     setCheckedSteps({});
     setCustomTasks([]);
     setNewTaskText("");
+    setHasBackendAvailability(false);
+    setIsChecklistOpen(true);
   };
 
   const loadDashboard = async () => {
@@ -169,6 +173,7 @@ export default function S01FacultyDashboard() {
         dash,
         reg,
         profileData,
+        availData,
         sentInvites,
         incomingInvites,
         obsRecords,
@@ -178,6 +183,7 @@ export default function S01FacultyDashboard() {
         facultyApi.dashboard(),
         facultyApi.registrationStatus(),
         facultyApi.profile().catch(() => null),
+        facultyApi.availability().catch(() => null),
         matchingApi.sentInvitations().catch(() => []),
         matchingApi.incomingInvitations().catch(() => []),
         observationApi.list().catch(() => [] as ObservationRecord[]),
@@ -195,34 +201,88 @@ export default function S01FacultyDashboard() {
       setProfileRaw(
         profileData ? (profileData as unknown as Record<string, unknown>) : null
       );
-      setHasSelectedCourse(
-        Boolean(
-          profileData?.selected_course ||
-            dash?.is_registered ||
-            reg?.is_registered
-        )
-      );
 
-      const sentList = Array.isArray(sentInvites) ? sentInvites : [];
-      const incomingList = Array.isArray(incomingInvites)
-        ? incomingInvites
-        : [];
-      const recordList = Array.isArray(obsRecords) ? obsRecords : [];
-      const surveyItems = Array.isArray(surveyList) ? surveyList : [];
+      const registeredNow = Boolean(
+        dash?.is_registered || reg?.is_registered || dash?.has_selected_course
+      );
+      setHasSelectedCourse(registeredNow);
+
+      const backendAvailSlots = Array.isArray(
+        (availData as unknown as Record<string, unknown>)?.available_datetimes
+      )
+        ? (
+            (availData as unknown as Record<string, unknown>)
+              .available_datetimes as unknown[]
+          ).length
+        : 0;
+      setHasBackendAvailability(backendAvailSlots > 0);
+
+      const activeCycleId = dash?.cycle?.id;
+      const sentList = (Array.isArray(sentInvites) ? sentInvites : []).filter(
+        (inv) => {
+          const invCycleId = (inv as unknown as Record<string, unknown>)
+            .cycle_id;
+          if (
+            activeCycleId &&
+            invCycleId !== undefined &&
+            invCycleId !== null
+          ) {
+            return Number(invCycleId) === Number(activeCycleId);
+          }
+          return true;
+        }
+      );
+      const incomingList = (
+        Array.isArray(incomingInvites) ? incomingInvites : []
+      ).filter((inv) => {
+        const invCycleId = (inv as unknown as Record<string, unknown>)
+          .cycle_id;
+        if (
+          activeCycleId &&
+          invCycleId !== undefined &&
+          invCycleId !== null
+        ) {
+          return Number(invCycleId) === Number(activeCycleId);
+        }
+        return true;
+      });
+      const allRecordList = Array.isArray(obsRecords) ? obsRecords : [];
+
+      // Filter strictly to the current evaluation cycle
+      const currentCycleRecords = allRecordList.filter((r) => {
+        if (r.status === "cancelled") return false;
+        const recCycleId = (r as unknown as Record<string, unknown>).cycle_id;
+        if (activeCycleId && recCycleId !== undefined && recCycleId !== null) {
+          return Number(recCycleId) === Number(activeCycleId);
+        }
+        return false;
+      });
+
+      const activePairingIds = new Set(
+        currentCycleRecords.map((r) => r.pairing_id)
+      );
+      const allSurveys = Array.isArray(surveyList) ? surveyList : [];
+      const currentCycleSurveys = allSurveys.filter((s) => {
+        const sCycleId = (s as unknown as Record<string, unknown>).cycle_id;
+        if (activeCycleId && sCycleId !== undefined && sCycleId !== null) {
+          return Number(sCycleId) === Number(activeCycleId);
+        }
+        return activePairingIds.has(s.pairing_id);
+      });
 
       setHasSentInvites(sentList.length > 0);
       setHasIncomingInvites(incomingList.length > 0);
       setHasConfirmedVisit(
         sentList.some((inv) => inv.status === "confirmed") ||
-          recordList.length > 0
+          currentCycleRecords.length > 0
       );
       setHasAcceptedIncoming(
         incomingList.some(
           (inv) => inv.status === "accepted" || inv.status === "confirmed"
         )
       );
-      setRecords(recordList);
-      setSurveys(surveyItems);
+      setRecords(currentCycleRecords);
+      setSurveys(currentCycleSurveys);
 
       if (activeProf?.role === "admin") {
         const commDash = (await committeeApi.dashboard().catch(() => null)) as
@@ -248,10 +308,10 @@ export default function S01FacultyDashboard() {
               ).length
             : Number(commDash?.unmatched_observees_count ?? 0) || 0;
 
-        const openObs = recordList.filter(
+        const openObs = currentCycleRecords.filter(
           (r) => r.status !== "completed" && r.status !== "cancelled"
         ).length;
-        const pendingSurv = surveyItems.filter(
+        const pendingSurv = currentCycleSurveys.filter(
           (s) => s.status !== "submitted"
         ).length;
 
@@ -472,8 +532,7 @@ export default function S01FacultyDashboard() {
 
   const isInObserverPool =
     !isCommitteeMember &&
-    (isRegistered ||
-      hasIncomingInvites ||
+    (hasIncomingInvites ||
       hasAcceptedIncoming ||
       observerRecords.length > 0);
 
@@ -491,19 +550,7 @@ export default function S01FacultyDashboard() {
     (s) => s.respondent_type === "observer" && s.status === "submitted"
   );
 
-  const hasSavedAvailability = (() => {
-    try {
-      const saved = localStorage.getItem("observer_availability_v1");
-      if (!saved) return false;
-      const parsed = JSON.parse(saved);
-      return (
-        (Array.isArray(parsed?.days) && parsed.days.length > 0) ||
-        (Array.isArray(parsed?.windows) && parsed.windows.length > 0)
-      );
-    } catch {
-      return false;
-    }
-  })();
+  const hasSavedAvailability = hasBackendAvailability;
 
   const observeeMilestones: MilestoneTask[] = [
     {

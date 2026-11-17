@@ -109,6 +109,15 @@ export default function L03SignIn2() {
 
   useEffect(() => {
     void loadPage();
+
+    const handleDemoReset = () => {
+      setSelectedDays(["Tue", "Thu"]);
+      setSelectedWindows(["Morning (8:00 AM - 12:00 PM)"]);
+      setAvailabilityNotes("");
+    };
+
+    window.addEventListener("demo-reset", handleDemoReset);
+    return () => window.removeEventListener("demo-reset", handleDemoReset);
   }, []);
 
   const toggleDay = (day: string) => {
