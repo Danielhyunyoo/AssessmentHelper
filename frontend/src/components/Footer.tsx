@@ -35,7 +35,7 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Right Column: Working Navigation Links + Support Pill */}
+        {/* Right Column: Working Navigation Links + Support Link */}
         <div className="footer-right-col">
           <nav className="footer-nav-links" aria-label="Footer navigation">
             <Link to={dashboardPath} className="footer-nav-link">
@@ -50,8 +50,10 @@ export default function Footer() {
             <a
               href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
               className="footer-nav-link"
+              title="Opens your default email app to email assessment-committee@utdallas.edu"
+              aria-label="Email Assessment Committee via your email client"
             >
-              Contact Committee
+              Email Assessment Committee ↗
             </a>
           </nav>
         </div>

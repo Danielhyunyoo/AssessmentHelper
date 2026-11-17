@@ -109,6 +109,15 @@ export const FACULTY_MODULES_GUIDE: ModuleGuideItem[] = [
       "Observers complete and sign rubrics here, while observees read their feedback, add their signature, and launch their follow-up survey.",
   },
   {
+    id: "s07",
+    phase: "Shared",
+    title: "Contact Assessment Committee",
+    route: "/shared/contact-committee",
+    brief: "Send questions, deadline requests, or schedule issues to the committee.",
+    detailed:
+        "Submit an in-app inquiry directly to the Assessment Committee or launch an email with your course context pre-filled.",
+  },
+  {
     id: "e01",
     phase: "Observee",
     title: "Course and Section Selection",

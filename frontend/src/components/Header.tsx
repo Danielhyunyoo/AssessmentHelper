@@ -4,6 +4,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import darkModeLogo from "../assets/dark_mode_logo.png";
 import { authApi, facultyApi } from "../api/endpoints";
 import type { Notification, Professor } from "../api/types";
+import {
+  hasUnseenCommitteeMessages,
+  isCommitteeAccount,
+} from "../pages/shared/S07ContactCommittee";
 
 interface NotificationPreview {
   id: string;
@@ -40,7 +44,7 @@ function HomeShortcutIcon() {
   );
 }
 
-function ContactCommitteeIcon() {
+function ContactCommitteeIcon({ active = false }: { active?: boolean }) {
   return (
     <svg
       className="icon header-shortcut-svg"
@@ -68,6 +72,15 @@ function ContactCommitteeIcon() {
         className="icon-stroke-primary"
         d="M4.3 7.6L13.1 14.4C13.63 14.82 14.37 14.82 14.9 14.4L23.7 7.6"
       />
+      {/* Red unread message indicator dot */}
+      {active && (
+        <circle
+          className="icon-unread-dot"
+          cx="22"
+          cy="7.4"
+          r="4"
+        />
+      )}
     </svg>
   );
 }
@@ -197,6 +210,7 @@ export default function Header() {
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<NotificationPreview[]>([]);
@@ -207,7 +221,7 @@ export default function Header() {
   const [backendUnreadCount, setBackendUnreadCount] = useState(0);
 
   const isLoggedIn = currentUser !== null;
-  const isCommitteeUser = currentUser?.role === "admin";
+  const isCommitteeUser = isCommitteeAccount(currentUser);
   const isFacultyUser = isLoggedIn && !isCommitteeUser;
 
   const customAvatarUrl = !avatarFailed ? getStoredUserPhoto(currentUser) : "";
@@ -316,6 +330,7 @@ export default function Header() {
     } finally {
       closeAllMenus();
       setCurrentUser(null);
+      setHasUnreadMessages(false);
       setAvatarFailed(false);
       navigate("/login/signin", { replace: true });
       setSigningOut(false);
@@ -340,6 +355,23 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
+    const syncMessageDot = () => {
+      setHasUnreadMessages(hasUnseenCommitteeMessages(currentUser));
+    };
+
+    syncMessageDot();
+    window.addEventListener("committee-messages-changed", syncMessageDot);
+    window.addEventListener("storage", syncMessageDot);
+    window.addEventListener("demo-reset", syncMessageDot);
+
+    return () => {
+      window.removeEventListener("committee-messages-changed", syncMessageDot);
+      window.removeEventListener("storage", syncMessageDot);
+      window.removeEventListener("demo-reset", syncMessageDot);
+    };
+  }, [location.pathname, currentUser]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadHeaderData() {
@@ -352,6 +384,7 @@ export default function Header() {
           setHeaderError("");
           setNotifications([]);
           setHasUnreadNotifications(false);
+          setHasUnreadMessages(false);
           setBackendUnreadCount(0);
           setCurrentUser(null);
           setAvatarFailed(false);
@@ -364,6 +397,11 @@ export default function Header() {
         ]);
 
         if (cancelled) return;
+
+        const resolvedUser: Professor = {
+          ...professor,
+          ...(profileResponse.professor ?? {}),
+        };
 
         let clearedIds: number[] = [];
         let manualUnreadIds: number[] = [];
@@ -409,7 +447,8 @@ export default function Header() {
         setHasUnreadNotifications(totalUnread > 0);
         setBackendUnreadCount(totalUnread);
         setAvatarFailed(false);
-        setCurrentUser(profileResponse.professor);
+        setCurrentUser(resolvedUser);
+        setHasUnreadMessages(hasUnseenCommitteeMessages(resolvedUser));
         setHeaderError("");
       } catch {
         if (!cancelled) {
@@ -453,14 +492,25 @@ export default function Header() {
             <HomeShortcutIcon />
           </Link>
 
-          <a
-            href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
-            title="Contact Assessment Committee"
-            aria-label="Contact Assessment Committee"
-            onClick={closeAllMenus}
-          >
-            <ContactCommitteeIcon />
-          </a>
+          {isLoggedIn ? (
+            <Link
+              to="/shared/contact-committee"
+              title="Contact Assessment Committee"
+              aria-label="Contact Assessment Committee"
+              onClick={closeAllMenus}
+            >
+              <ContactCommitteeIcon active={hasUnreadMessages} />
+            </Link>
+          ) : (
+            <a
+              href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
+              title="Email Assessment Committee"
+              aria-label="Email Assessment Committee"
+              onClick={closeAllMenus}
+            >
+              <ContactCommitteeIcon active={false} />
+            </a>
+          )}
 
           <div ref={notifRef} className="header-popover-container">
             <button
@@ -815,11 +865,21 @@ export default function Header() {
 
               <div className="menu-section">
                 <h4>Support</h4>
+                {isLoggedIn && (
+                  <Link
+                    to="/shared/contact-committee"
+                    onClick={(e) =>
+                      handleLinkClick(e, "/shared/contact-committee")
+                    }
+                  >
+                    Contact Assessment Committee
+                  </Link>
+                )}
                 <a
                   href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
                   onClick={closeAllMenus}
                 >
-                  Contact Assessment Committee
+                  Email Committee Directly
                 </a>
               </div>
 

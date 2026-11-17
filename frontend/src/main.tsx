@@ -14,6 +14,7 @@ import "./css/forms_input.css";
 import "./css/header_nav.css";
 import "./css/modals_overlays.css";
 import "./css/pages.css";
+import "./css/contact-committee.css";
 import "./css/tables.css";
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

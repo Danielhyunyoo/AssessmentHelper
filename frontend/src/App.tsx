@@ -12,6 +12,7 @@ import S03FacultyNotifications from "./pages/shared/S03FacultyNotifications";
 import S04CurrentAndPastObservations from "./pages/shared/S04CurrentAndPastObservations";
 import S05ObservationRecord from "./pages/shared/S05ObservationRecord";
 import S06PostEvaluationSurvey from "./pages/shared/S06PostEvaluationSurvey";
+import S07ContactCommittee from "./pages/shared/S07ContactCommittee";
 import E01CourseSelection from "./pages/observee/E01CourseSelection";
 import E02ObserverSelection from "./pages/observee/E02ObserverSelection";
 import O01ObservationRequest from "./pages/observer/O01ObservationRequest";
@@ -53,7 +54,8 @@ export default function App() {
           <Route path="/shared/current-past-observations" element={<S04CurrentAndPastObservations />} />
           <Route path="/shared/observation-record/:observationId" element={<S05ObservationRecord />} />
           <Route path="/shared/post-evaluation-survey/:surveyId?" element={<S06PostEvaluationSurvey />} />
-
+          <Route path="/shared/contact-committee" element={<S07ContactCommittee />} />
+          
           {/* Observee Section */}
           <Route path="/observee/course-selection" element={<E01CourseSelection />} />
           <Route path="/observee/observer-selection" element={<E02ObserverSelection />} />
