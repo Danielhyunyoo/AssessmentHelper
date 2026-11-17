@@ -1,8 +1,58 @@
 // src/pages/shared/S04CurrentAndPastObservations.tsx
 import { useEffect, useState } from "react";
-import { authApi, facultyApi, observationApi } from "../../api/endpoints";
-import type { ObservationRecord, Professor, RegistrationStatus } from "../../api/types";
+import {
+  authApi,
+  facultyApi,
+  matchingApi,
+  observationApi,
+} from "../../api/endpoints";
+import type {
+  ObservationRecord,
+  Professor,
+  RegistrationStatus,
+  ScheduledVisit,
+} from "../../api/types";
 import { Link } from "react-router-dom";
+import { formatDateTime } from "../../api/format";
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "In progress",
+  awaiting_observee_signature: "Waiting for observee signature",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+const AWAITING_CONFIRMATION = "Waiting for confirmation";
+
+type RoleFilter = "all" | "observer" | "observee";
+
+function statusLabel(status: string) {
+  return STATUS_LABELS[status] ?? status;
+}
+
+interface NormalizedVisit {
+  pairingId: number;
+  confirmedDatetime: string | null;
+  observerId: number | null;
+  observerName: string;
+  observeeId: number | null;
+  observeeName: string;
+  courseCode: string;
+  courseSection: string;
+  courseTitle: string;
+  courseSchedule: string;
+  courseClassroom: string;
+  statusLabel: string;
+  fromScheduledEndpoint: boolean;
+}
+
+function getNumericId(obj: unknown): number | null {
+  if (!obj || typeof obj !== "object") return null;
+  const rec = obj as Record<string, unknown>;
+  const raw = rec.id ?? rec.user_id ?? rec.professor_id;
+  const num = Number(raw);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
 
 function formatReminderDate(value?: string) {
   if (!value) return "Not available";
@@ -14,12 +64,118 @@ function formatReminderDate(value?: string) {
   });
 }
 
+function getSemester(value?: string | null) {
+  if (!value) return "Date unavailable";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+  const month = date.getMonth();
+  const year = date.getFullYear();
+
+  if (month >= 0 && month <= 4) return `Spring ${year}`;
+  if (month >= 5 && month <= 6) return `Summer ${year}`;
+  return `Fall ${year}`;
+}
+
+function formatObservationDate(value?: string | null) {
+  if (!value) return "Date and Time Pending";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date and Time Pending";
+
+  return date.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatPersonName(person: unknown, fallback: string): string {
+  if (!person) return fallback;
+  if (typeof person === "string") return person;
+  if (typeof person === "object") {
+    const p = person as Record<string, unknown>;
+    if (typeof p.name === "string" && p.name) return p.name;
+    const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim();
+    if (full) return full;
+    if (typeof p.username === "string" && p.username) return p.username;
+  }
+  return fallback;
+}
+
+function buildVisitKey(
+  observerId: number | null,
+  observeeId: number | null,
+  confirmedDatetime: string | null,
+  fallbackId: number
+): string {
+  const timeKey = confirmedDatetime
+    ? String(new Date(confirmedDatetime).getTime())
+    : "no-date";
+  if (observerId && observeeId) {
+    return `${observerId}-${observeeId}-${timeKey}`;
+  }
+  return `pairing-${fallbackId}`;
+}
+
+function normalizeScheduledVisit(raw: any, index: number): NormalizedVisit {
+  const courseObj = raw.course ?? {};
+  const dept =
+    courseObj.department_code ?? raw.department_code ?? raw.subject ?? "";
+  const num = courseObj.course_number ?? raw.course_number ?? "";
+  const code =
+    raw.course_code || [dept, num].filter(Boolean).join(" ") || "Course";
+
+  return {
+    pairingId: Number(raw.pairing_id ?? raw.id ?? index + 1),
+    confirmedDatetime:
+      raw.confirmed_datetime ?? raw.scheduled_datetime ?? raw.datetime ?? null,
+    observerId: getNumericId(raw.observer) ?? (Number(raw.observer_id) || null),
+    observerName: formatPersonName(
+      raw.observer ?? raw.observer_name,
+      "Assigned Observer"
+    ),
+    observeeId: getNumericId(raw.observee) ?? (Number(raw.observee_id) || null),
+    observeeName: formatPersonName(
+      raw.observee ?? raw.observee_name,
+      "Assigned Observee"
+    ),
+    courseCode: code,
+    courseSection: String(
+      courseObj.section ?? raw.course_section ?? raw.section ?? ""
+    ),
+    courseTitle: courseObj.title ?? raw.course_title ?? raw.title ?? "",
+    courseSchedule:
+      courseObj.schedule ?? raw.schedule ?? raw.meeting_times ?? "",
+    courseClassroom:
+      courseObj.classroom ?? raw.classroom ?? raw.location ?? "",
+    statusLabel: raw.status
+      ? String(raw.status).charAt(0).toUpperCase() + String(raw.status).slice(1)
+      : "Scheduled",
+    fromScheduledEndpoint: true,
+  };
+}
+
 export default function S04CurrentAndPastObservations() {
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [liveRecords, setLiveRecords] = useState<ObservationRecord[]>([]);
-  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
+  const [normalizedVisits, setNormalizedVisits] = useState<NormalizedVisit[]>(
+    []
+  );
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(
+    null
+  );
+
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveError, setLiveError] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [openSemesters, setOpenSemesters] = useState<Record<string, boolean>>(
+    {}
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -29,17 +185,154 @@ export default function S04CurrentAndPastObservations() {
       setLiveError("");
 
       try {
-        const [session, records, registrationData] = await Promise.all([
-          authApi.session(),
-          observationApi.list(),
-          facultyApi.registrationStatus(),
+        const [
+          session,
+          records,
+          scheduledRaw,
+          registrationData,
+          sentInvites,
+          incomingInvites,
+          profileData,
+          matchesData,
+        ] = await Promise.all([
+          authApi.session().catch(() => ({ professor: null })),
+          observationApi.list().catch(() => [] as ObservationRecord[]),
+          observationApi.scheduled().catch(() => [] as ScheduledVisit[]),
+          facultyApi.registrationStatus().catch(() => null),
+          matchingApi.sentInvitations().catch(() => []),
+          matchingApi.incomingInvitations().catch(() => []),
+          facultyApi.profile().catch(() => null),
+          matchingApi.matches().catch(() => null),
         ]);
 
         if (cancelled) return;
 
-        setCurrentUser(session.professor);
-        setLiveRecords(records);
+        const user = session?.professor ?? profileData?.professor ?? null;
+        const userId = getNumericId(user);
+        const userFullName = user
+          ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
+            user.username ||
+            "Faculty Member"
+          : "Faculty Member";
+
+        const recordList = Array.isArray(records) ? records : [];
+
+        setCurrentUser(user);
+        setLiveRecords(recordList);
         setRegistration(registrationData);
+
+        const sentList = Array.isArray(sentInvites) ? sentInvites : [];
+        const incomingList = Array.isArray(incomingInvites)
+          ? incomingInvites
+          : [];
+
+        const rawVisitList = Array.isArray(scheduledRaw)
+          ? scheduledRaw
+          : Array.isArray((scheduledRaw as any)?.visits)
+          ? (scheduledRaw as any).visits
+          : [];
+
+        const visitsMap = new Map<string, NormalizedVisit>();
+        rawVisitList.forEach((v: any, idx: number) => {
+          const normalized = normalizeScheduledVisit(v, idx);
+          const key = buildVisitKey(
+            normalized.observerId,
+            normalized.observeeId,
+            normalized.confirmedDatetime,
+            normalized.pairingId
+          );
+          visitsMap.set(key, normalized);
+        });
+
+        const candidateNameMap = Object.fromEntries(
+          (matchesData?.candidates ?? []).map((c) => [c.id, c.name])
+        );
+        const observeeCourse = profileData?.selected_course;
+
+        sentList
+          .filter(
+            (inv) => inv.status === "confirmed" || inv.status === "accepted"
+          )
+          .forEach((inv) => {
+            const invRecord = inv as unknown as Record<string, unknown>;
+            const pId = Number(invRecord.pairing_id ?? inv.invitation_id);
+            const acceptedSlot = (inv.proposed_dates ?? []).find(
+              (d) => d.status === "accepted"
+            );
+            const obsId = Number(inv.recipient_id) || null;
+            const dt = acceptedSlot?.datetime ?? null;
+            const key = buildVisitKey(obsId, userId, dt, pId);
+
+            if (!visitsMap.has(key)) {
+              visitsMap.set(key, {
+                pairingId: pId,
+                confirmedDatetime: dt,
+                observerId: obsId,
+                observerName:
+                  candidateNameMap[inv.recipient_id] ||
+                  `Observer #${inv.recipient_id}`,
+                observeeId: userId,
+                observeeName: userFullName,
+                courseCode: observeeCourse
+                  ? `${observeeCourse.department_code} ${observeeCourse.course_number}`
+                  : "Registered Course",
+                courseSection: observeeCourse?.section ?? "",
+                courseTitle: observeeCourse?.title ?? "",
+                courseSchedule: observeeCourse?.schedule ?? "",
+                courseClassroom: observeeCourse?.classroom ?? "",
+                statusLabel:
+                  inv.status === "accepted"
+                    ? AWAITING_CONFIRMATION
+                    : "Confirmed",
+                fromScheduledEndpoint: false,
+              });
+            }
+          });
+
+        incomingList
+          .filter(
+            (inv) => inv.status === "confirmed" || inv.status === "accepted"
+          )
+          .forEach((inv) => {
+            const invRecord = inv as unknown as Record<string, unknown>;
+            const pId = Number(invRecord.pairing_id ?? inv.invitation_id);
+            const acceptedSlot = (inv.proposed_dates ?? []).find(
+              (d) => d.status === "accepted"
+            );
+            const observeeId =
+              getNumericId(inv.sender) ?? (Number(inv.sender_id) || null);
+            const dt = acceptedSlot?.datetime ?? null;
+            const key = buildVisitKey(userId, observeeId, dt, pId);
+
+            if (!visitsMap.has(key)) {
+              const invCourse = inv.course;
+              visitsMap.set(key, {
+                pairingId: pId,
+                confirmedDatetime: dt,
+                observerId: userId,
+                observerName: userFullName,
+                observeeId,
+                observeeName: formatPersonName(
+                  inv.sender,
+                  "Assigned Observee"
+                ),
+                courseCode: invCourse
+                  ? `${invCourse.department_code} ${invCourse.course_number}`
+                  : "Assigned Course",
+                courseSection: invCourse?.section ?? "",
+                courseTitle: invCourse?.title ?? "",
+                courseSchedule: invCourse?.schedule ?? "",
+                courseClassroom: invCourse?.classroom ?? "",
+                statusLabel:
+                  inv.status === "accepted"
+                    ? AWAITING_CONFIRMATION
+                    : "Confirmed",
+                fromScheduledEndpoint: false,
+              });
+            }
+          });
+
+        setNormalizedVisits(Array.from(visitsMap.values()));
       } catch (err) {
         if (!cancelled) {
           setLiveError(
@@ -55,438 +348,690 @@ export default function S04CurrentAndPastObservations() {
 
     void loadRecords();
 
+    const handleRefresh = () => {
+      void loadRecords();
+    };
+
+    window.addEventListener("notifications-changed", handleRefresh);
+    window.addEventListener("profile-changed", handleRefresh);
+    window.addEventListener("simulated-date-changed", handleRefresh);
+    window.addEventListener("demo-date-changed", handleRefresh);
+    window.addEventListener("demo-reset", handleRefresh);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("notifications-changed", handleRefresh);
+      window.removeEventListener("profile-changed", handleRefresh);
+      window.removeEventListener("simulated-date-changed", handleRefresh);
+      window.removeEventListener("demo-date-changed", handleRefresh);
+      window.removeEventListener("demo-reset", handleRefresh);
     };
   }, []);
 
-  // Demo toggle state to switch between active observations vs none
-  const [hasActiveObservation, setHasActiveObservation] = useState<boolean>(true);
+  const toggleSemester = (semester: string) => {
+    setOpenSemesters((prev) => ({
+      ...prev,
+      [semester]: !isOpen(semester),
+    }));
+  };
 
-  const [openSemesters, setOpenSemesters] = useState<Record<string, boolean>>({
-    "Spring 2026": true,
-    "Fall 2025": false,
-    "Spring 2025": false,
+  const isCommitteeMember = currentUser?.role === "admin";
+  const currentUserId = getNumericId(currentUser);
+  const currentUserName = currentUser
+    ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`
+        .trim()
+        .toLowerCase()
+    : "";
+
+  const isUserObserver = (
+    observerId: number | null | undefined,
+    observerName?: string
+  ): boolean => {
+    if (currentUserId !== null && observerId != null) {
+      return Number(observerId) === currentUserId;
+    }
+    if (currentUserName && observerName) {
+      return observerName.toLowerCase().includes(currentUserName);
+    }
+    return false;
+  };
+
+  const userRecords = liveRecords.filter((record) => {
+    if (isCommitteeMember || currentUserId === null) return true;
+    return (
+      getNumericId(record.observer) === currentUserId ||
+      getNumericId(record.observee) === currentUserId
+    );
   });
 
-  const toggleSemester = (semester: string) => {
-    setOpenSemesters((prev) => ({ ...prev, [semester]: !prev[semester] }));
+  const matchesRoleFilter = (asObserver: boolean) => {
+    if (roleFilter === "observer") return asObserver;
+    if (roleFilter === "observee") return !asObserver;
+    return true;
   };
+
+  const allCurrentRecords = userRecords.filter(
+    (record) => record.status !== "completed" && record.status !== "cancelled"
+  );
+
+  const allPastRecords = userRecords.filter(
+    (record) => record.status === "completed" || record.status === "cancelled"
+  );
+
+  const existingRecordPairingIds = new Set(
+    userRecords.map((r) => Number(r.pairing_id))
+  );
+  const existingRecordKeys = new Set(
+    userRecords.map((r) =>
+      buildVisitKey(
+        getNumericId(r.observer),
+        getNumericId(r.observee),
+        r.confirmed_datetime,
+        Number(r.pairing_id)
+      )
+    )
+  );
+
+  const allActiveScheduledVisits = normalizedVisits.filter((visit) => {
+    if (existingRecordPairingIds.has(visit.pairingId)) return false;
+    const visitKey = buildVisitKey(
+      visit.observerId,
+      visit.observeeId,
+      visit.confirmedDatetime,
+      visit.pairingId
+    );
+    if (existingRecordKeys.has(visitKey)) return false;
+    if (visit.fromScheduledEndpoint) return true;
+    if (isCommitteeMember || currentUserId === null) return true;
+    return (
+      visit.observerId === currentUserId || visit.observeeId === currentUserId
+    );
+  });
+
+  const currentRecords = allCurrentRecords.filter((record) =>
+    matchesRoleFilter(
+      isUserObserver(getNumericId(record.observer), record.observer?.name)
+    )
+  );
+
+  const activeScheduledVisits = allActiveScheduledVisits.filter((visit) =>
+    matchesRoleFilter(isUserObserver(visit.observerId, visit.observerName))
+  );
+
+  const pastRecords = allPastRecords.filter((record) =>
+    matchesRoleFilter(
+      isUserObserver(getNumericId(record.observer), record.observer?.name)
+    )
+  );
+
+  const totalActiveCount =
+    allCurrentRecords.length + allActiveScheduledVisits.length;
+
+  const pastRecordsBySemester = pastRecords.reduce<
+    Record<string, ObservationRecord[]>
+  >((groups, record) => {
+    const semester = getSemester(record.confirmed_datetime);
+
+    if (!groups[semester]) {
+      groups[semester] = [];
+    }
+
+    groups[semester].push(record);
+    return groups;
+  }, {});
+
+  const sortedSemesters = Object.keys(pastRecordsBySemester).sort((a, b) => {
+    if (a === "Date unavailable") return 1;
+    if (b === "Date unavailable") return -1;
+
+    const getSortValue = (semester: string) => {
+      const [season, year] = semester.split(" ");
+      const seasonOrder: Record<string, number> = {
+        Spring: 1,
+        Summer: 2,
+        Fall: 3,
+      };
+
+      return Number(year) * 10 + (seasonOrder[season] ?? 0);
+    };
+
+    return getSortValue(b) - getSortValue(a);
+  });
+
+  const isOpen = (semester: string) =>
+    openSemesters[semester] ?? semester === sortedSemesters[0];
 
   return (
     <div className="dashboard-container">
-      {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
-        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          Back to Dashboard
+        <Link
+          to={
+            isCommitteeMember
+              ? "/committee/dashboard"
+              : "/shared/faculty-dashboard"
+          }
+          className="back-dashboard-link"
+        >
+          ← Back to Dashboard
         </Link>
       </div>
 
-      <h2>Current and Past Observations</h2>
+      {/* Header matching A03-A08 */}
+      <div className="committee-page-header">
+        <h2>Current and Past Observations</h2>
 
-      {/* Reminders Banner */}
-      <section className="table-container theme-orange reminders-card">
-        <h3 className="reminders-title">DEADLINE REMINDERS</h3>
+        {!liveLoading && (
+          <div className="committee-page-header-meta">
+            <span className="a01-cycle-badge">
+              {totalActiveCount} Active - {allPastRecords.length} Archived
+            </span>
+          </div>
+        )}
+      </div>
 
-        <div className="reminders-grid">
-          <div>
-            <strong>Course Registration Cutoff</strong>
-            <p className="reminder-date">{formatReminderDate(registration?.signup_deadline)}</p>
+      <section className="s04-reminders-card">
+        <div className="s04-reminders-header">
+          <div className="s03-section-title-group">
+            <span className="a01-phase-pill">Schedule</span>
+            <h3 className="s04-reminders-title">Cycle Deadlines</h3>
           </div>
-          <div>
-            <strong>Last Day for Classroom Visits and Signing Records</strong>
-            <p className="reminder-date">{formatReminderDate(registration?.observation_deadline)}</p>
+        </div>
+
+        <div className="s04-reminders-grid-3">
+          <div className="s04-reminder-item">
+            <span className="s04-reminder-label">
+              Course Registration Cutoff
+            </span>
+            <p className="s04-reminder-date">
+              {formatReminderDate(registration?.signup_deadline)}
+            </p>
           </div>
-          <div>
-            <strong>End-Of-Process Survey Completion Deadline</strong>
-            <p className="reminder-date">{formatReminderDate(registration?.survey_deadline)}</p>
+
+          <div className="s04-reminder-item">
+            <span className="s04-reminder-label">
+              Classroom Visits and Signing
+            </span>
+            <p className="s04-reminder-date">
+              {formatReminderDate(registration?.observation_deadline)}
+            </p>
+          </div>
+
+          <div className="s04-reminder-item">
+            <span className="s04-reminder-label">
+              End-Of-Process Survey
+            </span>
+            <p className="s04-reminder-date">
+              {formatReminderDate(registration?.survey_deadline)}
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="dashboard-phase">
-        <h3>Your Records from the Backend</h3>
+      {liveLoading && (
+        <div className="a07-state-box">Loading observation records...</div>
+      )}
 
-        {liveLoading && <p>Loading your observation records...</p>}
+      {liveError && (
+        <div role="alert" className="empty-state-banner">
+          {liveError}
+        </div>
+      )}
 
-        {liveError && (
-          <div role="alert" className="yellow-banner">
-            {liveError}
+      {!liveLoading && !liveError && !isCommitteeMember && (
+        <div className="s03-toolbar s04-zero-margin">
+          <div className="s03-filter-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={roleFilter === "all"}
+              className={`s03-filter-tab ${
+                roleFilter === "all" ? "is-active" : ""
+              }`}
+              onClick={() => setRoleFilter("all")}
+            >
+              All Roles
+              <span className="s03-tab-count">
+                {totalActiveCount + allPastRecords.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={roleFilter === "observer"}
+              className={`s03-filter-tab ${
+                roleFilter === "observer" ? "is-active" : ""
+              }`}
+              onClick={() => setRoleFilter("observer")}
+            >
+              As Observer
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={roleFilter === "observee"}
+              className={`s03-filter-tab ${
+                roleFilter === "observee" ? "is-active" : ""
+              }`}
+              onClick={() => setRoleFilter("observee")}
+            >
+              As Observee
+            </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {!liveLoading && !liveError && liveRecords.length === 0 && (
-          <div className="table-container theme-green">
-            No observation records have been returned for your account yet.
+      {!liveLoading && !liveError && (
+        <section className="s04-section-panel">
+          <div className="s04-section-header">
+            <div className="a01-phase-title-group">
+              <span className="a01-phase-pill">Active</span>
+              <h3>
+                Ongoing Evaluations (
+                {currentRecords.length + activeScheduledVisits.length})
+              </h3>
+            </div>
+            <p className="s04-section-subtitle">
+              Scheduled classroom visits and active evaluation forms
+            </p>
           </div>
-        )}
 
-        {!liveLoading && liveRecords.length > 0 && (
-          <div className="table-container theme-green">
-            <div className="observation-cards-container">
-              {liveRecords.map((record) => {
-                const userId = currentUser?.id;
-                const isObserver = record.observer.id === userId;
-                const isObservee = record.observee.id === userId;
-
-                // Only display records that belong to the signed-in user.
-                if (!isObserver && !isObservee) return null;
-
-                const counterpart = isObserver
-                  ? record.observee.name
-                  : record.observer.name;
+          {currentRecords.length === 0 && activeScheduledVisits.length === 0 ? (
+            <div className="a07-state-box s04-zero-margin">
+              {roleFilter === "all"
+                ? "No current observations or confirmed peer pairings yet."
+                : `No ongoing observations in the ${roleFilter} role.`}
+            </div>
+          ) : (
+            <div className="s04-cards-grid">
+              {activeScheduledVisits.map((visit) => {
+                const asObserver = isUserObserver(
+                  visit.observerId,
+                  visit.observerName
+                );
+                const fullCourseHeader = [
+                  visit.courseSection
+                    ? `${visit.courseCode}.${visit.courseSection}`
+                    : visit.courseCode,
+                  visit.courseTitle,
+                ]
+                  .filter(Boolean)
+                  .join(": ");
 
                 return (
                   <article
-                    className="observation-card-history"
-                    key={record.observation_id}
+                    key={`visit-${visit.pairingId}`}
+                    className={`s04-event-card ${
+                      asObserver ? "is-observer" : "is-observee"
+                    }`}
                   >
-                    <div className="observation-card-header">
-                      <strong className="observation-card-title">
-                        {record.confirmed_datetime
-                          ? new Date(record.confirmed_datetime).toLocaleString()
-                          : "Date not yet confirmed"}
-                      </strong>
+                    <div>
+                      <div className="s04-card-top-row">
+                        <span
+                          className={`pill-badge ${
+                            asObserver ? "pill-observer" : "pill-observee"
+                          }`}
+                        >
+                          {asObserver ? "Observer" : "Observee"}
+                        </span>
 
-                      <span className={`pill-badge ${isObserver ? "pill-observer" : "pill-observee"}`}>
-                        {isObserver ? "Observer" : "Observee"}
-                      </span>
+                        <span className="version-pill">{visit.statusLabel}</span>
+                      </div>
+
+                      <h4 className="s04-card-title">{fullCourseHeader}</h4>
+
+                      <div className="s04-meta-grid">
+                        <div className="s04-meta-item">
+                          <span className="s04-meta-label">
+                            {asObserver ? "Observee" : "Observer"}
+                          </span>
+                          <span className="s04-meta-value">
+                            {asObserver
+                              ? visit.observeeName
+                              : visit.observerName}
+                          </span>
+                        </div>
+
+                        <div className="s04-meta-item">
+                          <span className="s04-meta-label">Classroom</span>
+                          <span className="s04-meta-value">
+                            {visit.courseClassroom || "Not provided"}
+                          </span>
+                        </div>
+
+                        <div className="s04-meta-item is-full">
+                          <span className="s04-meta-label">Scheduled Visit</span>
+                          <span className="s04-meta-value">
+                            {formatObservationDate(visit.confirmedDatetime)}
+                          </span>
+                        </div>
+
+                        {visit.courseSchedule && (
+                          <div className="s04-meta-item is-full">
+                            <span className="s04-meta-label">
+                              Class Schedule
+                            </span>
+                            <span className="s04-meta-value">
+                              {visit.courseSchedule}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <p className="observation-card-text">
-                      <strong>{isObserver ? "Observee:" : "Observer:"}</strong>{" "}
-                      {counterpart}
-                    </p>
-
-                    <p className="observation-card-text">
-                      <strong>Course:</strong>{" "}
-                      {record.course.department_code} {record.course.course_number}
-                    </p>
-
-                    <p className="observation-card-text">
-                      <strong>Section:</strong> {record.course.section}
-                    </p>
-
-                    <p className="observation-card-subtext">
-                      <strong>Status:</strong> {record.status}
-                    </p>
-
-                    <p className="observation-card-subtext">
-                      <strong>Record:</strong>{" "}
-                      {record.locked ? "Finalized / locked" : "In progress"}
+                    <p className="s04-card-note">
+                      {visit.statusLabel !== AWAITING_CONFIRMATION ? (
+                        "The evaluation form opens once the scheduled classroom visit takes place."
+                      ) : asObserver ? (
+                        "You accepted this date. The observee still has to confirm the visit."
+                      ) : (
+                        <>
+                          This observer accepted.{" "}
+                          <Link
+                            to="/observee/observer-selection"
+                            className="s04-inline-link"
+                          >
+                            Confirm the visit
+                          </Link>{" "}
+                          to schedule it.
+                        </>
+                      )}
                     </p>
                   </article>
                 );
               })}
-            </div>
-          </div>
-        )}
-      </section>
 
-      {/* Current Observations Section */}
-      <section className="dashboard-phase">
-        <div className="section-header-bar">
-          <h3>Current Evaluations</h3>
-          <button
-            type="button"
-            className="secondary-btn btn-demo-toggle"
-            onClick={() => setHasActiveObservation(!hasActiveObservation)}
-          >
-            Demo Toggle: {hasActiveObservation ? "Showing Active" : "Showing None"}
-          </button>
-        </div>
+              {currentRecords.map((record) => {
+                const asObserver = isUserObserver(
+                  getNumericId(record.observer),
+                  record.observer?.name
+                );
+                const fullCourseHeader = [
+                  record.course?.section
+                    ? `${record.course.department_code} ${record.course.course_number}.${record.course.section}`
+                    : `${record.course.department_code} ${record.course.course_number}`,
+                  record.course?.title,
+                ]
+                  .filter(Boolean)
+                  .join(": ");
 
-        <div className="table-container theme-green observation-card-wrapper">
-          {!hasActiveObservation ? (
-            <div className="observation-empty-state">
-              No current observations
-            </div>
-          ) : (
-            <div className="observation-cards-container">
-              {/* Left Card: Observee */}
-              <div className="observation-card-history">
-                <div className="observation-card-header">
-                  <strong className="observation-card-title">
-                    Tuesday, Oct. 13, 2026
-                  </strong>
-                  <span className="pill-badge pill-observee">
-                    Observee
-                  </span>
-                </div>
+                return (
+                  <article
+                    key={record.observation_id}
+                    className={`s04-event-card ${
+                      asObserver ? "is-observer" : "is-observee"
+                    }`}
+                  >
+                    <div>
+                      <div className="s04-card-top-row">
+                        <span
+                          className={`pill-badge ${
+                            asObserver ? "pill-observer" : "pill-observee"
+                          }`}
+                        >
+                          {asObserver ? "Observer" : "Observee"}
+                        </span>
 
-                <p className="observation-card-text">
-                  <strong>Observer Name:</strong> Last Name, First Name
-                </p>
-                <p className="observation-card-text">
-                  <strong>Class:</strong> CS 4349
-                </p>
-                <p className="observation-card-text">
-                  <strong>Section:</strong> 002
-                </p>
-                <p className="observation-card-text">
-                  <strong>Time:</strong> 1:00 PM - 2:15 PM
-                </p>
-                <p className="observation-card-subtext">
-                  <strong>Status:</strong> Incomplete
-                </p>
+                        <span className="version-pill">
+                          {statusLabel(record.status)}
+                        </span>
+                      </div>
 
-                <div className="observation-card-actions">
-                  <button type="button" className="btn-primary">
-                    View Observation Record
-                  </button>
-                  <button type="button" className="btn-secondary">
-                    View Post-Observation Survey
-                  </button>
-                </div>
-              </div>
+                      <h4 className="s04-card-title">{fullCourseHeader}</h4>
 
-              {/* Right Card: Observer */}
-              <div className="observation-card-history">
-                <div className="observation-card-header">
-                  <strong className="observation-card-title">
-                    Thursday, Oct. 22, 2026
-                  </strong>
-                  <span className="pill-badge pill-observer">
-                    Observer
-                  </span>
-                </div>
+                      <div className="s04-meta-grid">
+                        <div className="s04-meta-item">
+                          <span className="s04-meta-label">
+                            {asObserver ? "Observee" : "Observer"}
+                          </span>
+                          <span className="s04-meta-value">
+                            {asObserver
+                              ? record.observee.name
+                              : record.observer.name}
+                          </span>
+                        </div>
 
-                <p className="observation-card-text">
-                  <strong>Observee Name:</strong> Smith, Jane
-                </p>
-                <p className="observation-card-text">
-                  <strong>Class:</strong> CS 3345
-                </p>
-                <p className="observation-card-text">
-                  <strong>Section:</strong> 001
-                </p>
-                <p className="observation-card-text">
-                  <strong>Time:</strong> 10:00 AM - 11:15 AM
-                </p>
-                <p className="observation-card-subtext">
-                  <strong>Status:</strong> Pending Review
-                </p>
+                        <div className="s04-meta-item">
+                          <span className="s04-meta-label">Classroom</span>
+                          <span className="s04-meta-value">
+                            {record.course?.classroom || "Not provided"}
+                          </span>
+                        </div>
 
-                <div className="observation-card-actions">
-                  <button type="button" className="btn-primary">
-                    View Observation Record
-                  </button>
-                  <button type="button" className="btn-secondary">
-                    View Post-Observation Survey
-                  </button>
-                </div>
-              </div>
+                        <div className="s04-meta-item is-full">
+                          <span className="s04-meta-label">
+                            Observation Date
+                          </span>
+                          <span className="s04-meta-value">
+                            {formatObservationDate(record.confirmed_datetime)}
+                          </span>
+                        </div>
+
+                        {record.course?.schedule && (
+                          <div className="s04-meta-item is-full">
+                            <span className="s04-meta-label">
+                              Class Schedule
+                            </span>
+                            <span className="s04-meta-value">
+                              {record.course.schedule}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="s04-signoff-pills">
+                          <span
+                            className={`s04-signoff-pill ${
+                              record.observer_signed ? "is-complete" : ""
+                            }`}
+                          >
+                            Observer:{" "}
+                            {record.observer_signed ? "Signed" : "Pending"}
+                          </span>
+                          <span
+                            className={`s04-signoff-pill ${
+                              record.observee_signed ? "is-complete" : ""
+                            }`}
+                          >
+                            Observee:{" "}
+                            {record.observee_signed ? "Signed" : "Pending"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="s04-card-actions">
+                      <Link
+                        to={`/shared/observation-record/${record.observation_id}`}
+                        className="s04-pill-action is-primary"
+                      >
+                        Open Observation Record →
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
-        </div>
-      </section>
-      
-      {/* Past Evaluations Accordion Section */}
-      <section className="dashboard-phase">
-        <h3>Past Evaluations</h3>
+        </section>
+      )}
 
-        <div className="yellow-banner">
-          <strong>Demo history:</strong> The sample past observations below are
-          demonstration data, not records retrieved from the database.
-        </div>
-
-        <div className="table-container accordion-wrapper">
-          {/* Spring 2026: Two cards (Left: Observee, Right: Observer) */}
-          <div className="accordion-item">
-            <div className="accordion-header" onClick={() => toggleSemester("Spring 2026")}>
-              <span>Spring 2026</span>
-              <span>{openSemesters["Spring 2026"] ? "▲" : "▼"}</span>
+      {!liveLoading && !liveError && (
+        <section className="s04-section-panel">
+          <div className="s04-section-header">
+            <div className="a01-phase-title-group">
+              <span className="a01-phase-pill">Archive</span>
+              <h3>Past Evaluations ({pastRecords.length})</h3>
             </div>
-
-            {openSemesters["Spring 2026"] && (
-              <div className="accordion-content">
-                <div className="observation-cards-container">
-                  {/* Left Card: Observee */}
-                  <div className="observation-card-history">
-                    <div className="observation-card-header">
-                      <strong className="observation-card-title">
-                        Tuesday, March 11, 2026
-                      </strong>
-                      <span className="pill-badge pill-observee">
-                        Observee
-                      </span>
-                    </div>
-
-                    <p className="observation-card-text">
-                      <strong>Observer Name:</strong> Last Name, First Name
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Class:</strong> CS 4349
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Section:</strong> 003
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Time:</strong> 1:00 PM - 2:15 PM
-                    </p>
-                    <p className="observation-card-subtext">
-                      <strong>Date Finalized:</strong> April 15, 2026
-                    </p>
-
-                    <div className="observation-card-actions">
-                      <button type="button" className="btn-primary">
-                        View Observation Record
-                      </button>
-                      <button type="button" className="btn-secondary">
-                        View Post-Observation Survey
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Right Card: Observer */}
-                  <div className="observation-card-history">
-                    <div className="observation-card-header">
-                      <strong className="observation-card-title">
-                        Thursday, March 26, 2026
-                      </strong>
-                      <span className="pill-badge pill-observer">
-                        Observer
-                      </span>
-                    </div>
-
-                    <p className="observation-card-text">
-                      <strong>Observee Name:</strong> Johnson, Mark
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Class:</strong> SE 3354
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Section:</strong> 001
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Time:</strong> 2:30 PM - 3:45 PM
-                    </p>
-                    <p className="observation-card-subtext">
-                      <strong>Date Finalized:</strong> April 20, 2026
-                    </p>
-
-                    <div className="observation-card-actions">
-                      <button type="button" className="btn-primary">
-                        View Observation Record
-                      </button>
-                      <button type="button" className="btn-secondary">
-                        View Post-Observation Survey
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <p className="s04-section-subtitle">
+              Completed and cancelled observation records grouped by semester
+            </p>
           </div>
 
-          {/* Fall 2025: Single Observee Card */}
-          <div className="accordion-item">
-            <div className="accordion-header" onClick={() => toggleSemester("Fall 2025")}>
-              <span>Fall 2025</span>
-              <span>{openSemesters["Fall 2025"] ? "▲" : "▼"}</span>
+          {pastRecords.length === 0 ? (
+            <div className="a07-state-box s04-zero-margin">
+              {roleFilter === "all"
+                ? "No completed or cancelled observation records."
+                : `No completed or cancelled observations in the ${roleFilter} role.`}
             </div>
-
-            {openSemesters["Fall 2025"] && (
-              <div className="accordion-content">
-                <div className="observation-cards-container">
-                  <div className="observation-card-history">
-                    <div className="observation-card-header">
-                      <strong className="observation-card-title">
-                        Tuesday, Oct. 14, 2025
-                      </strong>
-                      <span className="pill-badge pill-observee">
-                        Observee
-                      </span>
+          ) : (
+            <div className="table-container accordion-wrapper s04-accordion-shell">
+              {sortedSemesters.map((semester) => {
+                const semesterRecords = pastRecordsBySemester[semester];
+                return (
+                  <div
+                    className="accordion-item s04-accordion-item"
+                    key={semester}
+                  >
+                    <div
+                      className="accordion-header s04-accordion-trigger"
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isOpen(semester)}
+                      onClick={() => toggleSemester(semester)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          toggleSemester(semester);
+                        }
+                      }}
+                    >
+                      <div className="s04-accordion-left">
+                        <span>{semester}</span>
+                        <span className="version-pill">
+                          {semesterRecords.length}{" "}
+                          {semesterRecords.length === 1 ? "Record" : "Records"}
+                        </span>
+                      </div>
+                      <span>{isOpen(semester) ? "▲" : "▼"}</span>
                     </div>
 
-                    <p className="observation-card-text">
-                      <strong>Observer Name:</strong> Last Name, First Name
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Class:</strong> CS 4349
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Section:</strong> 001
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Time:</strong> 1:00 PM - 2:15 PM
-                    </p>
-                    <p className="observation-card-subtext">
-                      <strong>Date Finalized:</strong> Nov. 18, 2025
-                    </p>
+                    {isOpen(semester) && (
+                      <div className="accordion-content">
+                        <div className="s04-cards-grid">
+                          {semesterRecords.map((record) => {
+                            const asObserver = isUserObserver(
+                              getNumericId(record.observer),
+                              record.observer?.name
+                            );
+                            const courseHeader = [
+                              record.course?.section
+                                ? `${record.course.department_code} ${record.course.course_number}.${record.course.section}`
+                                : `${record.course.department_code} ${record.course.course_number}`,
+                              record.course?.title,
+                            ]
+                              .filter(Boolean)
+                              .join(": ");
 
-                    <div className="observation-card-actions">
-                      <button type="button" className="btn-primary">
-                        View Observation Record
-                      </button>
-                      <button type="button" className="btn-secondary">
-                        View Post-Observation Survey
-                      </button>
-                    </div>
+                            return (
+                              <article
+                                className={`s04-event-card ${
+                                  asObserver ? "is-observer" : "is-observee"
+                                }`}
+                                key={record.observation_id}
+                              >
+                                <div>
+                                  <div className="s04-card-top-row">
+                                    <span
+                                      className={`pill-badge ${
+                                        asObserver
+                                          ? "pill-observer"
+                                          : "pill-observee"
+                                      }`}
+                                    >
+                                      {asObserver ? "Observer" : "Observee"}
+                                    </span>
+
+                                    <span className="version-pill">
+                                      {statusLabel(record.status)}
+                                    </span>
+                                  </div>
+
+                                  <h4 className="s04-card-title">
+                                    {courseHeader}
+                                  </h4>
+
+                                  <div className="s04-meta-grid">
+                                    <div className="s04-meta-item">
+                                      <span className="s04-meta-label">
+                                        {asObserver ? "Observee" : "Observer"}
+                                      </span>
+                                      <span className="s04-meta-value">
+                                        {asObserver
+                                          ? record.observee.name
+                                          : record.observer.name}
+                                      </span>
+                                    </div>
+
+                                    <div className="s04-meta-item">
+                                      <span className="s04-meta-label">
+                                        Finalized
+                                      </span>
+                                      <span className="s04-meta-value">
+                                        {record.observee_signed_at
+                                          ? formatDateTime(
+                                              record.observee_signed_at
+                                            )
+                                          : "Not finalized"}
+                                      </span>
+                                    </div>
+
+                                    <div className="s04-meta-item is-full">
+                                      <span className="s04-meta-label">
+                                        Observation Date
+                                      </span>
+                                      <span className="s04-meta-value">
+                                        {formatObservationDate(
+                                          record.confirmed_datetime
+                                        )}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="s04-card-actions">
+                                  <Link
+                                    to={`/shared/observation-record/${record.observation_id}`}
+                                    className="s04-pill-action is-primary"
+                                  >
+                                    View Record →
+                                  </Link>
+
+                                  {record.status === "completed" && (
+                                    <Link
+                                      to={`/shared/post-evaluation-survey?pairingId=${record.pairing_id}`}
+                                      className="s04-pill-action is-survey"
+                                    >
+                                      Post-Evaluation Survey ↗
+                                    </Link>
+                                  )}
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Spring 2025: Single Observee Card */}
-          <div className="accordion-item">
-            <div className="accordion-header" onClick={() => toggleSemester("Spring 2025")}>
-              <span>Spring 2025</span>
-              <span>{openSemesters["Spring 2025"] ? "▲" : "▼"}</span>
+                );
+              })}
             </div>
+          )}
+        </section>
+      )}
 
-            {openSemesters["Spring 2025"] && (
-              <div className="accordion-content">
-                <div className="observation-cards-container">
-                  <div className="observation-card-history">
-                    <div className="observation-card-header">
-                      <strong className="observation-card-title">
-                        Thursday, March 13, 2025
-                      </strong>
-                      <span className="pill-badge pill-observee">
-                        Observee
-                      </span>
-                    </div>
-
-                    <p className="observation-card-text">
-                      <strong>Observer Name:</strong> Last Name, First Name
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Class:</strong> CS 3305
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Section:</strong> 002
-                    </p>
-                    <p className="observation-card-text">
-                      <strong>Time:</strong> 10:00 AM - 11:15 AM
-                    </p>
-                    <p className="observation-card-subtext">
-                      <strong>Date Finalized:</strong> April 17, 2025
-                    </p>
-
-                    <div className="observation-card-actions">
-                      <button type="button" className="btn-primary">
-                        View Observation Record
-                      </button>
-                      <button type="button" className="btn-secondary">
-                        View Post-Observation Survey
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Bottom Centered Return Button */}
-        <div className="dashboard-center-action">
-          <Link to="/shared/faculty-dashboard" className="btn-secondary">
-            Return to Dashboard
-          </Link>
-        </div>
-      </section>
+      <div className="dashboard-center-action">
+        <Link
+          to={
+            isCommitteeMember
+              ? "/committee/dashboard"
+              : "/shared/faculty-dashboard"
+          }
+          className="btn-secondary"
+        >
+          Return to Dashboard
+        </Link>
+      </div>
     </div>
   );
 }

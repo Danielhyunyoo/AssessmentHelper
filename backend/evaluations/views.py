@@ -4,19 +4,28 @@ from django.core.management import call_command
 from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.shortcuts import get_object_or_404
+import mimetypes
+from django.http import FileResponse
+from django.core.files.storage import default_storage
 import json
+import os
 
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (api_view, authentication_classes, permission_classes, parser_classes,)
 from rest_framework.exceptions import NotAuthenticated, NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.authentication import SessionAuthentication
 
-from .models import Course, Cycle, Signup, Notification, Invitation
+from .models import Course, Cycle, Signup, Notification, Invitation, Observation
+from .proposal_kpis import PROBLEM_TEXT, recommendation_problems
 from . import clock
 from .evaluation_status import evaluation_status_for
+from .management.commands.seed_demo import COMMITTEE, FACULTY
 from django.utils import timezone
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from .serializers import (
     CourseSerializer,
     CourseSelectionSerializer,
@@ -92,7 +101,7 @@ def session_user(request):
     return Response({"professor": ProfessorSerializer(request.user).data})
 
 def require_demo_mode():
-    if not (settings.DEBUG and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False)):
+    if not demo_mode_enabled():
         raise NotFound("Demo mode is off.")
 
 
@@ -110,21 +119,92 @@ def demo_date(request):
 
 
 @api_view(["POST"])
-@authentication_classes([SessionAuthentication])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def demo_reset(request):
-    """Reset the demo data and the simulated date."""
+    """Bring the database up to date, then reset the demo data and the simulated date."""
     require_demo_mode()
+    executor = MigrationExecutor(connection)
+    if executor.migration_plan(executor.loader.graph.leaf_nodes()):
+        call_command("migrate", interactive=False, stdout=StringIO())
     call_command("seed_demo", "--reset", stdout=StringIO())
+    call_command("seed_sample_data", "--reset", stdout=StringIO())
     clock.set_simulated_date(None)
     return Response({"detail": "Demo data reset."})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([AllowAny])
+def demo_personas(request):
+    """List named demo accounts and selected background workflow examples."""
+    require_demo_mode()
+
+    usernames = [person["username"] for person in [*FACULTY, COMMITTEE]]
+    accounts = sorted(
+        User.objects.filter(username__in=usernames),
+        key=lambda user: usernames.index(user.username),
+    )
+
+    personas = [
+        {"name": user.get_full_name(), "email": user.email, "role": user.role}
+        for user in accounts
+    ]
+
+    # Add one distinct background professor for each available observation state.
+    # This lets the demo team inspect real records without bypassing permissions.
+    sample_states = [
+        ("draft", "Draft observation"),
+        ("awaiting_observee_signature", "Awaiting observee signature"),
+        ("completed", "Completed observation"),
+        ("cancelled", "Cancelled observation"),
+    ]
+
+    included_user_ids = set()
+
+    for observation_status, label in sample_states:
+        records = (
+            Observation.objects.filter(
+                status=observation_status,
+                pairing__cycle__status="active",
+                pairing__observee__username__startswith="bg_",
+            )
+            .select_related("pairing__observee")
+            .order_by("observation_id")
+        )
+
+        sample_record = next(
+            (
+                record
+                for record in records
+                if record.pairing.observee_id not in included_user_ids
+            ),
+            None,
+        )
+
+        if sample_record:
+            user = sample_record.pairing.observee
+            included_user_ids.add(user.pk)
+
+            personas.append({
+                "name": f"{user.get_full_name()} ({label})",
+                "email": user.email,
+                "role": user.role,
+            })
+
+    return Response(personas)
+
+def demo_mode_enabled():
+    public_demo = getattr(settings, "ASSESSMENT_HELPER_PUBLIC_DEMO", False)
+    return (settings.DEBUG or public_demo) and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False)
+
 
 def get_current_professor(request):
     """Return the authenticated user or a DEBUG-only demo user."""
     if request.user.is_authenticated:
         return request.user
 
-    if settings.DEBUG and getattr(settings, "ASSESSMENT_HELPER_DEMO_AUTH", False):
+    if demo_mode_enabled():
         username = request.headers.get("X-Demo-Username")
         if username:
             return get_object_or_404(User, username=username)
@@ -180,7 +260,10 @@ def my_professor(request):
         serializer.is_valid(raise_exception=True)
 
         for field, value in serializer.validated_data.items():
-            setattr(professor, field, value.strip())
+            if isinstance(value, str):
+                value = value.strip()
+
+            setattr(professor, field, value)
 
         professor.save(
             update_fields=list(serializer.validated_data.keys())
@@ -237,6 +320,7 @@ def registration_status(request):
         "is_registered": signup is not None,
         "has_selected_course": bool(signup and signup.course_id),
         "selected_course_id": signup.course_id if signup else None,
+        "today": clock.today(),
         # Availability and reasons should be derived from the team's agreed
         # signup dates and policies before this is used to enable UI controls.
     })
@@ -302,6 +386,7 @@ def select_signup_course(request):
 @api_view(["GET"])
 def faculty_dashboard(request):
     """Dashboard data for S01, scoped to the current professor and cycle."""
+    process_invitation_deadlines()
     from django.utils import timezone
     from .models import Invitation, Notification, Pairing, Observation
 
@@ -401,6 +486,7 @@ def faculty_dashboard(request):
 @api_view(["GET"])
 def my_notifications(request):
     """S03: Return only the current user's notifications, newest first."""
+    process_invitation_deadlines()
     professor = get_current_professor(request)
     notifications = Notification.objects.filter(user=professor).order_by(
         "-created_at", "-notification_id"
@@ -500,6 +586,31 @@ def committee_cycle_dates(request):
                 )
             })
 
+        proposed_observation_deadline = updates.get(
+            "observation_deadline",
+            cycle.observation_deadline,
+        )
+
+        proposed_survey_deadline = updates.get(
+            "survey_deadline",
+            cycle.survey_deadline,
+        )
+
+        if proposed_observation_deadline < proposed_signup_deadline:
+            raise ValidationError({
+                "observation_deadline": (
+                    "The observation deadline cannot be before registration closes."
+                )
+            })
+
+        if proposed_survey_deadline <= proposed_observation_deadline:
+            raise ValidationError({
+                "survey_deadline": (
+                    "The survey deadline must be after the observation deadline."
+                )
+            })
+
+        # Save only after every date has passed validation.
         for field, value in updates.items():
             setattr(cycle, field, value)
 
@@ -590,6 +701,39 @@ def send_workflow_notification(user, title, message, destination):
     )
 
 
+CLOSED_INVITATION_STATUSES = ("expired", "declined", "rejected")
+
+
+def display_name(user):
+    return user.get_full_name() or user.username
+
+
+def process_invitation_deadlines():
+    """Expire unanswered invitations and remind observers a day before they lapse."""
+    now = clock.now()
+    with transaction.atomic():
+        overdue = Invitation.objects.select_for_update().filter(status="pending", expires_at__lte=now)
+        for inv in overdue.select_related("sender", "recipient"):
+            inv.status = "expired"
+            inv.save(update_fields=["status"])
+            send_workflow_notification(inv.sender, "Invitation expired",
+                                       f"{display_name(inv.recipient)} did not answer within 48 hours. You can invite them again.",
+                                       "/observee/observer-selection")
+            send_workflow_notification(inv.recipient, "Invitation expired",
+                                       f"The observation request from {display_name(inv.sender)} expired.",
+                                       "/observer/observation-request")
+        expiring = Invitation.objects.select_for_update().filter(
+            status="pending", reminded_at__isnull=True, expires_at__gt=now, expires_at__lte=now + timedelta(hours=24),
+        )
+        for inv in expiring.select_related("sender", "recipient"):
+            inv.reminded_at = now
+            inv.save(update_fields=["reminded_at"])
+            expires = timezone.localtime(inv.expires_at).strftime("%b %d at %I:%M %p").replace(" 0", " ")
+            send_workflow_notification(inv.recipient, "Invitation expires soon",
+                                       f"The observation request from {display_name(inv.sender)} expires {expires}.",
+                                       "/observer/observation-request")
+
+
 def invitation_json(inv):
     return {
         "invitation_id": inv.pk,
@@ -598,6 +742,7 @@ def invitation_json(inv):
         "recipient_id": inv.recipient_id,
         "course_id": inv.course_id,
         "sender": ProfessorSerializer(inv.sender).data,
+        "recipient": ProfessorSerializer(inv.recipient).data,
         "course": CourseSerializer(inv.course).data,
         "status": (
             "expired"
@@ -629,19 +774,33 @@ def committee_candidate_pool(request, signup_id):
     if not signup.course_id:
         raise ValidationError({"detail": "Observee has not selected a course."})
     people = User.objects.filter(is_active=True, role="faculty", department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
+    courses = Course.objects.filter(instructor__in=people, semester=signup.course.semester, year=signup.course.year)
+    courses_by_instructor = {}
+    for course in courses:
+        courses_by_instructor.setdefault(course.instructor_id, []).append(course)
+    screened = [
+        (u, recommendation_problems(signup.user, signup.course, u, courses_by_instructor.get(u.pk, [])))
+        for u in people
+    ]
+    screened.sort(key=lambda pair: bool(pair[1]))
+    confirmed = Pairing.objects.filter(cycle=signup.cycle, observee=signup.user, status="confirmed").select_related("observer")
     return Response({
         "signup_id": signup.pk,
         "screening_only": True,
         "warning": "Review academic rank, course-level rules, recent teaching history and scheduling conflicts manually before approval.",
         "candidates": [
-            {"id": u.pk, "name": u.get_full_name() or u.username, "academic_level": u.academic_level, "department_id": u.department_id}
-            for u in people
+            {"id": u.pk, "name": u.get_full_name() or u.username, "academic_level": u.academic_level,
+             "department_id": u.department_id, "eligible": not problems,
+             "problems": [PROBLEM_TEXT[problem] for problem in problems]}
+            for u, problems in screened
         ],
         "released_observer_ids": list(
             MatchCandidate.objects.filter(signup=signup)
             .values_list("observer_id", flat=True)
         ),
         "matches_released_at": signup.matches_released_at,
+        "confirmed_observer_ids": [p.observer_id for p in confirmed],
+        "confirmed_observer_names": [p.observer.get_full_name() or p.observer.username for p in confirmed],
     })
 
 
@@ -671,7 +830,7 @@ def committee_release_candidates(request, signup_id):
             MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
             signup.matches_released_at = clock.now()
             signup.save(update_fields=["matches_released_at"])
-            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observer-selection")
+            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observee/observer-selection")
     return Response({"signup_id": signup.pk, "released": True, "observer_ids": ids})
 
 
@@ -692,6 +851,7 @@ def my_matched_candidates(request):
 
 @api_view(["POST"])
 def send_invitation(request):
+    process_invitation_deadlines()
     sender = get_current_professor(request)
     cycle = get_current_cycle()
     data = InvitationCreateSerializer(data=request.data)
@@ -711,22 +871,24 @@ def send_invitation(request):
             raise PermissionDenied("Observer is not in your released candidate list.")
         if Pairing.objects.filter(cycle=cycle, observee=sender, status="confirmed").exists():
             raise ValidationError({"detail": "Already finalized an observer."})
-        if Invitation.objects.filter(cycle=cycle, sender=sender, recipient_id=observer_id).exists():
-            raise ValidationError({"detail": "An invitation to this observer already exists this cycle."})
+        if Invitation.objects.filter(cycle=cycle, sender=sender, recipient_id=observer_id).exclude(
+                status__in=CLOSED_INVITATION_STATUSES).exists():
+            raise ValidationError({"detail": "An invitation to this observer is already open this cycle."})
         inv = Invitation.objects.create(cycle=cycle, sender=sender, recipient_id=observer_id,
                                         course=signup.course, expires_at=now + timedelta(hours=48))
         ProposedDate.objects.bulk_create([ProposedDate(invitation=inv, proposed_datetime=d) for d in dates])
-        send_workflow_notification(inv.recipient, "Observation invitation", "You have a new observation request.", f"/observer-requests/{inv.pk}")
+        send_workflow_notification(inv.recipient, "Observation invitation", "You have a new observation request.", "/observer/observation-request")
     return Response(invitation_json(inv), status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET"])
 def my_sent_invitations(request):
+    process_invitation_deadlines()
     user = get_current_professor(request)
     invs = (
         Invitation.objects
         .filter(sender=user, cycle=get_current_cycle())
-        .select_related("sender", "course", "course__department")
+        .select_related("sender", "recipient", "course", "course__department")
         .prefetch_related("proposed_dates")
     )
     return Response([invitation_json(inv) for inv in invs])
@@ -734,11 +896,12 @@ def my_sent_invitations(request):
 
 @api_view(["GET"])
 def my_received_invitations(request):
+    process_invitation_deadlines()
     user = get_current_professor(request)
     invs = (
         Invitation.objects
         .filter(recipient=user, cycle=get_current_cycle())
-        .select_related("sender", "course", "course__department")
+        .select_related("sender", "recipient", "course", "course__department")
         .prefetch_related("proposed_dates")
     )
     return Response([invitation_json(inv) for inv in invs])
@@ -746,6 +909,7 @@ def my_received_invitations(request):
 
 @api_view(["POST"])
 def respond_to_invitation(request, invitation_id):
+    process_invitation_deadlines()
     user = get_current_professor(request)
     data = InvitationResponseSerializer(data=request.data)
     data.is_valid(raise_exception=True)
@@ -764,12 +928,74 @@ def respond_to_invitation(request, invitation_id):
             inv.status = "declined"
         inv.responded_at = clock.now()
         inv.save(update_fields=["status", "responded_at"])
-        send_workflow_notification(inv.sender, "Invitation response", f"An observer {inv.status} your invitation.", "/observer-selection")
+        send_workflow_notification(inv.sender, "Invitation response",
+                                   f"{display_name(inv.recipient)} {inv.status} your invitation.", "/observee/observer-selection")
+    return Response(invitation_json(inv))
+
+
+def _reject(inv):
+    inv.status = "rejected"
+    inv.responded_at = inv.responded_at or clock.now()
+    inv.save(update_fields=["status", "responded_at"])
+    send_workflow_notification(inv.recipient, "Invitation withdrawn",
+                               f"{display_name(inv.sender)} withdrew their observation request.",
+                               "/observer/observation-request")
+
+
+@api_view(["POST"])
+def reject_invitation(request, invitation_id):
+    """The observee withdraws one pending or accepted invitation."""
+    sender = get_current_professor(request)
+    process_invitation_deadlines()
+    with transaction.atomic():
+        inv = get_object_or_404(Invitation.objects.select_for_update().select_related("sender", "recipient"),
+                                pk=invitation_id, sender=sender, cycle=get_current_cycle())
+        if inv.status not in ("pending", "accepted"):
+            raise ValidationError({"detail": "Only pending or accepted invitations can be rejected."})
+        _reject(inv)
     return Response(invitation_json(inv))
 
 
 @api_view(["POST"])
+def reject_all_invitations(request):
+    """The observee withdraws every pending or accepted invitation this cycle."""
+    sender = get_current_professor(request)
+    process_invitation_deadlines()
+    with transaction.atomic():
+        open_invitations = Invitation.objects.select_for_update().select_related("sender", "recipient").filter(
+            sender=sender, cycle=get_current_cycle(), status__in=("pending", "accepted"))
+        rejected = list(open_invitations)
+        for inv in rejected:
+            _reject(inv)
+    return Response({"rejected_ids": [inv.pk for inv in rejected]})
+
+
+@api_view(["GET"])
+def my_scheduled_visits(request):
+    """Confirmed visits that have not happened yet, for either participant."""
+    user = get_current_professor(request)
+    pairings = (
+        Pairing.objects
+        .filter(Q(observer=user) | Q(observee=user), cycle=get_current_cycle(), status="confirmed",
+                confirmed_datetime__gt=clock.now(), observations__isnull=True)
+        .select_related("observer", "observee", "course", "course__department")
+        .order_by("confirmed_datetime")
+    )
+    return Response([
+        {
+            "pairing_id": pairing.pk,
+            "observer": {"id": pairing.observer_id, "name": display_name(pairing.observer)},
+            "observee": {"id": pairing.observee_id, "name": display_name(pairing.observee)},
+            "course": CourseSerializer(pairing.course).data,
+            "confirmed_datetime": pairing.confirmed_datetime,
+        }
+        for pairing in pairings
+    ])
+
+
+@api_view(["POST"])
 def confirm_pairing(request):
+    process_invitation_deadlines()
     observee = get_current_professor(request)
     data = PairingConfirmSerializer(data=request.data)
     data.is_valid(raise_exception=True)
@@ -921,6 +1147,30 @@ def observations_collection(request):
     """List my records, or create a draft for an assigned pairing."""
     user = get_current_professor(request)
     if request.method == "GET":
+        template = Template.objects.filter(
+            type="observation",
+            status="published",
+        ).order_by("-version", "-template_id").first()
+
+        if template:
+            with transaction.atomic():
+                pairings = Pairing.objects.select_for_update().filter(
+                    (Q(observer=user) | Q(observee=user)),
+                    cycle=get_current_cycle(),
+                    status="confirmed",
+                    confirmed_datetime__isnull=False,
+                    confirmed_datetime__lte=clock.now(),
+                )
+
+                for pairing in pairings:
+                    Observation.objects.get_or_create(
+                        pairing=pairing,
+                        defaults={
+                            "template": template,
+                            "status": "draft",
+                        },
+                    )
+
         records = Observation.objects.filter(
             Q(pairing__observer=user) | Q(pairing__observee=user)
         ).select_related("pairing", "pairing__observer", "pairing__observee",
@@ -985,14 +1235,14 @@ def sign_observation(request, observation_id):
             observation.status = "awaiting_observee_signature"
             observation.save(update_fields=["observer_signed", "observer_signed_at", "status"])
             send_workflow_notification(observation.pairing.observee, "Observation ready to sign",
-                                       "The observer submitted the evaluation record.", f"/observations/{observation.pk}")
+                                       "The observer submitted the evaluation record.", f"/shared/observation-record/{observation.pk}")
         else:
             observation.observee_signed = True
             observation.observee_signed_at = clock.now()
             observation.status = "completed"
             observation.save(update_fields=["observee_signed", "observee_signed_at", "status"])
             send_workflow_notification(observation.pairing.observer, "Observation completed",
-                                       "Both participants have signed the observation record.", f"/observations/{observation.pk}")
+                                       "Both participants have signed the observation record.", f"/shared/observation-record/{observation.pk}")
     return Response(_observation_json(observation, user))
 
 
@@ -1108,15 +1358,22 @@ def _store_survey_answers(survey, answers, *, submit):
     survey.improvements = answers.get("improvements") if isinstance(answers.get("improvements"), str) else ""
     if submit:
         survey.submitted_at = clock.now()
-    survey.save(update_fields=["responses", "score", "pain_points", "improvements", "submitted_at"])
+    survey.save()
 
 
 def _assert_survey_ready(pairing, user):
     role = _survey_role(pairing, user)
     if pairing.status != "confirmed":
         raise ValidationError({"detail": "Pairing is not confirmed."})
-    if clock.today() > pairing.cycle.survey_deadline:
-        raise ValidationError({"detail": "The survey deadline has passed."})
+    today = clock.today()
+    if today <= pairing.cycle.observation_deadline:
+        raise ValidationError({
+            "detail": "Process surveys are not available until the observation period ends."
+        })
+    if today > pairing.cycle.survey_deadline:
+        raise ValidationError({
+            "detail": "The survey deadline has passed."
+        })
     if not Observation.objects.filter(
         pairing=pairing, status="completed", observer_signed=True, observee_signed=True,
     ).exists():
@@ -1155,6 +1412,62 @@ def surveys_collection(request):
         _store_survey_answers(survey, answers, submit=data["submit"])
     return Response(_survey_json(survey), status=status.HTTP_201_CREATED)
 
+@api_view(["GET"])
+def survey_template_for_pairing(request):
+    """Return the published survey template for one of the user's completed pairings."""
+    from .models import Pairing, Survey, Template
+
+    user = get_current_professor(request)
+    pairing_id = request.query_params.get("pairing_id")
+
+    if not pairing_id:
+        raise ValidationError({"pairing_id": "A pairing ID is required."})
+
+    pairing = get_object_or_404(
+        Pairing.objects.select_related(
+            "cycle",
+            "observer",
+            "observee",
+            "course",
+        ),
+        pk=pairing_id,
+        status="confirmed",
+    )
+
+    # This also verifies that the current user is the observer or observee,
+    # that the observation is fully signed, and that the survey deadline
+    # has not passed.
+    role = _assert_survey_ready(pairing, user)
+
+    existing = Survey.objects.filter(
+        pairing=pairing,
+        respondent_type=role,
+    ).first()
+
+    if existing:
+        return Response({
+            "pairing_id": pairing.pk,
+            "respondent_type": role,
+            "survey_id": existing.pk,
+            "template": _template_payload(existing.template),
+        })
+
+    template = Template.objects.filter(
+        type="survey",
+        status="published",
+    ).order_by("-version", "-template_id").first()
+
+    if template is None:
+        raise ValidationError({
+            "detail": "There is no published survey template available."
+        })
+
+    return Response({
+        "pairing_id": pairing.pk,
+        "respondent_type": role,
+        "survey_id": None,
+        "template": _template_payload(template),
+    })
 
 @api_view(["GET", "PATCH"])
 def survey_detail(request, survey_id):
@@ -1177,6 +1490,88 @@ def survey_detail(request, survey_id):
         _validate_survey_answers(survey.template, answers, submit=submit)
         _store_survey_answers(survey, answers, submit=submit)
     return Response(_survey_json(survey))
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def survey_file_upload(request, survey_id):
+    user = get_current_professor(request)
+
+    survey = get_object_or_404(
+        _survey_queryset(user).select_related("pairing"),
+        pk=survey_id,
+    )
+
+    role = _assert_survey_ready(survey.pairing, user)
+
+    if role != "observee":
+        raise ValidationError({
+            "detail": "Only the observee may attach a supporting file."
+        })
+
+    if survey.submitted_at is not None:
+        raise ValidationError({
+            "detail": "Submitted surveys cannot be modified."
+        })
+
+    uploaded = request.FILES.get("survey_file")
+
+    if not uploaded:
+        raise ValidationError({
+            "survey_file": "Select a file to upload."
+        })
+
+    allowed_extensions = {".pdf", ".doc", ".docx", ".txt"}
+    extension = os.path.splitext(uploaded.name)[1].lower()
+
+    if extension not in allowed_extensions:
+        raise ValidationError({
+            "survey_file": "Unsupported file type."
+        })
+
+    if uploaded.size > 10 * 1024 * 1024:
+        raise ValidationError({
+            "survey_file": "The file cannot exceed 10 MB."
+        })
+
+    from django.core.files.storage import default_storage
+
+    filename = default_storage.save(
+        f"survey_files/{survey.survey_id}/{uploaded.name}",
+        uploaded,
+    )
+
+    survey.survey_file = filename
+    survey.save(update_fields=["survey_file"])
+
+    return Response(_survey_json(survey))
+
+@api_view(["GET"])
+def committee_survey_file(request, survey_id):
+    member = get_current_professor(request)
+    require_committee(member)
+
+    survey = get_object_or_404(Survey, pk=survey_id)
+
+    if not survey.survey_file:
+        raise NotFound("This survey does not have an attached file.")
+
+    if not default_storage.exists(survey.survey_file):
+        raise NotFound("The attached file could not be found.")
+
+    filename = os.path.basename(survey.survey_file)
+    content_type, _ = mimetypes.guess_type(filename)
+
+    file_handle = default_storage.open(survey.survey_file, "rb")
+
+    response = FileResponse(
+        file_handle,
+        as_attachment=True,
+        filename=filename,
+        content_type=content_type or "application/octet-stream",
+    )
+
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 # --- A05/A06: Assessment Committee pending records and surveys ---
 
@@ -1263,6 +1658,28 @@ def committee_observation_detail(request, observation_id):
     data.update(can_edit=False, can_sign=False, can_cancel=False, locked=True)
     return Response(data)
 
+@api_view(["GET"])
+def committee_survey_detail(request, survey_id):
+    """A06: read-only survey details for committee members."""
+    member = get_current_professor(request)
+    require_committee(member)
+
+    from .models import Survey
+
+    survey = get_object_or_404(
+        Survey.objects.select_related(
+            "pairing",
+            "pairing__observer",
+            "pairing__observee",
+            "pairing__course",
+            "pairing__course__department",
+            "template",
+        ),
+        pk=survey_id,
+        submitted_at__isnull=False,
+    )
+
+    return Response(_survey_json(survey))
 
 @api_view(["POST"])
 def committee_remind_record(request, pairing_id):
@@ -1282,7 +1699,7 @@ def committee_remind_record(request, pairing_id):
         raise ValidationError({"detail": "There is no outstanding signature."})
     send_workflow_notification(person, "Observation record reminder",
                                "Please complete your pending observation record or signature.",
-                               f"/observations/{record.pk}" if record else "/observations")
+                               f"/shared/observation-record/{record.pk}" if record else "/shared/current-past-observations")
     return Response({"pairing_id": pairing.pk, "reminded_user_id": person.pk, "missing": missing})
 
 
@@ -1315,9 +1732,9 @@ def committee_pending_surveys(request):
             }
             if response and response.submitted_at:
                 completed.append({**item, "survey_id": response.pk, "submitted_at": response.submitted_at})
-            else:
+            elif clock.surveys_open(cycle):
                 missing.append(item)
-    return Response({"cycle_id": cycle.pk, "missing_count": len(missing),
+    return Response({"cycle_id": cycle.pk, "surveys_open": clock.surveys_open(cycle), "observation_deadline": cycle.observation_deadline, "missing_count": len(missing),
                      "completed_count": len(completed), "missing": missing, "completed": completed})
 
 
@@ -1335,7 +1752,7 @@ def committee_remind_survey(request, pairing_id, role):
         raise ValidationError({"detail": "This participant already submitted a survey."})
     person = pairing.observer if role == "observer" else pairing.observee
     send_workflow_notification(person, "Post-observation survey reminder",
-                               "Please complete your post-observation survey.", "/surveys")
+                               "Please complete your post-observation survey.", "/shared/current-past-observations")
     return Response({"pairing_id": pairing.pk, "respondent_type": role, "reminded_user_id": person.pk})
 
 
@@ -1473,7 +1890,7 @@ def committee_remind_unregistered(request):
                 message=f"Please register for the {cycle.semester} evaluation cycle by {cycle.signup_deadline}.",
                 type="registration_reminder",
                 is_urgent=False,
-                destination="/registration",
+                destination="/observee/course-selection",
             )
     return Response({"cycle_id": cycle.pk, "reminded_user_ids": ids, "sent_count": len(ids)})
 
@@ -1537,17 +1954,19 @@ def committee_dashboard(request):
 
     alerts = []
     if unregistered_count:
-        alerts.append({"code": "unregistered_faculty", "message": f"{unregistered_count} active faculty have not registered for this cycle.", "count": unregistered_count, "destination": "/committee/faculty"})
+        alerts.append({"code": "unregistered_faculty", "message": f"{unregistered_count} active faculty have not registered for this cycle.", "count": unregistered_count, "destination": "/committee/faculty-roster"})
     if no_course_count:
-        alerts.append({"code": "registered_no_course", "message": f"{no_course_count} registered faculty have not selected a course.", "count": no_course_count, "destination": "/committee/faculty"})
+        alerts.append({"code": "registered_no_course", "message": f"{no_course_count} registered faculty have not selected a course.", "count": no_course_count, "destination": "/committee/faculty-roster"})
     if awaiting_release:
-        alerts.append({"code": "unreleased_candidate_lists", "message": f"{awaiting_release} course signups are awaiting candidate-list release.", "count": awaiting_release, "destination": "/committee/matching"})
+        alerts.append({"code": "unreleased_candidate_lists", "message": f"{awaiting_release} course signups are awaiting candidate-list release.", "count": awaiting_release, "destination": "/committee/faculty-matching"})
     if released_with_zero:
         alerts.append({"code": "released_zero_candidates", "message": f"{released_with_zero} released candidate lists contain no observers.", "count": released_with_zero, "destination": "/committee/unmatched"})
     if pending_records:
         alerts.append({"code": "pending_records", "message": f"{pending_records} observation records need attention.", "count": pending_records, "destination": "/committee/pending-records"})
+    if not clock.surveys_open(cycle):
+        pending_surveys = 0
     if pending_surveys:
-        alerts.append({"code": "missing_surveys", "message": f"{pending_surveys} post-observation survey responses are missing.", "count": pending_surveys, "destination": "/committee/pending-surveys"})
+        alerts.append({"code": "missing_surveys", "message": f"{pending_surveys} post-observation survey responses are missing.", "count": pending_surveys, "destination": "/committee/survey-tracking"})
 
     def module(available, reason=None):
         return {"available": bool(available), "reason": None if available else reason}
@@ -1589,6 +2008,7 @@ def committee_dashboard(request):
             "missing_observer_submissions": missing_observer_submissions,
             "missing_observee_signatures": missing_observee_signatures,
             "missing_surveys": pending_surveys,
+            "surveys_open": clock.surveys_open(cycle),
             "submitted_surveys": submitted_surveys,
             "expected_surveys": expected_surveys,
             "faculty_due": due_count,

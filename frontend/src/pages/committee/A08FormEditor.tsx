@@ -1,359 +1,621 @@
-import { useState } from "react";
+// src/pages/committee/A08FormEditor.tsx
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
-interface EditorQuestion {
-  id: string;
-  label: string;
-  type: "rating" | "textbox";
-}
+import { committeeApi } from "../../api/endpoints";
+import type { FormQuestion, Template } from "../../api/types";
 
 export default function A08FormEditor() {
-  const [activeFormType, setActiveFormType] = useState<"observation" | "survey">("observation");
-  const [formVersion, setFormVersion] = useState<string>("V1");
+  const [activeFormType, setActiveFormType] =
+    useState<"observation" | "survey">("observation");
 
-  const [isEditingObsTitle, setIsEditingObsTitle] = useState(false);
-  const [isEditingSurveyTitle, setIsEditingSurveyTitle] = useState(false);
-
-  // Editable Observation Form State
-  const [obsTitle, setObsTitle] = useState("Observation Record and Evaluation Form");
-  const [obsInstruction, setObsInstruction] = useState(
-    "For each question, please assign a score (1 = Lowest/Worst, 5 = Highest/Best)"
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
+    null
   );
-  const [obsQuestions, setObsQuestions] = useState<EditorQuestion[]>([
-    { id: "obs_1", label: "Please rank the student's overall engagement levels.", type: "rating" },
-    { id: "obs_2", label: "Was the academic rigor appropriate for the course level?", type: "rating" },
-    { id: "obs_3", label: "How good was the pace of the lecture?", type: "rating" },
-    { id: "obs_4", label: "How well did the lecture align with the syllabus?", type: "rating" },
-    {
-      id: "obs_5",
-      label: "Please include any additional notes, comments or concerns you may have.",
-      type: "textbox",
-    },
-  ]);
-  const [newObsQType, setNewObsQType] = useState<"rating" | "textbox">("rating");
-
-  // Editable Survey Form State
-  const [surveyTitle, setSurveyTitle] = useState("Post-Evaluation Cycle Process Survey");
-  const [surveyInstruction, setSurveyInstruction] = useState(
-    "For each question, please assign a score (1 = Unsatisfactory, 5 = Very Satisfactory)"
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null
   );
-  const [surveyQuestions, setSurveyQuestions] = useState<EditorQuestion[]>([
-    { id: "surv_1", label: "How satisfied are you with the evaluation process?", type: "rating" },
-    {
-      id: "surv_2",
-      label: "Please list any difficulties you ran into throughout this cycle (re: scheduling, communication, or observation visit).",
-      type: "textbox",
-    },
-    {
-      id: "surv_3",
-      label: "Please provide any feedback or suggestions on how the Assessment Committee can improve this workflow.",
-      type: "textbox",
-    },
-  ]);
-  const [newSurveyQType, setNewSurveyQType] = useState<"rating" | "textbox">("rating");
 
-  // Handlers for Observation Questions
-  const handleAddObsQuestion = () => {
-    const newQ: EditorQuestion = {
-      id: `obs_q_${Date.now()}`,
-      label: newObsQType === "rating" ? "New Rating Question (1-5)" : "New Open Response Question",
-      type: newObsQType,
-    };
-    setObsQuestions([...obsQuestions, newQ]);
-  };
+  const [name, setName] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [questions, setQuestions] = useState<FormQuestion[]>([]);
 
-  const handleDeleteObsQuestion = (id: string) => {
-    setObsQuestions(obsQuestions.filter((q) => q.id !== id));
-  };
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  const handleUpdateObsLabel = (id: string, text: string) => {
-    setObsQuestions(obsQuestions.map((q) => (q.id === id ? { ...q, label: text } : q)));
-  };
+  const isEditable = !selectedTemplateId || Boolean(selectedTemplate?.can_edit);
 
-  // Handlers for Survey Questions
-  const handleAddSurveyQuestion = () => {
-    const newQ: EditorQuestion = {
-      id: `survey_q_${Date.now()}`,
-      label: newSurveyQType === "rating" ? "New Rating Question (1-5)" : "New Open Response Question",
-      type: newSurveyQType,
-    };
-    setSurveyQuestions([...surveyQuestions, newQ]);
-  };
+  async function loadTemplates(type = activeFormType) {
+    try {
+      const result = await committeeApi.templates(type);
+      setTemplates(result.templates);
 
-  const handleDeleteSurveyQuestion = (id: string) => {
-    setSurveyQuestions(surveyQuestions.filter((q) => q.id !== id));
-  };
+      if (result.templates.length > 0) {
+        const draftOrLatest =
+          result.templates.find((t) => t.can_edit) ??
+          result.templates[result.templates.length - 1];
 
-  const handleUpdateSurveyLabel = (id: string, text: string) => {
-    setSurveyQuestions(surveyQuestions.map((q) => (q.id === id ? { ...q, label: text } : q)));
-  };
-
-  const handleSaveNewVersion = () => {
-    alert(
-      `Successfully saved changes as a new form version for ${
-        activeFormType === "observation" ? "Observation Form" : "Survey Form"
-      }!`
-    );
-  };
-
-  const handleUndo = () => {
-    if (window.confirm("Are you sure you want to undo all unsaved changes?")) {
-      window.location.reload();
+        setSelectedTemplateId(draftOrLatest.template_id);
+        setSelectedTemplate(draftOrLatest);
+        setName(draftOrLatest.name);
+        setInstructions(draftOrLatest.instructions);
+        setQuestions(draftOrLatest.questions);
+      } else {
+        setSelectedTemplateId(null);
+        setSelectedTemplate(null);
+        setName(
+          type === "observation" ? "New Observation Form" : "New Survey Form"
+        );
+        setInstructions("");
+        setQuestions([]);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to load templates."
+      );
     }
-  };
+  }
+
+  useEffect(() => {
+    void loadTemplates(activeFormType);
+  }, [activeFormType]);
+
+  async function selectTemplate(id: number) {
+    try {
+      const result = await committeeApi.template(id);
+      setSelectedTemplate(result);
+      setSelectedTemplateId(result.template_id);
+      setName(result.name);
+      setInstructions(result.instructions);
+      setQuestions(result.questions);
+      setError("");
+      setMessage("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load template.");
+    }
+  }
+
+  function updateQuestion(id: string, changes: Partial<FormQuestion>) {
+    setQuestions((previous) =>
+      previous.map((question) =>
+        question.id === id ? { ...question, ...changes } : question
+      )
+    );
+  }
+
+  function addQuestion(type: "rating" | "text") {
+    const id = `question_${Date.now()}`;
+
+    setQuestions((previous) => [
+      ...previous,
+      {
+        id,
+        text: "",
+        type,
+        required: false,
+        ...(type === "rating" ? { min: 1, max: 5 } : {}),
+        order: previous.length,
+      },
+    ]);
+  }
+
+  function moveQuestion(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= questions.length) return;
+
+    setQuestions((previous) => {
+      const updated = [...previous];
+      const [moved] = updated.splice(index, 1);
+      updated.splice(targetIndex, 0, moved);
+      return updated.map((q, idx) => ({ ...q, order: idx }));
+    });
+  }
+
+  function deleteQuestion(id: string) {
+    setQuestions((previous) =>
+      previous
+        .filter((question) => question.id !== id)
+        .map((q, idx) => ({ ...q, order: idx }))
+    );
+  }
+
+  async function saveDraft() {
+    try {
+      if (!name.trim()) {
+        setError("Enter a template name.");
+        return;
+      }
+
+      if (questions.length === 0) {
+        setError("Add at least one question before saving.");
+        return;
+      }
+
+      if (questions.some((question) => !question.text.trim())) {
+        setError("Every question must have question text.");
+        return;
+      }
+
+      if (
+        questions.some(
+          (question) =>
+            question.type === "rating" &&
+            (question.min === undefined ||
+              question.max === undefined ||
+              question.min >= question.max)
+        )
+      ) {
+        setError(
+          "Every rating question must have a minimum below its maximum."
+        );
+        return;
+      }
+
+      setError("");
+      setMessage("");
+
+      if (!selectedTemplateId) {
+        const created = await committeeApi.createTemplate({
+          name,
+          type: activeFormType,
+          instructions,
+          questions,
+        });
+
+        await loadTemplates(activeFormType);
+        await selectTemplate(created.template_id);
+        setMessage("Draft template created successfully.");
+        return;
+      }
+
+      if (!selectedTemplate?.can_edit) {
+        setError(
+          "This template is published and locked. Click 'Clone as New Version' to make changes."
+        );
+        return;
+      }
+
+      await committeeApi.editTemplate(selectedTemplateId, {
+        instructions,
+        questions,
+      });
+
+      await selectTemplate(selectedTemplateId);
+      setMessage("Draft saved successfully.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save template.");
+    }
+  }
+
+  async function cloneTemplate() {
+    if (!selectedTemplateId) return;
+
+    try {
+      const created = await committeeApi.cloneTemplate(selectedTemplateId);
+      await loadTemplates(activeFormType);
+      await selectTemplate(created.template_id);
+      setMessage(
+        `Cloned successfully! You are now editing Version ${created.version} as a new draft.`
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to clone template."
+      );
+    }
+  }
+
+  async function publishTemplate() {
+    if (!selectedTemplateId) return;
+
+    try {
+      await committeeApi.publishTemplate(selectedTemplateId);
+      await loadTemplates(activeFormType);
+      setMessage("Template published successfully.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to publish template."
+      );
+    }
+  }
 
   return (
     <div className="dashboard-container form-editor-page">
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 
-      <div className="editor-top-bar">
-        <h2>Edit Evaluation / Survey Forms</h2>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Edit Evaluation and Survey Forms</h2>
+          </div>
+        </div>
       </div>
 
-      {/* Control Banner */}
-      <div className="table-container theme-orange editor-control-banner">
+      {error && (
+        <p className="signin-error-banner" role="alert">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p className="feedback-banner-success" role="status">
+          {message}
+        </p>
+      )}
+
+      {/* Top Control Banner */}
+      <div className="editor-control-banner">
         <div className="editor-control-group">
-          <label><strong>Select Form to Edit:</strong></label>
+          <label htmlFor="a08-form-type">Form Type:</label>
           <select
-            className="styled-select-input"
+            id="a08-form-type"
             value={activeFormType}
-            onChange={(e) => setActiveFormType(e.target.value as "observation" | "survey")}
+            onChange={(event) =>
+              setActiveFormType(event.target.value as "observation" | "survey")
+            }
           >
-            <option value="observation">Observation Record and Evaluation Form</option>
-            <option value="survey">Post-Evaluation Cycle Process Survey</option>
+            <option value="observation">Observation Form</option>
+            <option value="survey">Post-Evaluation Survey</option>
           </select>
         </div>
 
         <div className="editor-control-group">
-          <label><strong>Form Version:</strong></label>
+          <label htmlFor="a08-template-select">Template Select:</label>
           <select
-            className="styled-select-input"
-            value={formVersion}
-            onChange={(e) => setFormVersion(e.target.value)}
+            id="a08-template-select"
+            value={selectedTemplateId ?? ""}
+            onChange={(event) => {
+              if (event.target.value) {
+                void selectTemplate(Number(event.target.value));
+              }
+            }}
           >
-            <option value="V1">Current Evaluation Form (V1)</option>
-            <option value="V2">Draft Version (V2)</option>
+            {templates.length === 0 && (
+              <option value="">No saved templates</option>
+            )}
+            {templates.map((template) => (
+              <option key={template.template_id} value={template.template_id}>
+                {template.name} (v{template.version} -{" "}
+                {template.status.toUpperCase()})
+              </option>
+            ))}
           </select>
         </div>
+
+        <div className="editor-control-group">
+          <label htmlFor="a08-template-name">Template Name:</label>
+          <input
+            id="a08-template-name"
+            type="text"
+            value={name}
+            disabled={!isEditable}
+            placeholder="e.g. Peer Observation Form"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => {
+            setSelectedTemplateId(null);
+            setSelectedTemplate(null);
+            setName(
+              activeFormType === "observation"
+                ? "New Observation Form"
+                : "New Survey Form"
+            );
+            setInstructions("");
+            setQuestions([]);
+            setMessage("Started a blank new template.");
+            setError("");
+          }}
+        >
+          + Blank Form
+        </button>
       </div>
 
-      <div className="roster-section-divider" />
-
-      {/* ================= OBSERVATION FORM EDITOR ================= */}
-      {activeFormType === "observation" && (
-        <section className="evaluation-form-wrapper">
-          <div className="evaluation-form-header">
-            {isEditingObsTitle ? (
-              <div className="editor-title-edit-wrapper">
-                <input
-                  type="text"
-                  value={obsTitle}
-                  onChange={(e) => setObsTitle(e.target.value)}
-                  className="styled-text-input editor-input-field font-bold"
-                />
-                <button type="button" className="btn-primary btn-sm" onClick={() => setIsEditingObsTitle(false)}>
-                  Done
-                </button>
-              </div>
-            ) : (
-              <div className="editor-title-display-wrapper">
-                <h3>{obsTitle}</h3>
-                <button type="button" className="btn-secondary btn-sm" onClick={() => setIsEditingObsTitle(true)}>
-                  Edit Title
-                </button>
-              </div>
+      {/* Questions Section */}
+      <section className="evaluation-form-wrapper">
+        <div
+          className={`a08-form-header-card ${!isEditable ? "is-locked" : ""}`}
+        >
+          <div className="header-title-group">
+            <h3>{name || "Untitled Form"}</h3>
+            {selectedTemplate && (
+              <span className="version-pill">v{selectedTemplate.version}</span>
             )}
-            <span className="form-version-tag">Evaluation Form {formVersion}</span>
+            <span
+              className={
+                isEditable
+                  ? "status-chip chip-draft"
+                  : "status-chip chip-locked"
+              }
+            >
+              {isEditable ? "Editable Draft" : "Published (Locked)"}
+            </span>
           </div>
 
-          <div className="evaluation-form-card">
-            <div className="editable-field-container">
-              <span className="edit-indicator-tag">✏️ Edit Instruction</span>
-              <input
-                type="text"
-                value={obsInstruction}
-                onChange={(e) => setObsInstruction(e.target.value)}
-                className="styled-text-input editor-input-field italic instruction-editor-input"
-              />
+          <div className="a08-header-right-actions">
+            {selectedTemplateId !== null && (
+              <button
+                type="button"
+                className="btn-secondary header-clone-btn"
+                onClick={() => void cloneTemplate()}
+              >
+                Clone as New Version
+              </button>
+            )}
+            {isEditable && (
+              <button
+                type="button"
+                className="btn-secondary header-clone-btn"
+                onClick={() => void saveDraft()}
+              >
+                Save Draft
+              </button>
+            )}
+            {selectedTemplate?.can_publish && (
+              <button
+                type="button"
+                className="btn-accent-blue header-clone-btn"
+                onClick={() => void publishTemplate()}
+              >
+                Publish Template
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="editor-question-card">
+          <label htmlFor="a08-instructions" className="card-input-label">
+            Instructions / Guidelines
+          </label>
+          <textarea
+            id="a08-instructions"
+            value={instructions}
+            onChange={(event) => setInstructions(event.target.value)}
+            disabled={!isEditable}
+            placeholder="Enter instructions for observers or survey respondents..."
+            rows={3}
+            className="full-row-textarea"
+          />
+        </div>
+
+        <div className="form-section-group">
+          <div className="a08-questions-header-row">
+            <h4 className="form-section-title">
+              {activeFormType === "observation"
+                ? "Observation Questions"
+                : "Survey Questions"}
+            </h4>
+            <span className="a08-question-count-badge">
+              {questions.length}{" "}
+              {questions.length === 1 ? "Question" : "Questions"}
+            </span>
+          </div>
+
+          {questions.length === 0 && (
+            <div className="observation-empty-state">
+              No questions in this form yet.{" "}
+              {isEditable &&
+                "Click below to add rating or text questions."}
             </div>
+          )}
 
-            <div className="form-section-group">
-              <h4 className="form-section-title">Form Questions & Fields:</h4>
+          {questions.map((question, index) => (
+            <div key={question.id} className="editor-question-card">
+              <div className="card-question-header">
+                <div className="a08-question-title-group">
+                  <span className="question-number">Question {index + 1}</span>
+                  <span
+                    className={`status-chip a02-chip-xs ${
+                      question.type === "rating"
+                        ? "a05-chip-info"
+                        : "a02-chip-warning"
+                    }`}
+                  >
+                    {question.type === "rating"
+                      ? "Rating Scale"
+                      : "Written Response"}
+                  </span>
+                </div>
 
-              {obsQuestions.map((q) => (
-                <div key={q.id} className="editor-question-card">
-                  <div className="editor-question-header">
-                    <div className="editable-field-container flex-grow">
-                      <span className="edit-indicator-tag">✏️ Edit Question Text</span>
-                      <input
-                        type="text"
-                        value={q.label}
-                        onChange={(e) => handleUpdateObsLabel(q.id, e.target.value)}
-                        className="styled-text-input editor-input-field"
-                      />
-                    </div>
+                {isEditable && (
+                  <div className="a08-question-header-actions">
+                    <button
+                      type="button"
+                      className="a08-move-btn"
+                      disabled={index === 0}
+                      title="Move question up"
+                      aria-label={`Move question ${index + 1} up`}
+                      onClick={() => moveQuestion(index, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="a08-move-btn"
+                      disabled={index === questions.length - 1}
+                      title="Move question down"
+                      aria-label={`Move question ${index + 1} down`}
+                      onClick={() => moveQuestion(index, 1)}
+                    >
+                      ↓
+                    </button>
                     <button
                       type="button"
                       className="btn-danger-sm"
-                      onClick={() => handleDeleteObsQuestion(q.id)}
+                      onClick={() => deleteQuestion(question.id)}
                     >
-                      Delete
+                      Remove
                     </button>
                   </div>
-
-                  {q.type === "rating" ? (
-                    <div className="rating-button-group disabled-preview-group">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <button key={s} type="button" className="rating-score-btn" disabled>
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <textarea
-                      placeholder="(READ ONLY TEXTBOX PREVIEW)"
-                      disabled
-                      className="form-textarea-input fixed-textarea-preview"
-                    />
-                  )}
-                </div>
-              ))}
-
-              <div className="add-question-bar">
-                <div className="add-question-inputs">
-                  <label><strong>Question Type:</strong></label>
-                  <select
-                    className="styled-select-input"
-                    value={newObsQType}
-                    onChange={(e) => setNewObsQType(e.target.value as "rating" | "textbox")}
-                  >
-                    <option value="rating">Rating (1–5 Score)</option>
-                    <option value="textbox">Text Box (Long Answer)</option>
-                  </select>
-                </div>
-                <button type="button" className="btn-primary" onClick={handleAddObsQuestion}>
-                  ＋ Add Question
-                </button>
+                )}
               </div>
-            </div>
-          </div>
-        </section>
-      )}
 
-      {/* ================= SURVEY FORM EDITOR ================= */}
-      {activeFormType === "survey" && (
-        <section className="evaluation-form-wrapper">
-          <div className="evaluation-form-header">
-            {isEditingSurveyTitle ? (
-              <div className="editor-title-edit-wrapper">
+              <div className="editor-question-row">
+                <label htmlFor={`q-text-${question.id}`}>Question Text</label>
                 <input
+                  id={`q-text-${question.id}`}
                   type="text"
-                  value={surveyTitle}
-                  onChange={(e) => setSurveyTitle(e.target.value)}
-                  className="styled-text-input editor-input-field font-bold"
+                  value={question.text}
+                  disabled={!isEditable}
+                  placeholder="Enter evaluation question here..."
+                  onChange={(event) =>
+                    updateQuestion(question.id, {
+                      text: event.target.value,
+                    })
+                  }
                 />
-                <button type="button" className="btn-primary btn-sm" onClick={() => setIsEditingSurveyTitle(false)}>
-                  Done
-                </button>
               </div>
-            ) : (
-              <div className="editor-title-display-wrapper">
-                <h3>{surveyTitle}</h3>
-                <button type="button" className="btn-secondary btn-sm" onClick={() => setIsEditingSurveyTitle(true)}>
-                  Edit Title
-                </button>
-              </div>
-            )}
-            <span className="form-version-tag">Survey Form {formVersion}</span>
-          </div>
 
-          <div className="evaluation-form-card">
-            <div className="editable-field-container">
-              <span className="edit-indicator-tag">✏️ Edit Instruction</span>
-              <input
-                type="text"
-                value={surveyInstruction}
-                onChange={(e) => setSurveyInstruction(e.target.value)}
-                className="styled-text-input editor-input-field italic instruction-editor-input"
-              />
-            </div>
+              <div className="editor-question-meta-row">
+                <label className="checkbox-row-label">
+                  <input
+                    type="checkbox"
+                    checked={question.required}
+                    disabled={!isEditable}
+                    onChange={(event) =>
+                      updateQuestion(question.id, {
+                        required: event.target.checked,
+                      })
+                    }
+                  />
+                  Required Question
+                </label>
 
-            <div className="form-section-group">
-              <h4 className="form-section-title">Survey Questions & Fields:</h4>
-
-              {surveyQuestions.map((q) => (
-                <div key={q.id} className="editor-question-card">
-                  <div className="editor-question-header">
-                    <div className="editable-field-container flex-grow">
-                      <span className="edit-indicator-tag">✏️ Edit Question Text</span>
-                      <input
-                        type="text"
-                        value={q.label}
-                        onChange={(e) => handleUpdateSurveyLabel(q.id, e.target.value)}
-                        className="styled-text-input editor-input-field"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-danger-sm"
-                      onClick={() => handleDeleteSurveyQuestion(q.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-
-                  {q.type === "rating" ? (
-                    <div className="rating-button-group disabled-preview-group">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <button key={s} type="button" className="rating-score-btn" disabled>
-                          {s}
+                {question.type === "rating" && (
+                  <div className="editor-range-group">
+                    <div className="stepper-field-card">
+                      <span className="stepper-label">Min Score</span>
+                      <div className="custom-stepper-control">
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={!isEditable || (question.min ?? 1) <= 0}
+                          onClick={() =>
+                            updateQuestion(question.id, {
+                              min: Math.max(0, (question.min ?? 1) - 1),
+                            })
+                          }
+                        >
+                          −
                         </button>
-                      ))}
+                        <span className="stepper-value-badge">
+                          {question.min ?? 1}
+                        </span>
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={
+                            !isEditable ||
+                            (question.min ?? 1) >= (question.max ?? 5) - 1
+                          }
+                          onClick={() =>
+                            updateQuestion(question.id, {
+                              min: (question.min ?? 1) + 1,
+                            })
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                  ) : (
-                    <textarea
-                      placeholder="(READ ONLY TEXTBOX PREVIEW)"
-                      disabled
-                      className="form-textarea-input fixed-textarea-preview"
-                    />
-                  )}
-                </div>
-              ))}
 
-              <div className="add-question-bar">
-                <div className="add-question-inputs">
-                  <label><strong>Question Type:</strong></label>
-                  <select
-                    className="styled-select-input"
-                    value={newSurveyQType}
-                    onChange={(e) => setNewSurveyQType(e.target.value as "rating" | "textbox")}
-                  >
-                    <option value="rating">Rating (1–5 Score)</option>
-                    <option value="textbox">Text Box (Long Answer)</option>
-                  </select>
-                </div>
-                <button type="button" className="btn-primary" onClick={handleAddSurveyQuestion}>
-                  ＋ Add Question
-                </button>
+                    <div className="stepper-field-card">
+                      <span className="stepper-label">Max Score</span>
+                      <div className="custom-stepper-control">
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={
+                            !isEditable ||
+                            (question.max ?? 5) <= (question.min ?? 1) + 1
+                          }
+                          onClick={() =>
+                            updateQuestion(question.id, {
+                              max: Math.max(
+                                (question.min ?? 1) + 1,
+                                (question.max ?? 5) - 1
+                              ),
+                            })
+                          }
+                        >
+                          −
+                        </button>
+                        <span className="stepper-value-badge">
+                          {question.max ?? 5}
+                        </span>
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          disabled={!isEditable}
+                          onClick={() =>
+                            updateQuestion(question.id, {
+                              max: (question.max ?? 5) + 1,
+                            })
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </section>
-      )}
+          ))}
 
-      {/* Bottom Action Footer */}
-      <div className="editor-action-footer">
-        <button type="button" className="btn-modal-danger" onClick={handleUndo}>
-          Undo All Changes
-        </button>
-        <button type="button" className="btn-primary" onClick={handleSaveNewVersion}>
-          Save Changes as a New Form Version
-        </button>
-      </div>
+          {isEditable && (
+            <div className="add-questions-bar">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => addQuestion("rating")}
+              >
+                + Add Rating Question
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => addQuestion("text")}
+              >
+                + Add Text Question
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Footer Actions */}
+      {(isEditable || selectedTemplate?.can_publish) && (
+        <div className="form-editor-footer-actions">
+          {isEditable && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void saveDraft()}
+            >
+              Save Draft
+            </button>
+          )}
+
+          {selectedTemplate?.can_publish && (
+            <button
+              type="button"
+              className="btn-accent-blue"
+              onClick={() => void publishTemplate()}
+            >
+              Publish Template
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="dashboard-center-action">
         <Link to="/committee/dashboard" className="btn-secondary">

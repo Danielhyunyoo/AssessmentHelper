@@ -29,7 +29,7 @@ This file is a **backlog**, not a list of already available API routes.
 
 ## Known data fixtures from local test run (NOT universal)
 
-`faculty_alice` user 1; `faculty_bob` user 2; `faculty_carol` user 3; `committee_demo` demonstration committee. Current observed pairing 2 (Alice observes Bob), course 3, and observation 2 were local tests; another developer's database can contain different IDs or none of these records.
+`professor_a` user 1; `professor_b` user 2; `professor_c` user 3; `committee_demo` demonstration committee. Current observed pairing 2 (Professor A observes Professor B), course 3, and observation 2 were local tests; another developer's database can contain different IDs or none of these records.
 
 ## Known security limitation
 

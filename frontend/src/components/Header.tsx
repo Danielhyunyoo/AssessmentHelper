@@ -1,20 +1,205 @@
 // src/components/Header.tsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import logo from "../assets/brand-symbol.png";
-import home from "../assets/home_icon.png";
-import bellDefault from "../assets/default_bell_icon.png";
-import bellActive from "../assets/active_notifications_bell_icon.png";
-import profileIcon from "../assets/profile_icon.png";
-import avatarPlaceholder from "../assets/avatar.png";
+import darkModeLogo from "../assets/dark_mode_logo.png";
 import { authApi, facultyApi } from "../api/endpoints";
 import type { Notification, Professor } from "../api/types";
+import {
+  hasUnseenCommitteeMessages,
+  isCommitteeAccount,
+} from "../pages/shared/S07ContactCommittee";
 
 interface NotificationPreview {
   id: string;
   title: string;
   time: string;
   unread: boolean;
+}
+
+function HomeShortcutIcon() {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Roof overhang */}
+      <path
+        className="icon-stroke-primary"
+        d="M3.5 13.5L14 5L24.5 13.5"
+      />
+      {/* House walls */}
+      <path
+        className="icon-stroke-primary"
+        d="M6.5 12V21.5C6.5 22.05 6.95 22.5 7.5 22.5H20.5C21.05 22.5 21.5 22.05 21.5 21.5V12"
+      />
+      {/* Doorway only filled */}
+      <path
+        className="icon-fill-orange icon-stroke-primary"
+        d="M11.5 22.5V16.2C11.5 15.54 12.04 15 12.7 15H15.3C15.96 15 16.5 15.54 16.5 16.2V22.5"
+      />
+    </svg>
+  );
+}
+
+function ContactCommitteeIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Top flap only filled */}
+      <path
+        className="icon-fill-green"
+        d="M4.2 7.4C4.6 6.85 5.25 6.5 6 6.5H22C22.75 6.5 23.4 6.85 23.8 7.4L14.9 14.4C14.37 14.82 13.63 14.82 13.1 14.4L4.2 7.4Z"
+      />
+      {/* Envelope outer frame */}
+      <rect
+        className="icon-stroke-primary"
+        x="3.5"
+        y="6.5"
+        width="21"
+        height="15"
+        rx="3"
+      />
+      {/* Envelope flap crease */}
+      <path
+        className="icon-stroke-primary"
+        d="M4.3 7.6L13.1 14.4C13.63 14.82 14.37 14.82 14.9 14.4L23.7 7.6"
+      />
+      {/* Red unread message indicator dot */}
+      {active && (
+        <circle
+          className="icon-unread-dot"
+          cx="22"
+          cy="7.4"
+          r="4"
+        />
+      )}
+    </svg>
+  );
+}
+
+function BellShortcutIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Clean bell outline */}
+      <path
+        className="icon-stroke-primary"
+        d="M14 5.5C9.86 5.5 6.8 8.65 6.8 12.7V16.8L4.8 19.2C4.45 19.62 4.75 20.25 5.3 20.25H22.7C23.25 20.25 23.55 19.62 23.2 19.2L21.2 16.8V12.7C21.2 8.65 18.14 5.5 14 5.5Z"
+      />
+      {/* Top finial */}
+      <path className="icon-stroke-primary" d="M14 3.5V5.5" />
+      {/* Clapper */}
+      <path
+        className="icon-stroke-primary"
+        d="M11.2 21C11.65 22.35 12.72 23.25 14 23.25C15.28 23.25 16.35 22.35 16.8 21"
+      />
+      {/* Red unread indicator dot */}
+      {active && (
+        <circle
+          className="icon-unread-dot"
+          cx="21"
+          cy="7.4"
+          r="4"
+        />
+      )}
+    </svg>
+  );
+}
+
+function ProfileShortcutIcon() {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Outer ring */}
+      <circle
+        className="icon-stroke-primary"
+        cx="14"
+        cy="14"
+        r="10.2"
+      />
+      {/* Person head shaded */}
+      <circle
+        className="icon-fill-green icon-stroke-primary"
+        cx="14"
+        cy="11.1"
+        r="3.3"
+      />
+      {/* Person shoulders shaded */}
+      <path
+        className="icon-fill-green icon-stroke-primary"
+        d="M7.9 21.7C9.1 18.6 11.3 17.1 14 17.1C16.7 17.1 18.9 18.6 20.1 21.7C18.4 23.2 16.3 24.1 14 24.1C11.7 24.1 9.6 23.2 7.9 21.7Z"
+      />
+    </svg>
+  );
+}
+
+function MenuShortcutIcon() {
+  return (
+    <svg
+      className="icon header-shortcut-svg"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Subtle accent pill behind middle line */}
+      <rect
+        className="icon-fill-orange"
+        x="4.5"
+        y="12"
+        width="19"
+        height="4"
+        rx="2"
+      />
+      <path className="icon-stroke-primary" d="M5 8.5H23" />
+      <path className="icon-stroke-primary" d="M5 14H23" />
+      <path className="icon-stroke-primary" d="M5 19.5H23" />
+    </svg>
+  );
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function getStoredUserPhoto(user: Professor | null): string {
+  if (!user) return "";
+  const rec = user as unknown as Record<string, unknown>;
+  const id = rec.user_id ?? rec.id;
+  try {
+    if (id !== undefined && id !== null) {
+      const byId = localStorage.getItem(`profile_photo_${id}`);
+      if (byId) return byId;
+    }
+    if (user.email) {
+      const byEmail = localStorage.getItem(`profile_photo_${user.email}`);
+      if (byEmail) return byEmail;
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return user.profile_photo || "";
 }
 
 export default function Header() {
@@ -25,13 +210,29 @@ export default function Header() {
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<NotificationPreview[]>([]);
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [headerError, setHeaderError] = useState("");
   const [backendUnreadCount, setBackendUnreadCount] = useState(0);
+
+  const isLoggedIn = currentUser !== null;
+  const isCommitteeUser = isCommitteeAccount(currentUser);
+  const isFacultyUser = isLoggedIn && !isCommitteeUser;
+
+  const customAvatarUrl = !avatarFailed ? getStoredUserPhoto(currentUser) : "";
+  const hasCustomAvatar = Boolean(customAvatarUrl);
+  const fullUserName = currentUser
+    ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`.trim() ||
+      currentUser.username ||
+      currentUser.email ||
+      "User"
+    : "";
+  const userInitials = getInitials(fullUserName);
 
   const closeAllMenus = () => {
     setIsMenuOpen(false);
@@ -39,16 +240,32 @@ export default function Header() {
     setIsProfileOpen(false);
   };
 
+  const handleProtectedAction = (
+    targetPath: string,
+    actionIfAuthenticated: () => void
+  ) => {
+    if (isLoggedIn) {
+      actionIfAuthenticated();
+    } else {
+      closeAllMenus();
+      navigate("/login/signin", { state: { redirectTo: targetPath } });
+    }
+  };
+
   const toggleNotifications = () => {
-    setIsNotifOpen((prev) => !prev);
-    setIsProfileOpen(false);
-    setIsMenuOpen(false);
+    handleProtectedAction("/shared/notifications", () => {
+      setIsNotifOpen((prev) => !prev);
+      setIsProfileOpen(false);
+      setIsMenuOpen(false);
+    });
   };
 
   const toggleProfile = () => {
-    setIsProfileOpen((prev) => !prev);
-    setIsNotifOpen(false);
-    setIsMenuOpen(false);
+    handleProtectedAction("/shared/profile", () => {
+      setIsProfileOpen((prev) => !prev);
+      setIsNotifOpen(false);
+      setIsMenuOpen(false);
+    });
   };
 
   const toggleMenu = () => {
@@ -57,25 +274,38 @@ export default function Header() {
     setIsProfileOpen(false);
   };
 
-  // Mark notification as read when clicked
+  const handleLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    targetPath: string
+  ) => {
+    closeAllMenus();
+    if (!isLoggedIn) {
+      e.preventDefault();
+      navigate("/login/signin", { state: { redirectTo: targetPath } });
+    }
+  };
+
   const handleNotificationClick = async (id: string) => {
     try {
       const notification = notifications.find((n) => n.id === id);
 
       if (notification?.unread) {
         await facultyApi.markRead(Number(id));
-        setBackendUnreadCount((count) => Math.max(0, count - 1));
 
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-        );
+        try {
+          const manualUnreadIds: number[] = JSON.parse(
+            localStorage.getItem("manual_unread_notification_ids") || "[]"
+          );
+          const updated = manualUnreadIds.filter((mId) => mId !== Number(id));
+          localStorage.setItem(
+            "manual_unread_notification_ids",
+            JSON.stringify(updated)
+          );
+        } catch {
+          // Ignore parse errors
+        }
 
-        setHasUnreadNotifications((prev) => {
-          const remaining = notifications.filter(
-            (n) => n.id !== id && n.unread
-          ).length;
-          return remaining > 0 || (prev && remaining > 0);
-        });
+        window.dispatchEvent(new Event("notifications-changed"));
       }
     } catch {
       setHeaderError("Unable to mark this notification as read.");
@@ -97,17 +327,16 @@ export default function Header() {
       setHeaderError(
         err instanceof Error ? err.message : "Unable to sign out cleanly."
       );
-      // Still navigate away; the backend request may have failed because
-      // the session has already expired.
     } finally {
       closeAllMenus();
       setCurrentUser(null);
+      setHasUnreadMessages(false);
+      setAvatarFailed(false);
       navigate("/login/signin", { replace: true });
       setSigningOut(false);
     }
   };
 
-  // Close dropdown popovers when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -126,6 +355,23 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
+    const syncMessageDot = () => {
+      setHasUnreadMessages(hasUnseenCommitteeMessages(currentUser));
+    };
+
+    syncMessageDot();
+    window.addEventListener("committee-messages-changed", syncMessageDot);
+    window.addEventListener("storage", syncMessageDot);
+    window.addEventListener("demo-reset", syncMessageDot);
+
+    return () => {
+      window.removeEventListener("committee-messages-changed", syncMessageDot);
+      window.removeEventListener("storage", syncMessageDot);
+      window.removeEventListener("demo-reset", syncMessageDot);
+    };
+  }, [location.pathname, currentUser]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadHeaderData() {
@@ -135,12 +381,13 @@ export default function Header() {
         if (cancelled) return;
 
         if (!professor) {
-          // Being signed out is normal; clear any previous user data.
           setHeaderError("");
           setNotifications([]);
           setHasUnreadNotifications(false);
+          setHasUnreadMessages(false);
           setBackendUnreadCount(0);
           setCurrentUser(null);
+          setAvatarFailed(false);
           return;
         }
 
@@ -151,23 +398,59 @@ export default function Header() {
 
         if (cancelled) return;
 
-        const previews = (notificationResponse.notifications ?? []).slice(0, 3);
+        const resolvedUser: Professor = {
+          ...professor,
+          ...(profileResponse.professor ?? {}),
+        };
+
+        let clearedIds: number[] = [];
+        let manualUnreadIds: number[] = [];
+        try {
+          clearedIds = JSON.parse(
+            localStorage.getItem("cleared_notification_ids") || "[]"
+          );
+          manualUnreadIds = JSON.parse(
+            localStorage.getItem("manual_unread_notification_ids") || "[]"
+          );
+        } catch {
+          // Fallback if parsing fails
+        }
+
+        const rawList: Notification[] =
+          notificationResponse.notifications ?? [];
+        const activeList = rawList
+          .filter((n) => !clearedIds.includes(n.notification_id))
+          .map((n) => ({
+            ...n,
+            is_read: manualUnreadIds.includes(n.notification_id)
+              ? false
+              : n.is_read,
+          }));
+
+        const totalUnread = activeList.filter((n) => !n.is_read).length;
+        const previews = activeList.slice(0, 3);
 
         setNotifications(
-          previews.map((n: Notification) => ({
+          previews.map((n) => ({
             id: String(n.notification_id),
             title: n.title,
-            time: new Date(n.created_at).toLocaleString(),
+            time: new Date(n.created_at).toLocaleString([], {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
             unread: !n.is_read,
           }))
         );
 
-        setHasUnreadNotifications(notificationResponse.unread_count > 0);
-        setBackendUnreadCount(notificationResponse.unread_count);
-        setCurrentUser(profileResponse.professor);
+        setHasUnreadNotifications(totalUnread > 0);
+        setBackendUnreadCount(totalUnread);
+        setAvatarFailed(false);
+        setCurrentUser(resolvedUser);
+        setHasUnreadMessages(hasUnseenCommitteeMessages(resolvedUser));
         setHeaderError("");
       } catch {
-        // Only display this when loading actually fails.
         if (!cancelled) {
           setHeaderError("Some header information could not be loaded.");
         }
@@ -177,11 +460,14 @@ export default function Header() {
     void loadHeaderData();
 
     window.addEventListener("notifications-changed", loadHeaderData);
+    window.addEventListener("profile-changed", loadHeaderData);
+    window.addEventListener("demo-reset", loadHeaderData);
 
     return () => {
       cancelled = true;
-    
       window.removeEventListener("notifications-changed", loadHeaderData);
+      window.removeEventListener("profile-changed", loadHeaderData);
+      window.removeEventListener("demo-reset", loadHeaderData);
     };
   }, [location.pathname]);
 
@@ -191,66 +477,63 @@ export default function Header() {
     <>
       <header>
         {headerError && (
-          <p role="status" style={{ color: "#b91c1c", fontSize: "0.8rem" }}>
+          <p role="status" className="header-error-text">
             {headerError}
           </p>
         )}
-        {/* Brand Header */}
+
         <div id="logo">
-          <img src={logo} alt="UTD Logo" className="header-logo" />
+          <img src={darkModeLogo} alt="UTD Logo" className="header-logo" />
           <h1>UTD Assessment Helper</h1>
         </div>
 
-        <nav id="user-shortcuts" style={{ display: "flex", alignItems: "center", gap: "1rem", position: "relative" }}>
-          {/* Home Link */}
+        <nav id="user-shortcuts">
           <Link to="/" title="Go to Home" onClick={closeAllMenus}>
-            <img className="icon" src={home} alt="Home" />
+            <HomeShortcutIcon />
           </Link>
 
-          {/* Notifications Dropdown Container */}
-          <div ref={notifRef} style={{ position: "relative" }}>
+          {isLoggedIn ? (
+            <Link
+              to="/shared/contact-committee"
+              title="Contact Assessment Committee"
+              aria-label="Contact Assessment Committee"
+              onClick={closeAllMenus}
+            >
+              <ContactCommitteeIcon active={hasUnreadMessages} />
+            </Link>
+          ) : (
+            <a
+              href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
+              title="Email Assessment Committee"
+              aria-label="Email Assessment Committee"
+              onClick={closeAllMenus}
+            >
+              <ContactCommitteeIcon active={false} />
+            </a>
+          )}
+
+          <div ref={notifRef} className="header-popover-container">
             <button
               type="button"
               onClick={toggleNotifications}
               title="Notifications"
-              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
+              className="header-icon-btn"
             >
-              <img
-                className="icon"
-                src={unreadCount > 0 && hasUnreadNotifications ? bellActive : bellDefault}
-                alt="Notifications"
+              <BellShortcutIcon
+                active={unreadCount > 0 && hasUnreadNotifications}
               />
             </button>
 
-            {/* Notifications Popover Menu */}
             {isNotifOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "125%",
-                  right: 0,
-                  width: "300px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "10px",
-                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-                  border: "1px solid #e2e8f0",
-                  zIndex: 1000,
-                  overflow: "hidden",
-                  padding: "0.75rem",
-                }}
-              >
-                <div style={{ padding: "0.5rem 0.5rem 0.75rem", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", letterSpacing: "0.05em" }}>
-                    NOTIFICATIONS
-                  </span>
-                  <span style={{ fontSize: "0.75rem", backgroundColor: "#fee2e2", color: "#991b1b", padding: "0.15rem 0.5rem", borderRadius: "10px", fontWeight: "700" }}>
-                    {unreadCount} New
-                  </span>
+              <div className="notif-popover">
+                <div className="notif-header">
+                  <span className="notif-header-title">NOTIFICATIONS</span>
+                  <span className="notif-unread-badge">{unreadCount} New</span>
                 </div>
 
-                <div style={{ maxHeight: "220px", overflowY: "auto", padding: "0.25rem 0" }}>
+                <div className="notif-scroll-list">
                   {notifications.length === 0 ? (
-                    <div style={{ padding: "1rem", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>
+                    <div className="notif-empty-text">
                       No new notifications right now.
                     </div>
                   ) : (
@@ -258,49 +541,45 @@ export default function Header() {
                       <div
                         key={n.id}
                         onClick={() => handleNotificationClick(n.id)}
-                        className={`menu-item-hover ${n.unread ? "notif-unread-highlight" : "notif-read-item"}`}
-                        style={{
-                          padding: "0.6rem 0.75rem",
-                          borderRadius: "6px",
-                          fontSize: "0.85rem",
-                          cursor: "pointer",
-                          marginBottom: "0.25rem",
-                        }}
+                        className={`menu-item-hover notif-item ${
+                          n.unread
+                            ? "notif-unread-highlight"
+                            : "notif-read-item"
+                        }`}
                       >
-                        <p style={{ margin: 0, color: "#1e293b", fontWeight: n.unread ? "700" : "500" }}>{n.title}</p>
-                        <span style={{ fontSize: "0.75rem", color: n.unread ? "#166534" : "#94a3b8" }}>{n.time}</span>
+                        <p
+                          className={`notif-item-title ${
+                            n.unread ? "fw-bold" : "fw-medium"
+                          }`}
+                        >
+                          {n.title}
+                        </p>
+                        <span
+                          className={`notif-item-time ${
+                            n.unread ? "text-unread" : "text-read"
+                          }`}
+                        >
+                          {n.time}
+                        </span>
                       </div>
                     ))
                   )}
                 </div>
 
-                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "0.5rem", marginTop: "0.25rem" }}>
+                <div className="notif-footer">
                   <button
                     type="button"
                     onClick={() => {
                       closeAllMenus();
                       navigate("/shared/notifications");
                     }}
-                    className="menu-item-hover"
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      background: "none",
-                      border: "none",
-                      padding: "0.5rem 0.75rem",
-                      fontSize: "0.875rem",
-                      fontWeight: "600",
-                      color: "#1e293b",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                    }}
+                    className="menu-item-hover notif-action-btn"
                   >
                     View All Notifications
                   </button>
 
-                  {/* Simulator Toggle for Demo Testing */}
-                  <div style={{ marginTop: "0.5rem", paddingTop: "0.4rem", borderTop: "1px dashed #cbd5e1", textAlign: "center" }}>
-                    <label style={{ fontSize: "0.75rem", color: "#64748b", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                  <div className="notif-sim-row">
+                    <label className="notif-sim-label">
                       <input
                         type="checkbox"
                         checked={hasUnreadNotifications}
@@ -308,7 +587,9 @@ export default function Header() {
                           setHasUnreadNotifications(e.target.checked);
                           if (e.target.checked) {
                             setNotifications((prev) =>
-                              prev.map((n, i) => (i < 2 ? { ...n, unread: true } : n))
+                              prev.map((n, i) =>
+                                i < 2 ? { ...n, unread: true } : n
+                              )
                             );
                           }
                         }}
@@ -321,63 +602,62 @@ export default function Header() {
             )}
           </div>
 
-          {/* Profile Quick Menu Container */}
-          <div ref={profileRef} style={{ position: "relative" }}>
+          <div ref={profileRef} className="header-popover-container">
             <button
               type="button"
               onClick={toggleProfile}
               title="Profile Settings"
-              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
+              className="header-icon-btn"
             >
-              <img className="icon" src={profileIcon} alt="Profile" />
+              {!isLoggedIn ? (
+                <ProfileShortcutIcon />
+              ) : hasCustomAvatar ? (
+                <img
+                  className="icon header-user-avatar"
+                  src={customAvatarUrl}
+                  alt={fullUserName}
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : (
+                <span
+                  className="icon header-user-avatar header-initials-avatar"
+                  aria-label={fullUserName}
+                >
+                  {userInitials}
+                </span>
+              )}
             </button>
 
-            {/* Profile Popover Menu */}
             {isProfileOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "125%",
-                  right: 0,
-                  width: "280px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "10px",
-                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-                  border: "1px solid #e2e8f0",
-                  zIndex: 1000,
-                  padding: "1rem",
-                }}
-              >
-                {/* User Header Section */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", paddingBottom: "0.85rem", borderBottom: "1px solid #f1f5f9" }}>
-                  <img
-                    src={avatarPlaceholder}
-                    alt="User Avatar"
-                    style={{
-                      width: "42px",
-                      height: "42px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "1px solid #cbd5e1",
-                    }}
-                  />
+              <div className="profile-popover">
+                <div className="profile-user-summary">
+                  {hasCustomAvatar ? (
+                    <img
+                      src={customAvatarUrl}
+                      alt="User Avatar"
+                      className="profile-popover-avatar"
+                      onError={() => setAvatarFailed(true)}
+                    />
+                  ) : (
+                    <div className="profile-popover-avatar profile-popover-initials">
+                      {userInitials}
+                    </div>
+                  )}
                   <div>
-                    <h4 style={{ margin: 0, fontSize: "0.95rem", color: "#0f172a", fontWeight: "700" }}>
+                    <h4 className="profile-popover-name">
                       {currentUser
-                        ? `${currentUser.first_name} ${currentUser.last_name}`.trim() || currentUser.username
+                        ? `${currentUser.first_name} ${currentUser.last_name}`.trim() ||
+                          currentUser.username
                         : "Loading profile..."}
                     </h4>
-                    <p style={{ margin: "0.15rem 0 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+                    <p className="profile-popover-role">
                       {currentUser?.academic_level || currentUser?.role || ""}
                     </p>
                   </div>
                 </div>
 
-                {/* Account Section Menu Links */}
-                <div style={{ marginTop: "0.85rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                  <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
-                    ACCOUNT
-                  </span>
+                <div className="profile-links-section">
+                  <span className="profile-links-header">ACCOUNT</span>
 
                   <button
                     type="button"
@@ -385,19 +665,7 @@ export default function Header() {
                       closeAllMenus();
                       navigate("/shared/profile");
                     }}
-                    className="menu-item-hover"
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      background: "none",
-                      border: "none",
-                      padding: "0.5rem 0.75rem",
-                      fontSize: "0.875rem",
-                      fontWeight: "600",
-                      color: "#1e293b",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                    }}
+                    className="menu-item-hover profile-link-btn"
                   >
                     Profile Settings
                   </button>
@@ -405,20 +673,7 @@ export default function Header() {
                   <button
                     type="button"
                     onClick={() => void handleSignOut()}
-                    className="menu-item-hover menu-signout-item"
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      background: "none",
-                      border: "none",
-                      padding: "0.5rem 0.75rem",
-                      fontSize: "0.875rem",
-                      fontWeight: "600",
-                      color: "#dc2626",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      marginTop: "0.25rem",
-                    }}
+                    className="menu-item-hover menu-signout-item profile-link-btn profile-signout-btn"
                   >
                     Sign Out
                   </button>
@@ -427,88 +682,230 @@ export default function Header() {
             )}
           </div>
 
-          {/* Hamburger Menu Toggle Button */}
           <button
             type="button"
-            className="hamburger-btn"
+            className="header-icon-btn hamburger-btn"
             onClick={toggleMenu}
             aria-label="Toggle Navigation Menu"
+            title="Navigation Menu"
           >
-            &#9776;
+            <MenuShortcutIcon />
           </button>
         </nav>
       </header>
 
-      {/* Slide-over Drawer Menu */}
       {isMenuOpen && (
         <div className="menu-overlay" onClick={closeAllMenus}>
           <div className="menu-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="menu-header">
               <h3>Navigation Menu</h3>
-              <button type="button" className="close-btn" onClick={closeAllMenus}>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={closeAllMenus}
+              >
                 &times;
               </button>
             </div>
 
             <div className="menu-body">
-              {/* Quick Role / Dashboard Switcher */}
+              {isCommitteeUser && (
+                <>
+                  <div className="menu-section">
+                    <h4>Dashboards</h4>
+                    <Link
+                      to="/committee/dashboard"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/dashboard")
+                      }
+                    >
+                      Assessment Committee Dashboard
+                    </Link>
+                    <Link
+                      to="/shared/faculty-dashboard"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/shared/faculty-dashboard")
+                      }
+                    >
+                      Faculty Dashboard
+                    </Link>
+                  </div>
+
+                  <div className="menu-section">
+                    <h4>Committee Workflows</h4>
+                    <Link
+                      to="/committee/faculty-matching"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/faculty-matching")
+                      }
+                    >
+                      Faculty Matching
+                    </Link>
+                    <Link
+                      to="/committee/unmatched-observees"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/unmatched-observees")
+                      }
+                    >
+                      Unmatched Observees
+                    </Link>
+                    <Link
+                      to="/committee/faculty-roster"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/faculty-roster")
+                      }
+                    >
+                      Faculty Roster Management
+                    </Link>
+                    <Link
+                      to="/committee/pending-records"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/pending-records")
+                      }
+                    >
+                      Pending Records
+                    </Link>
+                    <Link
+                      to="/committee/survey-tracking"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/survey-tracking")
+                      }
+                    >
+                      Survey Tracking
+                    </Link>
+                    <Link
+                      to="/committee/kpi-overview"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/kpi-overview")
+                      }
+                    >
+                      KPI Overview
+                    </Link>
+                    <Link
+                      to="/committee/form-editor"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/committee/form-editor")
+                      }
+                    >
+                      Form Editor
+                    </Link>
+                  </div>
+                </>
+              )}
+
+              {isFacultyUser && (
+                <>
+                  <div className="menu-section">
+                    <h4>Dashboard</h4>
+                    <Link
+                      to="/shared/faculty-dashboard"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/shared/faculty-dashboard")
+                      }
+                    >
+                      Faculty Dashboard
+                    </Link>
+                  </div>
+
+                  <div className="menu-section">
+                    <h4>Observee Modules</h4>
+                    <Link
+                      to="/observee/course-selection"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/observee/course-selection")
+                      }
+                    >
+                      Course Section Selection
+                    </Link>
+                    <Link
+                      to="/observee/observer-selection"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/observee/observer-selection")
+                      }
+                    >
+                      Observer Selection
+                    </Link>
+                  </div>
+
+                  <div className="menu-section">
+                    <h4>Observer Modules</h4>
+                    <Link
+                      to="/observer/observation-request"
+                      onClick={(e) =>
+                        handleLinkClick(e, "/observer/observation-request")
+                      }
+                    >
+                      Observation Requests
+                    </Link>
+                  </div>
+                </>
+              )}
+
+              {isLoggedIn && (
+                <div className="menu-section">
+                  <h4>Shared Records</h4>
+                  <Link
+                    to="/shared/current-past-observations"
+                    onClick={(e) =>
+                      handleLinkClick(e, "/shared/current-past-observations")
+                    }
+                  >
+                    Current and Past Observations
+                  </Link>
+                  <Link
+                    to="/shared/notifications"
+                    onClick={(e) =>
+                      handleLinkClick(e, "/shared/notifications")
+                    }
+                  >
+                    Notifications
+                  </Link>
+                </div>
+              )}
+
               <div className="menu-section">
-                <h4>Switch Dashboards</h4>
-                <Link to="/committee/dashboard" onClick={closeAllMenus}>
-                  Assessment Committee Dashboard
-                </Link>
-                <Link to="/shared/faculty-dashboard" onClick={closeAllMenus}>
-                  Faculty Dashboard
-                </Link>
+                <h4>Support</h4>
+                {isLoggedIn && (
+                  <Link
+                    to="/shared/contact-committee"
+                    onClick={(e) =>
+                      handleLinkClick(e, "/shared/contact-committee")
+                    }
+                  >
+                    Contact Assessment Committee
+                  </Link>
+                )}
+                <a
+                  href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
+                  onClick={closeAllMenus}
+                >
+                  Email Committee Directly
+                </a>
               </div>
 
-              {/* Committee Shortcuts */}
-              <div className="menu-section">
-                <h4>Committee Workflows</h4>
-                <Link to="/committee/faculty-matching" onClick={closeAllMenus}>
-                  Faculty Matching
-                </Link>
-                <Link to="/committee/unmatched-observees" onClick={closeAllMenus}>
-                  Unmatched Observees
-                </Link>
-                <Link to="/committee/faculty-roster" onClick={closeAllMenus}>
-                  Faculty Roster Management
-                </Link>
-                <Link to="/committee/form-editor" onClick={closeAllMenus}>
-                  Form Editor
-                </Link>
-              </div>
-
-              {/* Observee & Observer Shortcuts */}
-              <div className="menu-section">
-                <h4>Observee &amp; Observer Modules</h4>
-
-                <Link to="/observee/course-selection" onClick={closeAllMenus}>
-                  Course Section Selection
-                </Link>
-
-                <Link to="/observee/observer-selection" onClick={closeAllMenus}>
-                  Observer Selection
-                </Link>
-
-                <Link to="/shared/current-past-observations" onClick={closeAllMenus}>
-                  Current / Past Observations
-                </Link>
-
-                <Link to="/observer/observation-request" onClick={closeAllMenus}>
-                  Observation Requests
-                </Link>
-              </div>
-
-              {/* Account / Session Links */}
               <div className="menu-section">
                 <h4>Account</h4>
-                <Link to="/shared/profile" onClick={closeAllMenus}>
-                  Profile Settings
-                </Link>
-                <Link to="/login/signin" onClick={() => void handleSignOut()} className="menu-signout">
-                  Sign Out
-                </Link>
+                {isLoggedIn && (
+                  <Link
+                    to="/shared/profile"
+                    onClick={(e) => handleLinkClick(e, "/shared/profile")}
+                  >
+                    Profile Settings
+                  </Link>
+                )}
+                {isLoggedIn ? (
+                  <Link
+                    to="/login/signin"
+                    onClick={() => void handleSignOut()}
+                    className="menu-signout"
+                  >
+                    Sign Out
+                  </Link>
+                ) : (
+                  <Link to="/login/signin" onClick={closeAllMenus}>
+                    Sign In
+                  </Link>
+                )}
               </div>
             </div>
           </div>

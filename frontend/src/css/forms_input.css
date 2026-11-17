@@ -1,0 +1,230 @@
+/* ==========================================
+   FORMS & INPUT CONTROLS STYLES (Clean Unified Palette)
+   ========================================== */
+
+/* Base Styled Inputs & Selects */
+.styled-text-input,
+.styled-select-input,
+.sort-dropdown-select {
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.875rem;
+  background-color: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.styled-text-input:focus,
+.styled-select-input:focus,
+.sort-dropdown-select:focus {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.05);
+}
+
+html.dark-mode .styled-text-input,
+html.dark-mode .styled-select-input,
+html.dark-mode .sort-dropdown-select {
+  background-color: #18181b;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .styled-text-input:focus,
+html.dark-mode .styled-select-input:focus,
+html.dark-mode .sort-dropdown-select:focus {
+  border-color: #a1a1aa;
+}
+
+/* Full Width Inputs */
+.full-width-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.9rem;
+  background-color: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.full-width-input:focus {
+  border-color: #0f172a;
+}
+
+html.dark-mode .full-width-input {
+  background-color: #18181b;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .full-width-input:focus {
+  border-color: #a1a1aa;
+}
+
+/* Textareas */
+.fixed-height-textarea,
+.full-row-textarea,
+.form-textarea-input.fixed-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 90px;
+  resize: vertical;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background-color: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.fixed-height-textarea:focus,
+.full-row-textarea:focus,
+.form-textarea-input.fixed-textarea:focus {
+  border-color: #0f172a;
+}
+
+html.dark-mode .fixed-height-textarea,
+html.dark-mode .full-row-textarea,
+html.dark-mode .form-textarea-input.fixed-textarea {
+  background-color: #18181b;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .fixed-height-textarea:focus,
+html.dark-mode .full-row-textarea:focus,
+html.dark-mode .form-textarea-input.fixed-textarea:focus {
+  border-color: #a1a1aa;
+}
+
+.fixed-height-textarea:disabled {
+  background-color: #f1f5f9;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+html.dark-mode .fixed-height-textarea:disabled {
+  background-color: #27272a;
+  color: #a1a1aa;
+}
+
+/* Rating Controls */
+.rating-button-group,
+.rating-btn-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.rating-score-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.rating-score-btn:hover {
+  background-color: #f8fafc;
+  border-color: #0f172a;
+}
+
+.rating-score-btn.selected {
+  background-color: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+html.dark-mode .rating-score-btn {
+  background-color: #18181b;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode .rating-score-btn:hover {
+  background-color: #27272a;
+  border-color: #a1a1aa;
+}
+
+html.dark-mode .rating-score-btn.selected {
+  background-color: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+/* Status Indicator Dots */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-left: 0.4rem;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+.dot-green {
+  background-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.dot-red {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+/* Global Input Fallbacks */
+html.dark-mode input[type="text"],
+html.dark-mode input[type="email"],
+html.dark-mode input[type="password"],
+html.dark-mode input[type="number"],
+html.dark-mode select,
+html.dark-mode textarea,
+html.dark-mode .modal-input,
+html.dark-mode .modal-inline-select,
+html.dark-mode .modal-select-field {
+  background-color: #18181b;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+html.dark-mode input[type="text"]:focus,
+html.dark-mode input[type="email"]:focus,
+html.dark-mode input[type="password"]:focus,
+html.dark-mode input[type="number"]:focus,
+html.dark-mode select:focus,
+html.dark-mode textarea:focus {
+  border-color: #a1a1aa;
+}
+.rating-score-btn:disabled {
+  cursor: not-allowed;
+}
+
+.rating-score-btn:disabled:not(.selected) {
+  opacity: 0.45;
+}
+
+.rating-score-btn:disabled:not(.selected):hover {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+}
+
+html.dark-mode .rating-score-btn:disabled:not(.selected):hover {
+  background-color: #18181b;
+  border-color: #27272a;
+}

@@ -1,6 +1,5 @@
-import { get, patch, post, put, qs } from "./http";
-import type { Course, CycleDates, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, Signup, SignupAvailability, Survey, Template } from "./types";
-
+import { get, patch, post, put, qs, request } from "./http";
+import type { Course, CommitteeCompletedRecords, CommitteePendingRecords, CommitteeSurveyTracking, CycleDates, DemoPersona, FacultyDashboard, FacultyRoster, Invitation, JsonObject, MatchesResponse, Notification, NotificationsResponse, ObservationRecord, Professor, ProfileResponse, RegistrationStatus, ScheduledVisit, Signup, SignupAvailability, Survey, Template } from "./types";
 // L02-L03
 export const authApi = {
   csrf: () => get<{detail:string}>("/auth/csrf/"),
@@ -13,11 +12,13 @@ export const demoApi = {
   date: () => get<{simulated_date:string|null;today:string}>("/demo/date/"),
   setDate: (date: string|null) => put<{simulated_date:string|null;today:string}>("/demo/date/", {date}),
   reset: () => post<{detail:string}>("/demo/reset/"),
+  personas: () => get<DemoPersona[]>("/demo/personas/"),
 };
 // L01-L03, S01-S03, E01
 export const facultyApi = {
   profile: () => get<ProfileResponse>("/me/"),
   updateProfile: (data: { first_name: string; last_name: string; phone: string; }) => patch<ProfileResponse>("/me/", data),
+  updateProfilePhoto: (file: File) => { const body = new FormData(); body.append("profile_photo", file); return request<ProfileResponse>("/me/", { method: "PATCH", body, }); },
   courses: () => get<Course[]>("/me/courses/"),
   dashboard: () => get<FacultyDashboard>("/dashboard/"),
   registrationStatus: () => get<RegistrationStatus>("/registration/status/"),
@@ -36,11 +37,14 @@ export const matchingApi = {
   incomingInvitations: () => get<Invitation[]>("/invitations/received/"),
   sendInvitation: (observer_id: number, proposed_datetimes: string[]) => post<Invitation>("/invitations/send/", {observer_id, proposed_datetimes}),
   respond: (invitationId: number, action: "accept"|"decline", proposed_date_id?: number) => post<Invitation>(`/invitations/${invitationId}/respond/`, {action, ...(proposed_date_id ? {proposed_date_id} : {})}),
+  reject: (invitationId: number) => post<Invitation>(`/invitations/${invitationId}/reject/`),
+  rejectAll: () => post<{rejected_ids:number[]}>("/invitations/reject-all/"),
   confirmPairing: (invitation_id: number) => post<{pairing_id:number;observer_id:number;course_id:number;confirmed_datetime:string}>("/pairings/confirm/", {invitation_id}),
 };
 // E03-E05, O03-O04
 export const observationApi = {
   list: () => get<ObservationRecord[]>("/observations/"),
+  scheduled: () => get<ScheduledVisit[]>("/pairings/scheduled/"),
   create: (pairing_id: number, template_id: number) => post<ObservationRecord>("/observations/", {pairing_id,template_id}),
   detail: (id: number) => get<ObservationRecord>(`/observations/${id}/`),
   saveDraft: (id: number, responses: Record<string,number|string>) => patch<ObservationRecord>(`/observations/${id}/`, {responses}),
@@ -50,7 +54,10 @@ export const observationApi = {
 export const surveyApi = {
   list: () => get<Survey[]>("/surveys/"),
   detail: (id: number) => get<Survey>(`/surveys/${id}/`),
-  submit: (body: {pairing_id:number;template_id:number;score:number;pain_points?:string;improvements?:string}) => post<Survey>("/surveys/",body),
+  templateForPairing: (pairingId: number) => get<{ pairing_id: number; respondent_type: "observer" | "observee"; template: Template; }>(`/surveys/template/${qs({ pairing_id: pairingId })}`),
+  update: ( id: number, body: { responses: Record<string, number | string>; submit: boolean; } ) => patch<Survey>(`/surveys/${id}/`, body),
+  submit: (body: { pairing_id: number; template_id: number; responses?: Record<string, number | string>; score?: number; pain_points?: string; improvements?: string; submit?: boolean; }) => post<Survey>("/surveys/", body),
+  uploadSupportingFile: (id: number, file: File) => { const body = new FormData(); body.append("survey_file", file); return request<Survey>(`/surveys/${id}/file/`, { method: "POST", body, }); },
 };
 // A01-A08
 export const committeeApi = {
@@ -67,9 +74,12 @@ export const committeeApi = {
   carryForwards: () => get<JsonObject>("/committee/carry-forwards/"),
   carryForward: (signup_ids:number[],target_cycle_id:number,reason:string) => post<JsonObject>("/committee/carry-forwards/create/",{signup_ids,target_cycle_id,reason}),
   carriedForwardDue: (cycleId:number) => get<JsonObject>(`/committee/carry-forwards/due/${qs({cycle_id:cycleId})}`),
-  pendingRecords: () => get<JsonObject>("/committee/pending-records/"),
+  pendingRecords: () => get<CommitteePendingRecords>("/committee/pending-records/"),
+  completedRecords: () => get<{ cycle_id: number; count: number; records: { observation_id: number; pairing_id: number; cycle_id: number; observation_datetime: string | null; observee_id: number; observee_name: string; observer_id: number; observer_name: string; department: string | null; academic_rank: string; course_id: number; template_id: number; template_version: number; completed_at: string | null; status: string; }[]; }>("/committee/completed-records/"),
+  observationDetail: (id: number) => get<ObservationRecord>(`/committee/observations/${id}/`),
+  surveyDetail: (id: number) => get<Survey>(`/committee/surveys/${id}/`),
+  pendingSurveys: () => get<{ cycle_id: number; surveys_open?: boolean; observation_deadline?: string; missing_count: number; completed_count: number; missing: { pairing_id: number; observation_id: number; observation_datetime: string | null; user_id: number; faculty_name: string; department: string | null; academic_rank: string; respondent_type: "observer" | "observee"; survey_deadline: string; }[]; completed: { pairing_id: number; observation_id: number; observation_datetime: string | null; user_id: number; faculty_name: string; department: string | null; academic_rank: string; respondent_type: "observer" | "observee"; survey_deadline: string; survey_id: number; submitted_at: string; }[]; }>("/committee/pending-surveys/"),
   remindRecord: (pairingId:number) => post<JsonObject>(`/committee/pending-records/${pairingId}/remind/`),
-  pendingSurveys: () => get<JsonObject>("/committee/pending-surveys/"),
   remindSurvey: (pairingId:number,role:"observer"|"observee") => post<JsonObject>(`/committee/pending-surveys/${pairingId}/${role}/remind/`),
   kpis: (cycleId?:number) => get<JsonObject>(`/committee/kpis/${qs({cycle_id:cycleId})}`),
   templates: (type?:"observation"|"survey") => get<{templates:Template[]}>(`/committee/templates/${qs({type})}`),

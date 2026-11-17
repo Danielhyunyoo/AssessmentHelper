@@ -1,0 +1,192 @@
+/* ==========================================
+   TABLES & DATATABLES STYLES (Theme Token Synced)
+   ========================================== */
+.table-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-top: 3px solid var(--accent-primary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.table-container.theme-green,
+.roster-green-frame {
+  border-top-color: #2e6f40;
+}
+
+.table-container.theme-blue {
+  border-top-color: var(--accent-primary);
+}
+
+.table-container.theme-orange,
+.table-container.theme-pink,
+.roster-pink-frame {
+  border-top-color: var(--amber-accent);
+}
+
+.summary-card-padding {
+  padding: 1.35rem 1.5rem;
+}
+
+/* Table Section Instruction / Banner */
+.table-instruction,
+.table-sub-header-banner {
+  background-color: var(--bg-subtle);
+  padding: 0.8rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.table-instruction-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.table-scroll-wrapper {
+  overflow-x: auto;
+  background-color: var(--bg-surface);
+}
+
+/* Core Data Table Structure */
+.custom-data-table,
+.roster-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.custom-data-table thead th,
+.roster-data-table thead th {
+  padding: 0.75rem 1.15rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background-color: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+
+.custom-data-table tbody td,
+.roster-data-table tbody td {
+  padding: 0.85rem 1.15rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.custom-data-table tbody tr:last-child td,
+.roster-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.custom-data-table tbody tr,
+.roster-data-table tbody tr {
+  transition: background-color 0.14s ease;
+}
+
+.custom-data-table tbody tr:hover:not(.a03-row-transferred),
+.roster-data-table tbody tr:hover {
+  background-color: var(--bg-subtle);
+}
+
+.custom-data-table tbody tr.a03-row-selected,
+.custom-data-table tbody tr.e01-selected-row {
+  background-color: var(--accent-soft-bg);
+}
+
+.custom-data-table tbody tr.a03-row-transferred {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.clickable-table-row {
+  cursor: pointer;
+}
+
+.custom-data-table tbody td.empty-row {
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 1.75rem 1rem;
+}
+
+/* Controls inside tables */
+.custom-data-table input[type="checkbox"],
+.custom-data-table input[type="radio"],
+.table-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.custom-data-table select {
+  padding: 0.42rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  font-size: 0.85rem;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.24rem 0.62rem;
+  border-radius: 9999px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-confirmed {
+  background-color: var(--sage-soft-bg);
+  color: var(--sage-soft-text);
+  border: 1px solid var(--sage-soft-border);
+}
+
+.status-pending {
+  background-color: var(--amber-soft-bg);
+  color: var(--amber-soft-text);
+  border: 1px solid var(--amber-soft-border);
+}
+
+.status-cancelled {
+  background-color: var(--danger-soft-bg);
+  color: var(--danger-soft-text);
+  border: 1px solid var(--danger-soft-border);
+}
+
+.table-name-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-primary);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 0.875rem;
+}
+
+.table-arrow-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}

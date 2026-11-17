@@ -1,0 +1,184 @@
+/* ==========================================
+   CALENDAR COMPONENT (Compact UTD Editorial Theme)
+   ========================================== */
+.calendar-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 280px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1.25rem 1.35rem;
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.calendar-selects {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.calendar-selects select {
+  min-width: 0;
+  padding: 0.34rem 0.55rem;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-selects select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-soft-bg);
+}
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-btn:hover {
+  background-color: var(--accent-soft-bg);
+  border-color: var(--accent-soft-border);
+  color: var(--accent-soft-text);
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  justify-items: center;
+  text-align: center;
+}
+
+.calendar-weekdays {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.45rem;
+}
+
+.weekday-label {
+  font-weight: 700;
+  padding: 0.25rem 0;
+}
+
+.calendar-grid {
+  row-gap: 0.45rem;
+}
+
+.calendar-day {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1.5px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(24, 24, 23, 0.06);
+  transition: background-color 0.14s ease, border-color 0.14s ease,
+    color 0.14s ease, transform 0.1s ease, box-shadow 0.14s ease;
+}
+
+.calendar-day:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Hover effect ONLY for unselected active days */
+.calendar-day:not(.selected):hover:not(:disabled) {
+  background-color: var(--accent-soft-bg);
+  border-color: var(--accent-primary);
+  color: var(--accent-soft-text);
+  box-shadow: 0 2px 5px rgba(21, 71, 52, 0.14);
+  transform: translateY(-1px);
+}
+
+/* Solid Selected State (UTD Forest Green in Light, Slate Teal in Dark) */
+.calendar-day.selected {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  font-weight: 700;
+  border: 1.5px solid var(--accent-primary);
+  box-shadow: 0 2px 6px rgba(21, 71, 52, 0.28);
+}
+
+.calendar-day.selected:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+  color: #ffffff;
+}
+
+.calendar-day.disabled {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  font-weight: 500;
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.calendar-day.empty {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+@media (max-width: 400px) {
+  .calendar-container {
+    max-width: 100%;
+    min-width: 0;
+    padding: 0.85rem;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    column-gap: 0.25rem;
+  }
+
+  .calendar-day {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+}

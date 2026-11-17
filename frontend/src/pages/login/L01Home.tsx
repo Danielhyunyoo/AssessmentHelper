@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import campus from "../../assets/campus.png";
+import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg";
+import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg";
+import observation_record_management_card from "../../assets/observation_record_management_card.jpg";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor } from "../../api/types";
 
@@ -17,7 +20,6 @@ export default function L01Home() {
     async function loadHomeState() {
       try {
         const { professor } = await authApi.session();
-
         if (cancelled) return;
 
         setUser(professor);
@@ -25,12 +27,11 @@ export default function L01Home() {
         if (professor) {
           try {
             const status = await facultyApi.registrationStatus();
-
             if (!cancelled) {
               setIsRegistered(status.is_registered);
             }
           } catch {
-            // Keep the logged-in state even if registration status fails.
+            // Committee accounts may not have a personal faculty registration record.
           }
         }
       } catch {
@@ -58,52 +59,138 @@ export default function L01Home() {
     }
   };
 
+  const handleProtectedNavigate = (targetPath: string) => {
+    if (isLoggedIn) {
+      navigate(targetPath);
+    } else {
+      navigate("/login/signin", { state: { redirectTo: targetPath } });
+    }
+  };
+
   return (
     <div className="home-container">
-      <div className="home-content">
-        <div className="home-text">
-          <h1 className="home-title">
-            Sign into UTD<br />
-            Assessment<br />
-            Helper
-          </h1>
-          <p className="home-subtitle">
-            Register your courses, review observation<br />
-            requests, and submit evaluation records.
-          </p>
+      <div className="home-main-card">
+        <div className="home-content">
+          <div className="home-text">
+            <div className="home-badge-pill">UT Dallas Faculty Portal</div>
+            <h1 className="home-title">UTD Assessment Helper</h1>
+            <p className="home-subtitle">
+              Register your courses, coordinate classroom observation schedules, and complete peer evaluation records all in one workplace.
+            </p>
 
-          <div className="home-actions" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {!isLoggedIn && (
-              <Link to="/login/signin" className="btn-primary">
-                Sign in
-              </Link>
-            )}
+            <div className="home-actions">
+              {!isLoggedIn && (
+                <Link to="/login/signin" className="btn-primary home-main-btn">
+                  Sign In with UTD Email
+                </Link>
+              )}
 
-            {isLoggedIn && (
-              <button
-                type="button"
-                onClick={handleFacultyButtonClick}
-                className="btn-primary btn-block"
-              >
-                {!isRegistered ? "Register for Cycle / Faculty Dashboard" : "Faculty Dashboard"}
-              </button>
-            )}
+              {isLoggedIn && isCommittee && (
+                <>
+                  <Link
+                    to="/committee/dashboard"
+                    className="btn-primary btn-block home-main-btn"
+                  >
+                    Assessment Committee Dashboard
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleFacultyButtonClick}
+                    className="btn-secondary btn-block home-committee-btn"
+                  >
+                    Faculty Overview
+                  </button>
+                </>
+              )}
 
-            {isCommittee && (
-              <Link
-                to="/committee/dashboard"
-                className="btn-secondary btn-block"
-              >
-                Assessment Committee Dashboard
-              </Link>
-            )}
+              {isLoggedIn && !isCommittee && (
+                <button
+                  type="button"
+                  onClick={handleFacultyButtonClick}
+                  className="btn-primary btn-block home-main-btn"
+                >
+                  {!isRegistered
+                    ? "Register for Cycle / Faculty Dashboard"
+                    : "Go to Faculty Dashboard"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="home-image-container">
+            <img src={campus} alt="UT Dallas Campus" className="campus-img" />
           </div>
         </div>
-
-        <div className="home-image-container">
-          <img src={campus} alt="UTD Campus" className="campus-img" />
-        </div>
       </div>
+
+      <section className="home-modules-section">
+        <span className="a01-phase-pill">Quick Workspace Access</span>
+
+        <div className="home-info-footer-grid">
+          <div className="home-info-box">
+            <div className="home-box-img-frame">
+              <img
+                src={course_and_section_selection_card}
+                alt="Course Registration"
+                className="home-box-img"
+              />
+            </div>
+            <h4>Course and Section Registration</h4>
+            <p>
+              Select active course sections and submit proposed observation dates aligned with departmental deadlines.
+            </p>
+            <button
+              type="button"
+              onClick={() => handleProtectedNavigate("/observee/course-selection")}
+              className="btn-secondary home-box-btn"
+            >
+              Select Courses
+            </button>
+          </div>
+
+          <div className="home-info-box">
+            <div className="home-box-img-frame">
+              <img
+                src={observation_record_management_card}
+                alt="Observation Requests"
+                className="home-box-img"
+              />
+            </div>
+            <h4>Observation Requests</h4>
+            <p>
+              Review incoming peer observation assignments, accept requests, and manage evaluation schedules.
+            </p>
+            <button
+              type="button"
+              onClick={() => handleProtectedNavigate("/observer/observation-request")}
+              className="btn-secondary home-box-btn"
+            >
+              Review Requests
+            </button>
+          </div>
+
+          <div className="home-info-box">
+            <div className="home-box-img-frame">
+              <img
+                src={current_and_past_observations_card}
+                alt="Historical Archives"
+                className="home-box-img"
+              />
+            </div>
+            <h4>Historical Archives</h4>
+            <p>
+              Access past evaluation records and track institutional progress securely across evaluation cycles.
+            </p>
+            <button
+              type="button"
+              onClick={() => handleProtectedNavigate("/shared/current-past-observations")}
+              className="btn-secondary home-box-btn"
+            >
+              Access Past Records
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

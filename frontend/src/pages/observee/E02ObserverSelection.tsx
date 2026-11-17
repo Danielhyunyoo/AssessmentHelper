@@ -1,10 +1,14 @@
 // src/pages/observee/E02ObserverSelection.tsx
 import { useEffect, useState } from "react";
 import { matchingApi, facultyApi } from "../../api/endpoints";
-import type { Candidate, Invitation, Course } from "../../api/types";
-import { Link } from "react-router-dom";
+import type { Invitation, Course } from "../../api/types";
+import { Link, useLocation } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
-import Calendar from "../../components/Calendar";
+import { formatDate } from "../../api/format";
+import {
+  getPendingCourseChangeRequest,
+  type PendingCourseChangeRequest,
+} from "./E01CourseSelection";
 
 interface CandidateRow {
   id: string;
@@ -14,82 +18,137 @@ interface CandidateRow {
 }
 
 interface ResponseRecord {
-  id: string;
+  id: number;
+  observerId: number;
   observerName: string;
-  proposedDateTime: string;
-  responseStatus: "CONFIRMED" | "ACCEPTED" | "NOT SELECTED" | "PENDING" | "DECLINED" | "CANCELLED";
+  status: string;
+  date: string;
+  expiresAt: string | null;
 }
 
-function rowStatus(invitationStatus: string, dateStatus: string): ResponseRecord["responseStatus"] {
-  if (invitationStatus === "declined") return "DECLINED";
-  if (invitationStatus === "expired" || invitationStatus === "closed") return "CANCELLED";
-  if (dateStatus === "accepted") return invitationStatus === "confirmed" ? "CONFIRMED" : "ACCEPTED";
-  if (invitationStatus === "accepted" || invitationStatus === "confirmed") return "NOT SELECTED";
-  return "PENDING";
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Awaiting response",
+  accepted: "Accepted",
+  confirmed: "Confirmed",
+  declined: "Declined",
+  expired: "Expired",
+  closed: "Closed",
+  rejected: "Rejected",
+};
+
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatShortDate(dateStr: string, includeWeekday = false): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", {
+    ...(includeWeekday ? { weekday: "short" } : {}),
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function toResponseRows(
+  invitations: Invitation[],
+  names: Record<number, string>
+): ResponseRecord[] {
+  return invitations.map((invitation) => {
+    const chosen = invitation.proposed_dates.find(
+      (date) => date.status === "accepted"
+    );
+    return {
+      id: invitation.invitation_id,
+      observerId: invitation.recipient_id,
+      observerName:
+        names[invitation.recipient_id] ||
+        `Observer #${invitation.recipient_id}`,
+      status: invitation.status,
+      date: chosen ? formatDateTime(chosen.datetime) : "",
+      expiresAt: invitation.status === "pending" ? invitation.expires_at : null,
+    };
+  });
 }
 
 function localDateString(value: string): string {
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "";
 
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
 export default function E02ObserverSelection() {
+  const location = useLocation();
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
-  const [candidateDates, setCandidateDates] = useState<Record<string, string[]>>({});
+  const [candidateDates, setCandidateDates] = useState<
+    Record<string, string[]>
+  >({});
   const [candidateData, setCandidateData] = useState<CandidateRow[]>([]);
   const [responseData, setResponseData] = useState<ResponseRecord[]>([]);
-  const [selectedInvitationId, setSelectedInvitationId] = useState<number | null>(null);
+  const [selectedInvitationId, setSelectedInvitationId] = useState<
+    number | null
+  >(null);
   const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
   const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
   const [released, setReleased] = useState(false);
-  const [cycleStartDate, setCycleStartDate] = useState<string | null>(null);
   const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
-  const [observationDeadline, setObservationDeadline] = useState<string | null>(null);
+  const [observationDeadline, setObservationDeadline] = useState<string | null>(
+    null
+  );
+  const [pendingCourseChange, setPendingCourseChange] =
+    useState<PendingCourseChangeRequest | null>(() =>
+      getPendingCourseChangeRequest()
+    );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [validationError, setValidationError] = useState("");
   const [success, setSuccess] = useState("");
+  const [messageArea, setMessageArea] = useState<
+    "page" | "invite" | "responses"
+  >("page");
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadObserverSelection() {
       setLoading(true);
-      setError("");
 
       try {
-        const [
-          matches,
-          invitations,
-          profile,
-          availability,
-          registration,
-        ] = await Promise.all([
-          matchingApi.matches(),
-          matchingApi.sentInvitations(),
-          facultyApi.profile(),
-          facultyApi.availability(),
-          facultyApi.registrationStatus(),
-        ]);
+        const [matches, invitations, profile, availability, registration] =
+          await Promise.all([
+            matchingApi.matches(),
+            matchingApi.sentInvitations(),
+            facultyApi.profile(),
+            facultyApi.availability(),
+            facultyApi.registrationStatus(),
+          ]);
 
         if (cancelled) return;
 
         const savedDateTimes = availability.available_datetimes ?? [];
-
         setAvailableDateTimes(savedDateTimes);
 
-        const savedDates = [...new Set(savedDateTimes.map(localDateString).filter(Boolean))];
+        const savedDates = [
+          ...new Set(savedDateTimes.map(localDateString).filter(Boolean)),
+        ].sort();
         setSelectedDatesList(savedDates);
         setReleased(Boolean(matches.released));
+
         setCandidateDates(
-          Object.fromEntries((matches.candidates ?? []).map((candidate) => [String(candidate.id), savedDates]))
+          Object.fromEntries(
+            (matches.candidates ?? []).map((candidate) => [
+              String(candidate.id),
+              savedDates.slice(0, 8),
+            ])
+          )
         );
 
         setCandidateData(
@@ -103,30 +162,27 @@ export default function E02ObserverSelection() {
 
         setRegisteredCourse(profile.selected_course);
         setObservationDeadline(registration.observation_deadline);
-        setCycleStartDate(registration.start_date);
+        setPendingCourseChange(getPendingCourseChangeRequest());
 
         setResponseData(
-          invitations.flatMap((invitation) => {
-            const candidate = matches.candidates.find(
-              (item) => item.id === invitation.recipient_id
-            );
-
-            return invitation.proposed_dates.map((date) => ({
-              id: String(invitation.invitation_id),
-              observerName:
-                candidate?.name || `Observer #${invitation.recipient_id}`,
-              proposedDateTime: new Date(date.datetime).toLocaleString(),
-              responseStatus: rowStatus(invitation.status, date.status),
-            }));
-          })
+          toResponseRows(
+            invitations,
+            Object.fromEntries(
+              (matches.candidates ?? []).map((candidate) => [
+                candidate.id,
+                candidate.name,
+              ])
+            )
+          )
         );
       } catch (err) {
         if (!cancelled) {
-          setError(
+          const msg =
             err instanceof Error
               ? err.message
-              : "Unable to load observer candidates and invitations."
-          );
+              : "Unable to load observer candidates and invitations.";
+          setMessageArea("page");
+          setValidationError(msg);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -135,22 +191,39 @@ export default function E02ObserverSelection() {
 
     void loadObserverSelection();
 
+    const syncPendingRequest = () =>
+      setPendingCourseChange(getPendingCourseChangeRequest());
+    window.addEventListener("course-change-request-updated", syncPendingRequest);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(
+        "course-change-request-updated",
+        syncPendingRequest
+      );
     };
   }, []);
 
+  useEffect(() => {
+    if (!loading && location.hash === "#responses") {
+      document
+        .getElementById("responses")
+        ?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [loading, location.hash]);
+
   const handleSendInvitations = async () => {
-    setError("");
     setSuccess("");
+    setValidationError("");
+    setMessageArea("invite");
 
     if (selectedCandidates.length === 0) {
-      setError("Select at least one observer first.");
+      setValidationError("Select at least one observer first.");
       return;
     }
 
     if (availableDateTimes.length === 0) {
-      setError(
+      setValidationError(
         "No saved observation date/times were found. Return to Course Selection and save your availability."
       );
       return;
@@ -161,9 +234,18 @@ export default function E02ObserverSelection() {
     );
 
     if (candidatesWithoutDates.length > 0) {
-      setError(
+      setValidationError(
         "Select at least four proposed dates for every observer you want to invite."
       );
+      return;
+    }
+
+    if (
+      selectedCandidates.some(
+        (observerId) => (candidateDates[observerId] ?? []).length > 8
+      )
+    ) {
+      setValidationError("Propose at most eight dates to each observer.");
       return;
     }
 
@@ -173,8 +255,8 @@ export default function E02ObserverSelection() {
       for (const observerId of selectedCandidates) {
         const datesForObserver = candidateDates[observerId] ?? [];
 
-        const proposedDateTimes = availableDateTimes.filter(
-          (dateTime) => datesForObserver.includes(localDateString(dateTime))
+        const proposedDateTimes = availableDateTimes.filter((dateTime) =>
+          datesForObserver.includes(localDateString(dateTime))
         );
 
         if (proposedDateTimes.length === 0) {
@@ -191,24 +273,13 @@ export default function E02ObserverSelection() {
 
       const invitations = await matchingApi.sentInvitations();
 
-      setResponseData(
-        invitations.flatMap((invitation) =>
-          invitation.proposed_dates.map((date) => ({
-            id: String(invitation.invitation_id),
-            observerName:
-              candidateData.find(
-                (candidate) =>
-                  candidate.id === String(invitation.recipient_id)
-              )?.observerName || `Observer #${invitation.recipient_id}`,
-            proposedDateTime: new Date(date.datetime).toLocaleString(),
-            responseStatus: rowStatus(invitation.status, date.status),
-          }))
-        )
+      setResponseData(toResponseRows(invitations, observerNames));
+      setSuccess(
+        `Sent ${selectedCandidates.length} invitation${selectedCandidates.length === 1 ? "" : "s"}. Their responses appear below.`
       );
-
-      setSuccess("Invitation requests were sent successfully.");
+      setSelectedCandidates([]);
     } catch (err) {
-      setError(
+      setValidationError(
         err instanceof Error
           ? err.message
           : "Unable to send invitation requests."
@@ -218,14 +289,12 @@ export default function E02ObserverSelection() {
     }
   };
 
-  // Toggle candidate checkbox selection
   const handleCheckboxToggle = (id: string) => {
     setSelectedCandidates((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  // Toggle individual date selection per professor (interactive chips)
   const toggleCandidateDate = (candidateId: string, dateStr: string) => {
     setCandidateDates((prev) => {
       const currentDates = prev[candidateId] || [];
@@ -239,121 +308,216 @@ export default function E02ObserverSelection() {
     });
   };
 
-  // Columns for Table 1: Matched Observer Candidates
+  const openInvitationStatus: Record<number, string> = Object.fromEntries(
+    responseData
+      .filter((row) => ["pending", "accepted", "confirmed"].includes(row.status))
+      .map((row) => [row.observerId, row.status])
+  );
+  const isFinalized = responseData.some((row) => row.status === "confirmed");
+  const hasAcceptedOrConfirmed = responseData.some(
+    (row) => row.status === "accepted" || row.status === "confirmed"
+  );
+  const invitableIds = candidateData
+    .map((candidate) => candidate.id)
+    .filter((id) => !openInvitationStatus[Number(id)]);
+
   const candidateColumns: Column<CandidateRow>[] = [
     {
       header: "Select",
-      width: "60px",
+      width: "84px",
+      render: (row) => {
+        const status = openInvitationStatus[Number(row.id)];
+        if (status) {
+          return (
+            <span
+              className={`e02-status-pill ${
+                status === "confirmed" ? "is-confirmed" : "is-invited"
+              }`}
+            >
+              {status === "confirmed" ? "Confirmed" : "Invited"}
+            </span>
+          );
+        }
+        if (isFinalized) return null;
+        return (
+          <input
+            type="checkbox"
+            aria-label={`Select ${row.observerName}`}
+            checked={selectedCandidates.includes(row.id)}
+            onChange={() => handleCheckboxToggle(row.id)}
+          />
+        );
+      },
+    },
+    {
+      header: "Observer Name",
       render: (row) => (
-        <input
-          type="checkbox"
-          checked={selectedCandidates.includes(row.id)}
-          onChange={() => handleCheckboxToggle(row.id)}
-        />
+        <span className="e02-observer-name">{row.observerName}</span>
       ),
     },
-    { header: "Observer Name", accessor: "observerName" },
     { header: "Department", accessor: "department" },
     { header: "Academic Level", accessor: "academicLevel" },
     {
-      header: "Observation Date(s)",
-      width: "300px",
+      header: "Proposed Dates (4–8)",
       render: (row) => {
+        if (isFinalized || openInvitationStatus[Number(row.id)]) return null;
         const activeDates = candidateDates[row.id] || [];
+        const isValidCount =
+          activeDates.length >= 4 && activeDates.length <= 8;
 
         return (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
-            {selectedDatesList.map((dateStr, idx) => {
-              const isSelected = activeDates.includes(dateStr);
-              const formattedDate = new Date(`${dateStr}T00:00:00`).toLocaleDateString(
-                "en-US",
-                { month: "short", day: "numeric" }
-              );
-
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => toggleCandidateDate(row.id, dateStr)}
-                  style={{
-                    padding: "0.25rem 0.6rem",
-                    borderRadius: "12px",
-                    fontSize: "0.8rem",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    border: isSelected ? "1px solid #1e293b" : "1px solid #cbd5e1",
-                    backgroundColor: isSelected ? "#1e293b" : "#ffffff",
-                    color: isSelected ? "#ffffff" : "#334155",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {formattedDate} {isSelected ? "✓" : "+"}
-                </button>
-              );
-            })}
+          <div className="e02-dates-cell">
+            <div className="candidate-date-pills">
+              {selectedDatesList.map((dateStr, idx) => {
+                const isSelected = activeDates.includes(dateStr);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => toggleCandidateDate(row.id, dateStr)}
+                    className={`candidate-date-pill-btn ${
+                      isSelected ? "is-selected" : ""
+                    }`}
+                  >
+                    {formatShortDate(dateStr)}
+                  </button>
+                );
+              })}
+            </div>
+            <span
+              className={`e02-date-count-tag ${
+                isValidCount ? "is-valid" : "is-warning"
+              }`}
+            >
+              {activeDates.length}/8 selected
+            </span>
           </div>
         );
       },
     },
   ];
 
-  // Columns for Table 2: Pending and Confirmed Responses
+  const observerNames = Object.fromEntries(
+    candidateData.map((candidate) => [
+      Number(candidate.id),
+      candidate.observerName,
+    ])
+  );
+
   const responseColumns: Column<ResponseRecord>[] = [
     {
-      header: "",
-      width: "40px",
-      render: () => <span style={{ color: "#94a3b8" }}>-</span>,
+      header: "Observer",
+      render: (row) => (
+        <span className="e02-observer-name">{row.observerName}</span>
+      ),
     },
-    { header: "Observer Name", accessor: "observerName" },
-    { header: "Proposed Date and Time", accessor: "proposedDateTime" },
-    { header: "Observer Response", accessor: "responseStatus" },
+    {
+      header: "Response",
+      render: (row) => (
+        <div className="e02-response-status-cell">
+          <span className={`e02-status-pill is-${row.status}`}>
+            {STATUS_LABELS[row.status] ?? row.status}
+          </span>
+          {row.expiresAt && (
+            <span className="font-slate font-sm">
+              expires {formatDateTime(row.expiresAt)}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    { header: "Scheduled Date", accessor: "date" },
     {
       header: "Actions",
-      render: (row) => {
-        if (row.responseStatus === "PENDING") {
-          return <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#64748b" }}>AWAITING RESPONSE</span>;
-        }
-        if (row.responseStatus === "CONFIRMED") {
-          return (
-            <span style={{ backgroundColor: "#dcfce7", color: "#166534", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
-              CONFIRMED
-            </span>
-          );
-        }
-        if (row.responseStatus === "ACCEPTED") {
-          const invitationId = Number(row.id);
-
-          return (
+      render: (row) =>
+        row.status === "accepted" ? (
+          <span className="bulk-btn-group">
             <button
               type="button"
-              className="secondary-btn"
-              onClick={() => setSelectedInvitationId(invitationId)}
-              style={{
-                fontWeight: selectedInvitationId === invitationId ? "700" : "400",
-              }}
+              className={
+                selectedInvitationId === row.id
+                  ? "btn-accent-blue"
+                  : "btn-secondary"
+              }
+              onClick={() => setSelectedInvitationId(row.id)}
             >
-              {selectedInvitationId === invitationId ? "Selected" : "Select Observer"}
+              {selectedInvitationId === row.id ? "✓ Selected" : "Select"}
             </button>
-          );
-        }
-        if (row.responseStatus === "DECLINED" || row.responseStatus === "CANCELLED") {
-          return (
-            <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "0.25rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "700" }}>
-              DECLINED
-            </span>
-          );
-        }
-        return <span>-</span>;
-      },
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void handleReject(row.id)}
+              disabled={saving}
+            >
+              Reject
+            </button>
+          </span>
+        ) : null,
     },
   ];
 
-  const handleConfirmPairing = async () => {
-    setError("");
+  const statusCounts = Object.entries(
+    responseData.reduce<Record<string, number>>((counts, row) => {
+      counts[row.status] = (counts[row.status] ?? 0) + 1;
+      return counts;
+    }, {})
+  );
+
+  const reloadResponses = async () => {
+    const invitations = await matchingApi.sentInvitations();
+    setResponseData(toResponseRows(invitations, observerNames));
+  };
+
+  const runAction = async (
+    action: () => Promise<unknown>,
+    message: string
+  ) => {
     setSuccess("");
+    setValidationError("");
+    setMessageArea("responses");
+    setSaving(true);
+
+    try {
+      await action();
+      setSelectedInvitationId(null);
+      setSuccess(message);
+      await reloadResponses();
+    } catch (err) {
+      setValidationError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update the invitation."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReject = (invitationId: number) =>
+    runAction(
+      () => matchingApi.reject(invitationId),
+      "Response rejected. You can invite this observer again."
+    );
+
+  const handleRejectAll = () =>
+    runAction(
+      () => matchingApi.rejectAll(),
+      "All open invitations were withdrawn."
+    );
+
+  const hasOpenInvitations = responseData.some(
+    (row) => row.status === "pending" || row.status === "accepted"
+  );
+
+  const handleConfirmPairing = async () => {
+    setSuccess("");
+    setValidationError("");
+    setMessageArea("responses");
 
     if (selectedInvitationId === null) {
-      setError("Please select an observer who has accepted an invitation.");
+      setValidationError(
+        "Please select an observer who has accepted an invitation."
+      );
       return;
     }
 
@@ -361,28 +525,12 @@ export default function E02ObserverSelection() {
 
     try {
       await matchingApi.confirmPairing(selectedInvitationId);
-
-      setSuccess("Observer and observation date confirmed successfully.");
-
-      // Reload the page's invitation and response data.
+      setSuccess("Observer and observation date confirmed.");
+      setSelectedInvitationId(null);
       const invitations = await matchingApi.sentInvitations();
-
-      setResponseData(
-        invitations.flatMap((invitation) =>
-          invitation.proposed_dates.map((date) => ({
-            id: String(invitation.invitation_id),
-            observerName:
-              candidateData.find(
-                (candidate) =>
-                  candidate.id === String(invitation.recipient_id)
-              )?.observerName || `Observer #${invitation.recipient_id}`,
-            proposedDateTime: new Date(date.datetime).toLocaleString(),
-            responseStatus: rowStatus(invitation.status, date.status),
-          }))
-        )
-      );
+      setResponseData(toResponseRows(invitations, observerNames));
     } catch (err) {
-      setError(
+      setValidationError(
         err instanceof Error
           ? err.message
           : "Unable to confirm the observation pairing."
@@ -394,108 +542,238 @@ export default function E02ObserverSelection() {
 
   return (
     <div className="dashboard-container">
-      {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
         <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          Back to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 
-      <h2>Observer Selection</h2>
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <span className="a01-phase-pill">Observee Workflow: Step 2</span>
+          <div className="committee-page-title-row">
+            <h2>Observer Selection</h2>
+          </div>
+        </div>
 
-      {loading && <p>Loading matched observers and invitations...</p>}
-      {error && <div role="alert" className="yellow-banner">{error}</div>}
-      {success && <div role="status" className="yellow-banner">{success}</div>}
+        {observationDeadline && (
+          <div className="committee-page-header-meta">
+            <span className="status-chip a02-chip-warning">
+              DEADLINE: {formatDate(observationDeadline).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
 
-      {/* Top Section: Registered Course Info & Calendar Widget */}
-      <section className="table-container theme-orange" style={{ padding: "1.5rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "center" }}>
+      {loading && (
+        <div className="a07-state-box">
+          Loading matched observers and invitations...
+        </div>
+      )}
+      {messageArea === "page" && validationError && (
+        <div role="alert" className="signin-error-banner">
+          {validationError}
+        </div>
+      )}
+
+      {/* Top Section: Course Details & Clean Badge Bar */}
+      <section className="e02-course-card">
+        <div className="e02-card-header">
           <div>
-            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>Your Registered Course Information</h3>
-            <p>
-              <strong>Course Number and Title:</strong>{" "}
+            <h3 className="e02-card-title">Registered Course Information</h3>
+            <p className="e02-card-subtitle">
+              Invitations will be sent for your registered class meeting times.
+            </p>
+          </div>
+          <Link to="/observee/course-selection" className="btn-secondary">
+            Edit Availability →
+          </Link>
+        </div>
+
+        <div className="form-summary-grid-4">
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Course</span>
+            <p className="summary-field-val">
               {registeredCourse
-                ? `${registeredCourse.department_code} ${registeredCourse.course_number} - ${registeredCourse.title || "Course Title Unavailable"}`
+                ? `${registeredCourse.department_code} ${registeredCourse.course_number} - ${
+                    registeredCourse.title || "Title Unavailable"
+                  }`
                 : "No course selected"}
             </p>
+          </div>
 
-            <p style={{ marginTop: "0.5rem" }}>
-              <strong>Course Section:</strong>{" "}
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Section</span>
+            <p className="summary-field-val">
               {registeredCourse?.section || "Not available"}
             </p>
+          </div>
 
-            <p style={{ marginTop: "0.5rem" }}>
-              <strong>Meeting Days and Times:</strong>{" "}
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Meeting Days and Times</span>
+            <p className="summary-field-val">
               {registeredCourse?.schedule || "Not available"}
             </p>
+          </div>
 
-            <p style={{ marginTop: "0.5rem" }}>
-              <strong>Classroom Location(s):</strong>{" "}
+          <div className="form-summary-cell">
+            <span className="summary-field-label">Classroom Location</span>
+            <p className="summary-field-val">
               {registeredCourse?.classroom || "Not available"}
-            </p>    
+            </p>
+          </div>
+        </div>
+
+        {pendingCourseChange && (
+          <div className="e02-callout-notice observer-pending-change-banner">
+            <strong>Pending Course Change Request:</strong> You requested to
+            switch to{" "}
+            <strong>
+              {pendingCourseChange.requested_course_label} (Sec.{" "}
+              {pendingCourseChange.requested_section})
+            </strong>
+            . Your current course remains active until an Assessment Committee
+            member approves the change.
+          </div>
+        )}
+
+        <div className="e02-dates-footer">
+          <div className="e02-dates-footer-head">
+            <span className="summary-field-label">
+              Saved Proposed Observation Dates ({selectedDatesList.length})
+            </span>
           </div>
 
-          {/* Staying hardcoded until backend can give observation period and structured course meeting days */}
-          <div>
-            <Calendar
-              selectedDates={selectedDatesList}
-              onDateSelectionChange={() => {}}
-              allowedDaysOfWeek={["Mon", "Tue", "Wed", "Thu", "Fri"]}
-              maxSelections={8}
-              minDate={cycleStartDate ?? undefined}
-              maxDate={observationDeadline ?? undefined}
-              readOnly
-            />
-          </div>
+          {selectedDatesList.length === 0 ? (
+            <p className="font-slate font-sm a02-zero-margin">
+              No observation dates selected.
+            </p>
+          ) : (
+            <div className="proposed-dates-pill-list">
+              {selectedDatesList.map((dateStr, idx) => (
+                <span key={idx} className="e02-saved-date-chip">
+                  {formatShortDate(dateStr, true)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
       {/* Section 2: Select from Matched Observer Candidates List */}
-      <section className="dashboard-phase" style={{ marginTop: "2rem" }}>
-        <h3>Select from Matched Observer Candidates List</h3>
+      {!hasAcceptedOrConfirmed && (
+        <section className="dashboard-phase phase-spacing">
+          <div className="a01-phase-title-group">
+            <span className="a01-phase-pill">Matched Pool</span>
+            <h3>Select from Matched Observer Candidates</h3>
+          </div>
 
-        <div className="yellow-banner">
-          <strong>IMPORTANT:</strong>{" "}
-          {observationDeadline
-            ? `Please make sure all proposed observation dates fall before ${new Date(`${observationDeadline}T00:00:00`).toLocaleDateString()}.`
-            : "The observation deadline could not be loaded. Please verify the allowed observation period."}
-        </div>
+          <div className="e02-callout-notice observer-deadline-banner">
+            <strong>Scheduling Window:</strong>{" "}
+            {observationDeadline
+              ? `Ensure all proposed observation dates fall on or before ${formatDate(
+                  observationDeadline
+                )}. Select 4 to 8 dates per observer.`
+              : "The observation deadline could not be loaded. Please verify the allowed observation period."}
+          </div>
 
-        <DataTable
-          themeColor="orange"
-          instructionText="Select candidates to send an observation request for your registered course times."
-          columns={candidateColumns}
-          emptyMessage={released ? "No observers were released to you." : "Waiting for the Assessment Committee to release your observers."}
-          data={candidateData}
-        />
+          {messageArea === "invite" && validationError && (
+            <div role="alert" className="signin-error-banner">
+              {validationError}
+            </div>
+          )}
 
-        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates(candidateData.map((c) => c.id))}>
-              Select All
-            </button>
-            <button type="button" className="btn-select-toggle" onClick={() => setSelectedCandidates([])}>
-              Deselect All
+          <DataTable
+            themeColor="orange"
+            instructionText="Select candidates and customize their 4–8 proposed dates before sending requests."
+            columns={candidateColumns}
+            emptyMessage={
+              released
+                ? "No observers were released to you."
+                : "Waiting for the Assessment Committee to release your observers."
+            }
+            data={candidateData}
+          />
+
+          <div className="compact-actions-bar unregistered-actions-bar">
+            <div className="bulk-btn-group">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setSelectedCandidates(invitableIds)}
+                disabled={isFinalized || invitableIds.length === 0}
+              >
+                Select All ({invitableIds.length})
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setSelectedCandidates([])}
+                disabled={selectedCandidates.length === 0}
+              >
+                Deselect All
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void handleSendInvitations()}
+              disabled={
+                saving ||
+                loading ||
+                isFinalized ||
+                selectedCandidates.length === 0
+              }
+            >
+              {saving
+                ? "Sending..."
+                : selectedCandidates.length > 0
+                ? `Send Invitation Request${
+                    selectedCandidates.length === 1 ? "" : "s"
+                  } (${selectedCandidates.length})`
+                : "Send Invitation Requests"}
             </button>
           </div>
 
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void handleSendInvitations()}
-            disabled={saving || loading}
-          >
-            {saving ? "Sending..." : "Send Invitation Requests"}
-          </button>
-        </div>
-      </section>
+          {messageArea === "invite" && success && (
+            <div
+              role="status"
+              className="feedback-banner-success observer-feedback-banner"
+            >
+              {success}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Section 3: Pending and Confirmed Observer Responses */}
-      <section className="dashboard-phase" style={{ marginTop: "2.5rem" }}>
-        <h3>Pending and Confirmed Observer Responses</h3>
+      <section id="responses" className="dashboard-phase phase-spacing">
+        <div className="e02-responses-header">
+          <div className="a01-phase-title-group">
+            <span className="a01-phase-pill">Invitation Status</span>
+            <h3>Pending and Confirmed Observer Responses</h3>
+          </div>
 
-        <div className="yellow-banner">
-          <strong>IMPORTANT:</strong> Accepting an Observer will lock in your choice and automatically decline remaining candidates.
+          {responseData.length > 0 && (
+            <div className="e02-status-summary-bar">
+              <span className="e02-summary-total">
+                {responseData.length} invited
+              </span>
+              {statusCounts.map(([status, count]) => (
+                <span key={status} className="e02-summary-chip">
+                  {count} {(STATUS_LABELS[status] ?? status).toLowerCase()}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="e02-callout-notice">
+          <strong>Finalizing Your Pairing:</strong> Confirming an accepted
+          observer locks in your pairing and automatically declines any
+          remaining open invitations.
         </div>
 
         <DataTable
@@ -505,19 +783,41 @@ export default function E02ObserverSelection() {
           data={responseData}
         />
 
-        <div className="compact-actions-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button type="button" className="btn-secondary">
-            Reject All
-          </button>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void handleConfirmPairing()}
-            disabled={saving || selectedInvitationId === null}
+        {!isFinalized && hasOpenInvitations && (
+          <div className="compact-actions-bar unregistered-actions-bar">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void handleRejectAll()}
+              disabled={saving}
+            >
+              Withdraw All Open Invitations
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void handleConfirmPairing()}
+              disabled={saving || selectedInvitationId === null}
+            >
+              {saving ? "Confirming..." : "Confirm and Lock Pairing"}
+            </button>
+          </div>
+        )}
+
+        {messageArea === "responses" && validationError && (
+          <div role="alert" className="signin-error-banner">
+            {validationError}
+          </div>
+        )}
+
+        {messageArea === "responses" && success && (
+          <div
+            role="status"
+            className="feedback-banner-success observer-feedback-banner"
           >
-            {saving ? "Confirming..." : "Confirm and Lock Changes"}
-          </button>
-        </div>
+            {success}
+          </div>
+        )}
 
         <div className="dashboard-center-action">
           <Link to="/shared/faculty-dashboard" className="btn-secondary">

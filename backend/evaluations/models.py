@@ -41,6 +41,12 @@ class User(AbstractUser):
         blank=True
     )
 
+    profile_photo = models.ImageField(
+        upload_to="profile_photos/",
+        null=True,
+        blank=True
+    )
+
     last_evaluated_semester = models.CharField(
         max_length=20,
         blank=True
@@ -255,6 +261,8 @@ class Invitation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     expires_at = models.DateTimeField(null=True, blank=True)
+
+    reminded_at = models.DateTimeField(null=True, blank=True)
 
     responded_at = models.DateTimeField(null=True, blank=True)
 

@@ -1,12 +1,15 @@
+from datetime import date, timedelta
 from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import override_settings
+from django.utils import timezone
 
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from . import clock
 from .models import Course, Cycle, Notification, Signup
 
 User = get_user_model()
@@ -16,21 +19,29 @@ User = get_user_model()
 class RegistrationDemoTests(APITestCase):
     def setUp(self):
         call_command("seed_demo", stdout=StringIO())
-        self.alice = User.objects.get(username="faculty_alice")
-        self.alice_fall_courses = Course.objects.filter(instructor=self.alice, semester="Fall", year=2026)
-        self.course = self.alice_fall_courses.get(course_number="2337")
-        self.client.defaults["HTTP_X_DEMO_USERNAME"] = "faculty_alice"
+        Cycle.objects.filter(status="active").update(signup_deadline=timezone.localdate() + timedelta(days=7))
+        self.professor_a = User.objects.get(username="professor_a")
+        self.professor_a_fall_courses = Course.objects.filter(instructor=self.professor_a, semester="Fall", year=2026)
+        self.course = self.professor_a_fall_courses.get(course_number="2337")
+        self.client.defaults["HTTP_X_DEMO_USERNAME"] = "professor_a"
 
     def course_notifications(self):
-        return Notification.objects.filter(user=self.alice, type="registration")
+        return Notification.objects.filter(user=self.professor_a, type="registration")
 
-    def test_alice_sees_only_her_current_sections(self):
+    def test_registration_status_reports_the_simulated_today(self):
+        self.addCleanup(clock.set_simulated_date, None)
+        self.assertEqual(self.client.get("/api/registration/status/").data["today"], timezone.localdate())
+
+        clock.set_simulated_date(date(2026, 10, 20))
+        self.assertEqual(self.client.get("/api/registration/status/").data["today"], date(2026, 10, 20))
+
+    def test_professor_a_sees_only_their_current_sections(self):
         response = self.client.get("/api/me/courses/")
 
         self.assertGreaterEqual(len(response.data), 2)
         self.assertEqual(
             {course["course_id"] for course in response.data},
-            set(self.alice_fall_courses.values_list("course_id", flat=True)),
+            set(self.professor_a_fall_courses.values_list("course_id", flat=True)),
         )
         self.assertIn("Computer Science II", [course["title"] for course in response.data])
 
@@ -48,7 +59,7 @@ class RegistrationDemoTests(APITestCase):
         for _ in range(3):
             self.client.post("/api/signups/", {"course_id": self.course.course_id}, format="json")
 
-        self.assertEqual(Signup.objects.filter(user=self.alice).count(), 1)
+        self.assertEqual(Signup.objects.filter(user=self.professor_a).count(), 1)
         self.assertEqual(self.course_notifications().count(), 1)
 
     def test_repeated_course_selection_creates_one_notification(self):
@@ -56,7 +67,7 @@ class RegistrationDemoTests(APITestCase):
         for _ in range(3):
             self.client.patch("/api/signups/course/", {"course_id": self.course.course_id}, format="json")
 
-        self.assertEqual(Signup.objects.get(user=self.alice).course, self.course)
+        self.assertEqual(Signup.objects.get(user=self.professor_a).course, self.course)
         self.assertEqual(self.course_notifications().count(), 1)
 
     def test_confirmation_notification_is_listed_after_a_refresh(self):
@@ -68,11 +79,11 @@ class RegistrationDemoTests(APITestCase):
         self.assertIn("Course selection saved", titles)
 
     def test_faculty_cannot_use_committee_actions(self):
-        signup = Signup.objects.create(user=self.alice, cycle=Cycle.objects.get(status="active"), course=self.course)
+        signup = Signup.objects.create(user=self.professor_a, cycle=Cycle.objects.get(status="active"), course=self.course)
         requests = [
             ("get", "/api/committee/dashboard/", None),
             ("get", "/api/committee/faculty/", None),
-            ("post", "/api/committee/faculty/remind/", {"user_ids": [self.alice.pk]}),
+            ("post", "/api/committee/faculty/remind/", {"user_ids": [self.professor_a.pk]}),
             ("post", f"/api/committee/signups/{signup.pk}/release-candidates/", {"observer_ids": []}),
         ]
 
@@ -81,11 +92,11 @@ class RegistrationDemoTests(APITestCase):
                 response = getattr(self.client, method)(url, data, format="json")
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_reset_returns_alice_to_unregistered(self):
+    def test_reset_returns_professor_a_to_unregistered(self):
         self.client.post("/api/signups/", {"course_id": self.course.course_id}, format="json")
 
         call_command("seed_demo", "--reset", stdout=StringIO())
 
         me = self.client.get("/api/me/")
         self.assertEqual(me.data["registration_status"], "not_signed_up")
-        self.assertFalse(Notification.objects.filter(user=self.alice).exists())
+        self.assertFalse(Notification.objects.filter(user=self.professor_a).exists())

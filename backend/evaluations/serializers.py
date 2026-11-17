@@ -13,6 +13,7 @@ class LoginSerializer(serializers.Serializer):
 
 class ProfessorSerializer(serializers.ModelSerializer):
     department_name = serializers.SerializerMethodField()
+    profile_photo = serializers.ImageField(read_only=True)
 
     def get_department_name(self, obj):
         if obj.department_id:
@@ -28,6 +29,7 @@ class ProfessorSerializer(serializers.ModelSerializer):
             "last_name",
             "email",
             "phone",
+            "profile_photo",
             "role",
             "academic_level",
             "department_name",
@@ -36,9 +38,38 @@ class ProfessorSerializer(serializers.ModelSerializer):
         ]
 
 class ProfileUpdateSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=150, allow_blank=False)
-    last_name = serializers.CharField(max_length=150, allow_blank=False)
-    phone = serializers.CharField(max_length=30, allow_blank=True, required=False)
+    first_name = serializers.CharField(
+        max_length=150,
+        allow_blank=False,
+        required=False
+    )
+
+    last_name = serializers.CharField(
+        max_length=150,
+        allow_blank=False,
+        required=False
+    )
+
+    phone = serializers.CharField(
+        max_length=30,
+        allow_blank=True,
+        required=False
+    )
+
+    profile_photo = serializers.ImageField(
+        required=False,
+        write_only=True
+    )
+
+    def validate_profile_photo(self, value):
+        max_size = 5 * 1024 * 1024
+
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                "Profile photos cannot exceed 5 MB."
+            )
+
+        return value
 
 class CourseSerializer(serializers.ModelSerializer):
     department_id = serializers.IntegerField(read_only=True)

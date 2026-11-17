@@ -5,9 +5,25 @@ const mockMode = import.meta.env.VITE_USE_MOCKS === "true";
 export function isMockMode() { return mockMode; }
 export class ApiError extends Error {
   constructor(public status: number, public payload: ApiErrorPayload | string) {
-    super(typeof payload === "string" ? payload : (payload.detail || JSON.stringify(payload)));
+    super(errorText(payload));
     this.name = "ApiError";
   }
+}
+function errorText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(errorText).join(" ");
+  if (value && typeof value === "object") {
+    const fields = value as Record<string, unknown>;
+    if (typeof fields.detail === "string") return fields.detail;
+    return Object.entries(fields).map(([key, item]) =>
+      key === "non_field_errors" || key === "responses" ? errorText(item) : `${fieldLabel(key)}: ${errorText(item)}`
+    ).join(" ");
+  }
+  return String(value ?? "");
+}
+function fieldLabel(key: string) {
+  const words = key.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 function cookie(name: string): string | undefined {
   return document.cookie.split("; ").find(item => item.startsWith(`${name}=`))?.split("=").slice(1).join("=");
@@ -44,4 +60,34 @@ export function downloadKpiCsv(cycleId?: number) {
   // Use a direct GET for a browser-managed CSV download. With Vite proxy this is same-origin.
   const q = qs({ cycle_id: cycleId });
   window.open(`${baseUrl}/api/committee/kpis/export.csv${q}`, "_blank", "noopener");
+}
+export async function downloadSurveyFile(surveyId: number) {
+  const response = await fetch(
+    `${baseUrl}/api/committee/surveys/${surveyId}/file/`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    const message = contentType.includes("json")
+      ? (await response.json()).detail || "Unable to download attachment."
+      : "Unable to download attachment.";
+
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = `survey-${surveyId}-attachment`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(objectUrl);
 }

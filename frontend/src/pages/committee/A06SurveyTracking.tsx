@@ -1,516 +1,663 @@
-import { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+// src/pages/committee/A06SurveyTracking.tsx
+import { useEffect, useState } from "react";
+import { downloadSurveyFile } from "../../api/http";
+import { Link } from "react-router-dom";
+import { committeeApi } from "../../api/endpoints";
+import type { Survey } from "../../api/types";
+import { formatDate, formatDateTime } from "../../api/format";
 
-type AcademicRank =
-  | "Assistant Professor"
-  | "Associate Professor"
-  | "Full Professor"
-  | "Professor of Instruction";
+function formatAcademicRank(rank: string | null | undefined): string {
+  if (!rank) return "Not provided";
+  const normalized = rank.trim().toLowerCase();
+  const rankLabels: Record<string, string> = {
+    assistant: "Assistant Professor",
+    "assistant professor": "Assistant Professor",
+    associate: "Associate Professor",
+    "associate professor": "Associate Professor",
+    full: "Full Professor",
+    "full professor": "Full Professor",
+    professor_of_instruction: "Professor of Instruction",
+    "professor of instruction": "Professor of Instruction",
+  };
 
-interface MissingSurveyRecord {
-  id: string;
-  observeeName: string;
-  department: string;
-  academicLevel: AcademicRank;
-  observationDate: string;
-}
-
-interface CompletedSurveyRecord {
-  id: string;
-  observeeName: string;
-  observerName: string;
-  department: string;
-  academicLevel: AcademicRank;
-  completionDate: string;
-  courseAndSection: string;
-  teachingEffectiveness: string;
-  syllabusQuality: string;
-  classroomManagement: string;
-  overallRating: string;
-  detailedComments: string;
+  return rankLabels[normalized] || rank;
 }
 
 export default function A06SurveyTracking() {
-  const navigate = useNavigate();
-
-  // Search & Filter State
-  const [searchInput, setSearchInput] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedDepartment, setSelectedDepartment] = useState<string>("All");
-  const [sortBy, setSortBy] = useState<"name" | "department" | "date">("name");
-
-  // Selection States
-  const [selectedMissing, setSelectedMissing] = useState<string[]>([]);
-
-  // Modal States
-  const [activeSurveyModal, setActiveSurveyModal] = useState<CompletedSurveyRecord | null>(null);
-  const [showFullSurveyView, setShowFullSurveyView] = useState<boolean>(false);
-
-  // Alert Feedback Banner
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-
-  // Mock Data: Missing Surveys
-  const [missingSurveys] = useState<MissingSurveyRecord[]>([
-    {
-      id: "m1",
-      observeeName: "Professor A",
-      department: "Computer Science",
-      academicLevel: "Full Professor",
-      observationDate: "10/12/2026",
-    },
-    {
-      id: "m2",
-      observeeName: "Professor B",
-      department: "Computer Science",
-      academicLevel: "Assistant Professor",
-      observationDate: "10/15/2026",
-    },
-    {
-      id: "m3",
-      observeeName: "Professor C",
-      department: "Electrical Engineering",
-      academicLevel: "Associate Professor",
-      observationDate: "10/18/2026",
-    },
-    {
-      id: "m4",
-      observeeName: "Professor D",
-      department: "Mechanical Engineering",
-      academicLevel: "Full Professor",
-      observationDate: "10/20/2026",
-    },
-  ]);
-
-  // Mock Data: Completed Surveys
-  const [completedSurveys] = useState<CompletedSurveyRecord[]>([
-    {
-      id: "c1",
-      observeeName: "Professor E",
-      observerName: "Dr. Smith",
-      department: "Computer Science",
-      academicLevel: "Full Professor",
-      completionDate: "10/22/2026",
-      courseAndSection: "CS 4337.001",
-      teachingEffectiveness: "Exceeds Expectations (5/5)",
-      syllabusQuality: "Exceeds Expectations (5/5)",
-      classroomManagement: "Meets Expectations (4/5)",
-      overallRating: "Exceeds Expectations",
-      detailedComments:
-        "Extremely well-prepared lecture materials and engaged classroom interaction. The professor addressed student queries thoroughly and maintained excellent pacing throughout the session.",
-    },
-    {
-      id: "c2",
-      observeeName: "Professor F",
-      observerName: "Dr. Johnson",
-      department: "Electrical Engineering",
-      academicLevel: "Assistant Professor",
-      completionDate: "10/24/2026",
-      courseAndSection: "EE 3302.002",
-      teachingEffectiveness: "Meets Expectations (4/5)",
-      syllabusQuality: "Exceeds Expectations (5/5)",
-      classroomManagement: "Meets Expectations (4/5)",
-      overallRating: "Meets Expectations",
-      detailedComments:
-        "Pacing was appropriate and students responded well to guided problem solving. Clear blackboard illustrations and concise explanation of complex concepts.",
-    },
-    {
-      id: "c3",
-      observeeName: "Professor G",
-      observerName: "Dr. Williams",
-      department: "Mechanical Engineering",
-      academicLevel: "Full Professor",
-      completionDate: "10/25/2026",
-      courseAndSection: "MECH 2310.001",
-      teachingEffectiveness: "Exceeds Expectations (5/5)",
-      syllabusQuality: "Exceeds Expectations (5/5)",
-      classroomManagement: "Exceeds Expectations (5/5)",
-      overallRating: "Exceeds Expectations",
-      detailedComments:
-        "Demonstrated exemplary mastery of core concepts with high student participation. Excellent integration of practical engineering examples.",
-    },
-  ]);
-
-  const handleSearchClick = () => {
-    setSearchQuery(searchInput);
-  };
-
-  // Filtered Missing List
-  const filteredMissing = useMemo(() => {
-    let list = missingSurveys.filter((item) => {
-      const matchesSearch =
-        item.observeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.department.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesDept =
-        selectedDepartment === "All" || item.department === selectedDepartment;
-      return matchesSearch && matchesDept;
-    });
-
-    list.sort((a, b) => {
-      if (sortBy === "name") return a.observeeName.localeCompare(b.observeeName);
-      if (sortBy === "department") return a.department.localeCompare(b.department);
-      if (sortBy === "date") return a.observationDate.localeCompare(b.observationDate);
-      return 0;
-    });
-
-    return list;
-  }, [missingSurveys, searchQuery, selectedDepartment, sortBy]);
-
-  // Filtered Completed List
-  const filteredCompleted = useMemo(() => {
-    let list = completedSurveys.filter((item) => {
-      const matchesSearch =
-        item.observeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.department.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesDept =
-        selectedDepartment === "All" || item.department === selectedDepartment;
-      return matchesSearch && matchesDept;
-    });
-
-    list.sort((a, b) => {
-      if (sortBy === "name") return a.observeeName.localeCompare(b.observeeName);
-      if (sortBy === "department") return a.department.localeCompare(b.department);
-      if (sortBy === "date") return a.completionDate.localeCompare(b.completionDate);
-      return 0;
-    });
-
-    return list;
-  }, [completedSurveys, searchQuery, selectedDepartment, sortBy]);
-
-  // Bulk Selection Handlers for Missing Surveys
-  const handleSelectAllMissing = () => {
-    setSelectedMissing(filteredMissing.map((m) => m.id));
-  };
-
-  const handleDeselectAllMissing = () => {
-    setSelectedMissing([]);
-  };
-
-  const handleToggleMissing = (id: string) => {
-    setSelectedMissing((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+  const [surveyData, setSurveyData] =
+    useState<Awaited<ReturnType<typeof committeeApi.pendingSurveys>> | null>(
+      null
     );
-  };
 
-  // Notification Dispatch Action
-  const handleSendNotifications = () => {
-    if (selectedMissing.length === 0) {
-      alert("Please select at least one faculty member to dispatch a survey deadline notification.");
-      return;
+  const [search, setSearch] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "observer" | "observee">(
+    "all"
+  );
+
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSendingAll, setIsSendingAll] = useState(false);
+  const [showConfirmAll, setShowConfirmAll] = useState(false);
+  const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
+  const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
+
+  async function openSurveyDetails(surveyId: number) {
+    setError("");
+    setLoadingDetailId(surveyId);
+    try {
+      const result = await committeeApi.surveyDetail(surveyId);
+      setSelectedSurvey(result);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to load survey details."
+      );
+    } finally {
+      setLoadingDetailId(null);
     }
+  }
 
-    setFeedbackMessage(
-      `Survey deadline notifications successfully dispatched to ${selectedMissing.length} faculty member(s).`
-    );
-    setSelectedMissing([]);
-    setTimeout(() => setFeedbackMessage(null), 5000);
-  };
+  async function handleDownloadFile(surveyId: number) {
+    setError("");
+    try {
+      await downloadSurveyFile(surveyId);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to download the supporting file."
+      );
+    }
+  }
 
-  // Open Details Modal
-  const handleOpenModal = (record: CompletedSurveyRecord) => {
-    setActiveSurveyModal(record);
-    setShowFullSurveyView(false);
-  };
+  async function loadSurveys() {
+    try {
+      setError("");
+      const result = await committeeApi.pendingSurveys();
+      setSurveyData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load surveys.");
+    }
+  }
 
-  const handleCloseModal = () => {
-    setActiveSurveyModal(null);
-    setShowFullSurveyView(false);
-  };
+  useEffect(() => {
+    void loadSurveys();
+  }, []);
+
+  async function handleRemindAll() {
+    if (filteredMissing.length === 0) return;
+
+    setError("");
+    setMessage("");
+    setIsSendingAll(true);
+
+    try {
+      const results = await Promise.allSettled(
+        filteredMissing.map((record) =>
+          committeeApi.remindSurvey(record.pairing_id, record.respondent_type)
+        )
+      );
+
+      const succeededCount = results.filter(
+        (res) => res.status === "fulfilled"
+      ).length;
+      const failedCount = results.length - succeededCount;
+
+      setShowConfirmAll(false);
+      await loadSurveys();
+
+      if (failedCount === 0) {
+        setMessage(
+          `Reminders sent for all ${succeededCount} missing post-evaluation survey${
+            succeededCount === 1 ? "" : "s"
+          }.`
+        );
+      } else if (succeededCount > 0) {
+        setMessage(
+          `Sent ${succeededCount} reminder${
+            succeededCount === 1 ? "" : "s"
+          }.`
+        );
+        setError(
+          `Unable to send ${failedCount} reminder${
+            failedCount === 1 ? "" : "s"
+          }. Please try again.`
+        );
+      } else {
+        setError("Unable to send reminders. Please try again.");
+      }
+    } finally {
+      setIsSendingAll(false);
+    }
+  }
+
+  const missingRecords = surveyData?.missing ?? [];
+  const completedRecords = surveyData?.completed ?? [];
+
+  const departments = [
+    ...new Set(
+      [...missingRecords, ...completedRecords]
+        .map((r) => r.department)
+        .filter(Boolean)
+    ),
+  ].sort() as string[];
+
+  const normalizedQuery = search.trim().toLowerCase();
+
+  const filteredMissing = missingRecords.filter((record) => {
+    if (departmentFilter && record.department !== departmentFilter) {
+      return false;
+    }
+    if (roleFilter !== "all" && record.respondent_type !== roleFilter) {
+      return false;
+    }
+    if (normalizedQuery) {
+      const haystack = `${record.faculty_name} ${record.department ?? ""} ${
+        record.academic_rank ?? ""
+      } ${record.respondent_type}`.toLowerCase();
+      if (!haystack.includes(normalizedQuery)) return false;
+    }
+    return true;
+  });
+
+  const filteredCompleted = completedRecords.filter((record) => {
+    if (departmentFilter && record.department !== departmentFilter) {
+      return false;
+    }
+    if (roleFilter !== "all" && record.respondent_type !== roleFilter) {
+      return false;
+    }
+    if (normalizedQuery) {
+      const haystack = `${record.faculty_name} ${record.department ?? ""} ${
+        record.academic_rank ?? ""
+      } ${record.respondent_type}`.toLowerCase();
+      if (!haystack.includes(normalizedQuery)) return false;
+    }
+    return true;
+  });
+
+  const isFiltered =
+    Boolean(normalizedQuery) ||
+    Boolean(departmentFilter) ||
+    roleFilter !== "all";
+
+  const remindAllLabel = isSendingAll
+    ? "Sending Reminders..."
+    : `Remind All${
+        filteredMissing.length > 0 ? ` (${filteredMissing.length})` : ""
+      }`;
 
   return (
     <div className="dashboard-container">
       {/* Top Standardized Navigation */}
       <div className="back-dashboard-wrapper">
         <Link to="/committee/dashboard" className="back-dashboard-link">
-          ← Return to Dashboard
+          ← Back to Dashboard
         </Link>
       </div>
 
-      <h2>Post-Evaluation Survey Tracking</h2>
-
-      {/* Success/Action Feedback Banner */}
-      {feedbackMessage ? (
-        <div role="status" className="yellow-banner">
-          <strong>Success:</strong> {feedbackMessage}
+      {/* Standardized Page Header */}
+      <div className="committee-page-header">
+        <div className="committee-page-title-block">
+          <div className="committee-page-title-row">
+            <h2>Post-Evaluation Survey Tracking</h2>
+          </div>
         </div>
-      ) : (
-        <div className="yellow-banner">
-          <strong>REMINDER:</strong> Faculty members have until Dec 1 to complete and submit their surveys.
+      </div>
+
+      {/* Feedback Banners */}
+      {error && (
+        <div role="alert" className="yellow-banner">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div role="status" className="feedback-banner-success">
+          {message}
         </div>
       )}
 
-      {/* Unified Search & Filter Control Bar */}
-      <div className="roster-controls-row controls-row-spacing">
+      {/* Search and Filter Controls Bar */}
+      <div className="roster-controls-row a05-controls-bar">
         <div className="search-control-group">
-          <label>Search by Faculty Name:</label>
+          <label htmlFor="a06-search">Search Surveys:</label>
           <div className="search-input-wrapper">
             <input
+              id="a06-search"
               type="text"
-              placeholder="Begin typing here..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearchClick()}
+              placeholder="Search by faculty name, department, or rank..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
               className="styled-text-input"
             />
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={handleSearchClick}
-            >
-              Search
-            </button>
           </div>
         </div>
 
+        {departments.length > 0 && (
+          <div className="sort-control-group">
+            <label htmlFor="a06-dept-filter">Department:</label>
+            <select
+              id="a06-dept-filter"
+              value={departmentFilter}
+              onChange={(event) => setDepartmentFilter(event.target.value)}
+              className="styled-select-input"
+            >
+              <option value="">All departments</option>
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="sort-control-group">
-          <label>Filter Department:</label>
+          <label htmlFor="a06-role-filter">Respondent Role:</label>
           <select
-            value={selectedDepartment}
-            onChange={(e) => setSelectedDepartment(e.target.value)}
+            id="a06-role-filter"
+            value={roleFilter}
+            onChange={(event) =>
+              setRoleFilter(
+                event.target.value as "all" | "observer" | "observee"
+              )
+            }
             className="styled-select-input"
           >
-            <option value="All">All Departments</option>
-            <option value="Computer Science">Computer Science</option>
-            <option value="Electrical Engineering">Electrical Engineering</option>
-            <option value="Mechanical Engineering">Mechanical Engineering</option>
+            <option value="all">All roles</option>
+            <option value="observer">Observer</option>
+            <option value="observee">Observee</option>
           </select>
         </div>
 
-        <div className="sort-control-group">
-          <label>Sort By:</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "name" | "department" | "date")}
-            className="styled-select-input"
+        {isFiltered && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setSearch("");
+              setDepartmentFilter("");
+              setRoleFilter("all");
+            }}
           >
-            <option value="name">Name</option>
-            <option value="department">Department</option>
-            <option value="date">Date</option>
-          </select>
-        </div>
+            Clear Filters
+          </button>
+        )}
       </div>
 
       {/* SECTION 1: MISSING POST-EVALUATION SURVEYS */}
       <section className="dashboard-phase missing-surveys-phase">
-        <h3>Missing Post-Evaluation Surveys</h3>
-
-        <div className="table-container theme-green">
-          <div className="table-instruction">
-            Select a Professor's name to dispatch a survey deadline notification.
-          </div>
-
-          <div className="table-scroll-wrapper">
-            <table className="custom-data-table">
-              <thead>
-                <tr>
-                  <th className="col-checkbox">Select</th>
-                  <th>Observee Name</th>
-                  <th>Department</th>
-                  <th>Academic Level</th>
-                  <th>Observation Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMissing.map((record) => {
-                  const isSelected = selectedMissing.includes(record.id);
-                  return (
-                    <tr key={record.id}>
-                      <td className="align-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleMissing(record.id)}
-                          aria-label={`Select ${record.observeeName}`}
-                        />
-                      </td>
-                      <td>{record.observeeName}</td>
-                      <td>{record.department}</td>
-                      <td>{record.academicLevel}</td>
-                      <td>{record.observationDate}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="a02-section-header-bar">
+          <div className="a02-section-title-group">
+            <h3 className="a02-section-heading">
+              Missing Post-Evaluation Surveys
+            </h3>
+            <span
+              className={`status-chip a04-nowrap-chip ${
+                filteredMissing.length > 0 ? "a02-chip-warning" : "chip-draft"
+              }`}
+            >
+              {filteredMissing.length} MISSING
+            </span>
           </div>
         </div>
 
-        {/* Action Controls Bar */}
-        <div className="unregistered-actions-bar compact-actions-bar">
-          <div className="bulk-btn-group">
+        <div className="table-container theme-blue">
+          <div className="table-instruction table-instruction-bar">
+            <span>
+              Review faculty who have not yet submitted their post-evaluation
+              survey.
+            </span>
+
             <button
               type="button"
-              className="btn-select-toggle"
-              onClick={handleSelectAllMissing}
+              className="btn-accent-blue"
+              disabled={filteredMissing.length === 0 || isSendingAll}
+              onClick={() => setShowConfirmAll(true)}
             >
-              Select All
-            </button>
-            <button
-              type="button"
-              className="btn-select-toggle"
-              onClick={handleDeselectAllMissing}
-            >
-              Deselect All
+              {remindAllLabel}
             </button>
           </div>
 
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={handleSendNotifications}
-          >
-            Send Notifications
-          </button>
+          <div className="table-scroll-wrapper table-scroll-box">
+            <table className="custom-data-table sticky-header-table">
+              <thead>
+                <tr>
+                  <th scope="col">Faculty Name</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Academic Rank</th>
+                  <th scope="col">Respondent Role</th>
+                  <th scope="col">Observation Date</th>
+                  <th scope="col">Deadline</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!surveyData && (
+                  <tr>
+                    <td colSpan={6} className="a03-empty-cell">
+                      Loading survey data...
+                    </td>
+                  </tr>
+                )}
+
+                {filteredMissing.map((record) => {
+                  const key = `${record.pairing_id}-${record.respondent_type}`;
+                  const isObserver = record.respondent_type === "observer";
+
+                  return (
+                    <tr key={key}>
+                      <td className="font-semibold">{record.faculty_name}</td>
+                      <td>{record.department ?? "Not provided"}</td>
+                      <td>{formatAcademicRank(record.academic_rank)}</td>
+                      <td>
+                        <span
+                          className={`status-chip a02-chip-xs a04-nowrap-chip ${
+                            isObserver ? "a05-chip-info" : "a02-chip-warning"
+                          }`}
+                        >
+                          {isObserver ? "Observer" : "Observee"}
+                        </span>
+                      </td>
+                      <td>
+                        {record.observation_datetime
+                          ? formatDate(record.observation_datetime)
+                          : "Not provided"}
+                      </td>
+                      <td>{formatDate(record.survey_deadline)}</td>
+                    </tr>
+                  );
+                })}
+
+                {surveyData && filteredMissing.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="a03-empty-cell">
+                      {missingRecords.length === 0
+                        ? surveyData.surveys_open === false
+                          ? surveyData.observation_deadline
+                            ? `Surveys open after ${formatDate(
+                                surveyData.observation_deadline
+                              )}.`
+                            : "Surveys open after the observation deadline."
+                          : "No missing surveys."
+                        : "No missing surveys match your current filters."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
       {/* SECTION 2: VIEW COMPLETED POST-EVALUATION SURVEYS */}
       <section className="dashboard-phase phase-spacing">
-        <h3>View Completed Post-Evaluation Surveys</h3>
+        <div className="a02-section-header-bar">
+          <div className="a02-section-title-group">
+            <h3 className="a02-section-heading">
+              Completed Post-Evaluation Surveys
+            </h3>
+            <span className="status-chip chip-draft a04-nowrap-chip">
+              {filteredCompleted.length} COMPLETED
+            </span>
+          </div>
+        </div>
 
         <div className="table-container theme-green">
           <div className="table-instruction">
             Select View Details to see a summary of the completed survey.
           </div>
 
-          <div className="table-scroll-wrapper">
-            <table className="custom-data-table">
+          <div className="table-scroll-wrapper table-scroll-box">
+            <table className="custom-data-table sticky-header-table">
               <thead>
                 <tr>
-                  <th>Observee Name</th>
-                  <th>Department</th>
-                  <th>Academic Level</th>
-                  <th>Completion Date</th>
-                  <th className="align-center">Details</th>
+                  <th scope="col">Faculty Name</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Academic Rank</th>
+                  <th scope="col">Respondent Role</th>
+                  <th scope="col">Submitted</th>
+                  <th scope="col" className="align-center">
+                    Details
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCompleted.map((record) => (
-                  <tr key={record.id}>
-                    <td>{record.observeeName}</td>
-                    <td>{record.department}</td>
-                    <td>{record.academicLevel}</td>
-                    <td>{record.completionDate}</td>
-                    <td className="align-center">
-                      <button
-                        type="button"
-                        className="table-name-link"
-                        onClick={() => handleOpenModal(record)}
-                      >
-                        View Details
-                      </button>
+                {!surveyData && (
+                  <tr>
+                    <td colSpan={6} className="a03-empty-cell">
+                      Loading survey data...
                     </td>
                   </tr>
-                ))}
+                )}
+
+                {filteredCompleted.map((record) => {
+                  const isLoading = loadingDetailId === record.survey_id;
+                  const isObserver = record.respondent_type === "observer";
+
+                  return (
+                    <tr key={record.survey_id}>
+                      <td className="font-semibold">{record.faculty_name}</td>
+                      <td>{record.department ?? "Not provided"}</td>
+                      <td>{formatAcademicRank(record.academic_rank)}</td>
+                      <td>
+                        <span
+                          className={`status-chip a02-chip-xs a04-nowrap-chip ${
+                            isObserver ? "a05-chip-info" : "a02-chip-warning"
+                          }`}
+                        >
+                          {isObserver ? "Observer" : "Observee"}
+                        </span>
+                      </td>
+                      <td>{formatDateTime(record.submitted_at)}</td>
+                      <td className="align-center">
+                        <button
+                          type="button"
+                          className="btn-pill-green"
+                          disabled={isLoading}
+                          onClick={() =>
+                            void openSurveyDetails(record.survey_id)
+                          }
+                        >
+                          {isLoading ? "Loading..." : "View Details"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {surveyData && filteredCompleted.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="a03-empty-cell">
+                      {completedRecords.length === 0
+                        ? "No completed surveys."
+                        : "No completed surveys match your current filters."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      {/* Standardized Bottom Return Button */}
-      <div className="dashboard-center-action">
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => navigate("/committee/dashboard")}
+      {/* Confirmation Popup for Bulk Remind All */}
+      {showConfirmAll && (
+        <div
+          className="modal-backdrop a04-confirm-backdrop"
+          onClick={() => !isSendingAll && setShowConfirmAll(false)}
         >
-          Return to Dashboard
-        </button>
-      </div>
-
-      {/* POP-UP MODAL: SURVEY DETAILS SUMMARY WITH LINK TO FULL SURVEY */}
-      {activeSurveyModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-bar">
-              <h3>
-                {showFullSurveyView
-                  ? "Entire Completed Post-Evaluation Survey"
-                  : "Survey Record Details"}
-              </h3>
+          <div
+            className="modal-card a04-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="a06-confirm-all-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="a06-confirm-all-title" className="a04-confirm-title">
+              Remind All Missing Surveys?
+            </h3>
+            <p className="a04-confirm-text">
+              This will send a reminder notification to{" "}
+              <strong>
+                {filteredMissing.length} {isFiltered ? "filtered " : ""}faculty
+                member{filteredMissing.length === 1 ? "" : "s"}
+              </strong>{" "}
+              who have not yet submitted their post-evaluation survey. Do you
+              want to continue?
+            </p>
+            <div className="a04-confirm-actions">
               <button
                 type="button"
-                onClick={handleCloseModal}
+                className="btn-secondary a04-action-btn"
+                disabled={isSendingAll}
+                onClick={() => setShowConfirmAll(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-accent-blue"
+                disabled={isSendingAll}
+                onClick={() => void handleRemindAll()}
+              >
+                {isSendingAll
+                  ? "Sending Reminders..."
+                  : `Remind All (${filteredMissing.length})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Completed Survey Detail Modal */}
+      {selectedSurvey && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setSelectedSurvey(null)}
+        >
+          <div
+            className="modal-card a05-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="a06-survey-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="a04-modal-header">
+              <div>
+                <h3 id="a06-survey-modal-title" className="a04-modal-name">
+                  Completed Survey Details
+                </h3>
+                <p className="a04-modal-subtitle">
+                  {selectedSurvey.template?.name ?? "Post-Evaluation Survey"} ·{" "}
+                  {selectedSurvey.respondent_type === "observer"
+                    ? "Observer"
+                    : "Observee"}{" "}
+                  Response
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedSurvey(null)}
                 className="modal-close-x"
+                aria-label="Close completed survey details"
               >
                 &times;
               </button>
             </div>
 
-            <div className="modal-details-list">
-              <div className="modal-detail-row">
-                <span className="detail-label">Candidate Name:</span>
-                <span className="detail-value-bold">{activeSurveyModal.observeeName}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Observer Name:</span>
-                <span>{activeSurveyModal.observerName}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Department:</span>
-                <span>{activeSurveyModal.department}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Academic Rank:</span>
-                <span>{activeSurveyModal.academicLevel}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Course & Section:</span>
-                <span>{activeSurveyModal.courseAndSection}</span>
-              </div>
-
-              <div className="modal-detail-row">
-                <span className="detail-label">Completion Date:</span>
-                <span>{activeSurveyModal.completionDate}</span>
-              </div>
-
-              {/* Extended breakdown when "View Entire Survey" link is clicked */}
-              {showFullSurveyView ? (
-                <>
-                  <hr className="modal-divider" />
-                  <div className="modal-detail-row">
-                    <span className="detail-label">Teaching Effectiveness:</span>
-                    <span>{activeSurveyModal.teachingEffectiveness}</span>
-                  </div>
-                  <div className="modal-detail-row">
-                    <span className="detail-label">Course Material & Syllabus:</span>
-                    <span>{activeSurveyModal.syllabusQuality}</span>
-                  </div>
-                  <div className="modal-detail-row">
-                    <span className="detail-label">Classroom Management:</span>
-                    <span>{activeSurveyModal.classroomManagement}</span>
-                  </div>
-                  <div className="modal-detail-row">
-                    <span className="detail-label">Overall Rating:</span>
-                    <span className="rating-highlight">
-                      {activeSurveyModal.overallRating}
+            <div className="a05-modal-body">
+              <div className="a04-profile-grid">
+                <div className="a04-profile-item">
+                  <span className="a02-card-section-label">
+                    Respondent Role
+                  </span>
+                  <span className="a04-profile-value">
+                    <span
+                      className={`status-chip a02-chip-xs a04-nowrap-chip ${
+                        selectedSurvey.respondent_type === "observer"
+                          ? "a05-chip-info"
+                          : "a02-chip-warning"
+                      }`}
+                    >
+                      {selectedSurvey.respondent_type === "observer"
+                        ? "Observer"
+                        : "Observee"}
                     </span>
+                  </span>
+                </div>
+
+                <div className="a04-profile-item">
+                  <span className="a02-card-section-label">Submitted At</span>
+                  <span className="a04-profile-value">
+                    {selectedSurvey.submitted_at
+                      ? formatDateTime(selectedSurvey.submitted_at)
+                      : "Not submitted"}
+                  </span>
+                </div>
+
+                <div className="a04-profile-item">
+                  <span className="a02-card-section-label">Observer</span>
+                  <span className="a04-profile-value">
+                    {selectedSurvey.observer.name}
+                  </span>
+                </div>
+
+                <div className="a04-profile-item">
+                  <span className="a02-card-section-label">Observee</span>
+                  <span className="a04-profile-value">
+                    {selectedSurvey.observee.name}
+                  </span>
+                </div>
+              </div>
+
+              <div className="a05-responses-section">
+                <h4 className="a05-responses-heading">
+                  {selectedSurvey.template?.name ?? "Survey Responses"}
+                </h4>
+
+                <div className="a05-responses-list">
+                  {selectedSurvey.template?.questions.map((question, idx) => (
+                    <div key={question.id} className="a05-response-card">
+                      <span className="a05-response-question">
+                        {idx + 1}. {question.text}
+                      </span>
+                      <span className="a05-response-answer">
+                        {String(
+                          selectedSurvey.responses[question.id] ?? "No answer"
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selectedSurvey.survey_file && (
+                <div className="a05-responses-section">
+                  <h4 className="a05-responses-heading">Supporting File</h4>
+                  <div>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() =>
+                        void handleDownloadFile(selectedSurvey.survey_id)
+                      }
+                    >
+                      Download Attachment
+                    </button>
                   </div>
-                  <div className="modal-comments-wrapper">
-                    <span className="detail-label block-label">
-                      Detailed Comments:
-                    </span>
-                    <p className="comments-box">
-                      {activeSurveyModal.detailedComments}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                /* Link at the bottom to expand/view the full survey */
-                <div className="modal-expand-action">
-                  <button
-                    type="button"
-                    onClick={() => setShowFullSurveyView(true)}
-                    className="modal-expand-link"
-                  >
-                    View Entire Survey Details →
-                  </button>
                 </div>
               )}
+            </div>
+
+            <div className="a04-modal-footer">
+              <button
+                type="button"
+                className="btn-primary a04-close-btn"
+                onClick={() => setSelectedSurvey(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

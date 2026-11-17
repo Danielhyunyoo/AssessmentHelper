@@ -1,0 +1,9 @@
+{
+	"name": "assessment-helper",
+	"main": "src/index.js",
+	"compatibility_date": "2026-10-01",
+	"workers_dev": true,
+	"vars": {
+		"ORIGIN": "https://example.trycloudflare.com"
+	}
+}
