@@ -40,6 +40,8 @@ const UNREGISTERED_ALLOWED_PATHS = [
   "/shared/profile",
   "/shared/current-past-observations",
   "/shared/contact-committee",
+  "/shared/notifications",
+  "/observer/observation-request",
 ];
 
 function RegistrationGate() {
@@ -77,7 +79,6 @@ function RegistrationGate() {
           return;
         }
 
-        // Unregistered or transferred faculty can only view Profile, L03, Observation Records, Surveys, and Contact Committee
         const isRecordDetail = location.pathname.startsWith(
           "/shared/observation-record/"
         );

@@ -518,97 +518,95 @@ export default function Header() {
             </a>
           )}
 
-          {(!isLoggedIn || hasFullPortalAccess) && (
-            <div ref={notifRef} className="header-popover-container">
-              <button
-                type="button"
-                onClick={toggleNotifications}
-                title="Notifications"
-                className="header-icon-btn"
-              >
-                <BellShortcutIcon
-                  active={unreadCount > 0 && hasUnreadNotifications}
-                />
-              </button>
+          <div ref={notifRef} className="header-popover-container">
+            <button
+              type="button"
+              onClick={toggleNotifications}
+              title="Notifications"
+              className="header-icon-btn"
+            >
+              <BellShortcutIcon
+                active={unreadCount > 0 && hasUnreadNotifications}
+              />
+            </button>
 
-              {isNotifOpen && (
-                <div className="notif-popover">
-                  <div className="notif-header">
-                    <span className="notif-header-title">NOTIFICATIONS</span>
-                    <span className="notif-unread-badge">{unreadCount} New</span>
-                  </div>
+            {isNotifOpen && (
+              <div className="notif-popover">
+                <div className="notif-header">
+                  <span className="notif-header-title">NOTIFICATIONS</span>
+                  <span className="notif-unread-badge">{unreadCount} New</span>
+                </div>
 
-                  <div className="notif-scroll-list">
-                    {notifications.length === 0 ? (
-                      <div className="notif-empty-text">
-                        No new notifications right now.
-                      </div>
-                    ) : (
-                      notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => handleNotificationClick(n.id)}
-                          className={`menu-item-hover notif-item ${
-                            n.unread
-                              ? "notif-unread-highlight"
-                              : "notif-read-item"
+                <div className="notif-scroll-list">
+                  {notifications.length === 0 ? (
+                    <div className="notif-empty-text">
+                      No new notifications right now.
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n.id)}
+                        className={`menu-item-hover notif-item ${
+                          n.unread
+                            ? "notif-unread-highlight"
+                            : "notif-read-item"
+                        }`}
+                      >
+                        <p
+                          className={`notif-item-title ${
+                            n.unread ? "fw-bold" : "fw-medium"
                           }`}
                         >
-                          <p
-                            className={`notif-item-title ${
-                              n.unread ? "fw-bold" : "fw-medium"
-                            }`}
-                          >
-                            {n.title}
-                          </p>
-                          <span
-                            className={`notif-item-time ${
-                              n.unread ? "text-unread" : "text-read"
-                            }`}
-                          >
-                            {n.time}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                          {n.title}
+                        </p>
+                        <span
+                          className={`notif-item-time ${
+                            n.unread ? "text-unread" : "text-read"
+                          }`}
+                        >
+                          {n.time}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
 
-                  <div className="notif-footer">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        closeAllMenus();
-                        navigate("/shared/notifications");
-                      }}
-                      className="menu-item-hover notif-action-btn"
-                    >
-                      View All Notifications
-                    </button>
+                <div className="notif-footer">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeAllMenus();
+                      navigate("/shared/notifications");
+                    }}
+                    className="menu-item-hover notif-action-btn"
+                  >
+                    View All Notifications
+                  </button>
 
-                    <div className="notif-sim-row">
-                      <label className="notif-sim-label">
-                        <input
-                          type="checkbox"
-                          checked={hasUnreadNotifications}
-                          onChange={(e) => {
-                            setHasUnreadNotifications(e.target.checked);
-                            if (e.target.checked) {
-                              setNotifications((prev) =>
-                                prev.map((n, i) =>
-                                  i < 2 ? { ...n, unread: true } : n
-                                )
-                              );
-                            }
-                          }}
-                        />
-                        <span>Simulate Active Bell Dot</span>
-                      </label>
-                    </div>
+                  <div className="notif-sim-row">
+                    <label className="notif-sim-label">
+                      <input
+                        type="checkbox"
+                        checked={hasUnreadNotifications}
+                        onChange={(e) => {
+                          setHasUnreadNotifications(e.target.checked);
+                          if (e.target.checked) {
+                            setNotifications((prev) =>
+                              prev.map((n, i) =>
+                                i < 2 ? { ...n, unread: true } : n
+                              )
+                            );
+                          }
+                        }}
+                      />
+                      <span>Simulate Active Bell Dot</span>
+                    </label>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           <div ref={profileRef} className="header-popover-container">
             <button
@@ -834,6 +832,12 @@ export default function Header() {
                     onClick={closeAllMenus}
                   >
                     Current and Past Observations
+                  </Link>
+                  <Link
+                    to="/observer/observation-request"
+                    onClick={closeAllMenus}
+                  >
+                    Observation Requests
                   </Link>
                 </div>
               )}
