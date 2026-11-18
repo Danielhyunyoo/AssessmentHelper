@@ -15,7 +15,7 @@ SCHEDULE = re.compile(r"^\s*([MTWRFSU]+)\s+(\d{1,2}:\d{2}\s*[AP]M)\s*-\s*(\d{1,2
 PROBLEM_TEXT = {
     "self": "is the observee",
     "department": "is in another department",
-    "level": "does not teach a course at this level",
+    "level": "has not taught this course level in the last two years",
     "schedule": "teaches at the same time",
 }
 
@@ -68,7 +68,8 @@ def recommendation_problems(observee, course, observer, observer_courses):
         problems.append("department")
     if not any(c.course_level == course.course_level and c.department_id == course.department_id for c in observer_courses):
         problems.append("level")
-    if any(overlaps(c.schedule, course.schedule) for c in observer_courses):
+    current = [c for c in observer_courses if c.semester == course.semester and c.year == course.year]
+    if any(overlaps(c.schedule, course.schedule) for c in current):
         problems.append("schedule")
     return problems
 
@@ -93,7 +94,7 @@ def proposal_kpis(cycle, statuses):
     owed |= completed_observees & set(statuses)
 
     courses_by_instructor = defaultdict(list)
-    for course in Course.objects.filter(semester=term, year=year):
+    for course in Course.objects.filter(year__gte=year - 2, year__lte=year):
         courses_by_instructor[course.instructor_id].append(course)
 
     released = [s for s in signups if s.course_id and s.matches_released_at]

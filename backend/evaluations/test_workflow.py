@@ -75,6 +75,39 @@ class WorkflowTests(APITestCase):
         self.assertEqual(too_few.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(enough.status_code, status.HTTP_201_CREATED)
 
+    def test_ineligible_observers_cannot_be_released(self):
+        signup = Signup.objects.create(user=self.professor_a, cycle=self.cycle, course=self.professor_a_course)
+        self.as_user(self.committee)
+        pool = self.client.get(f"/api/committee/signups/{signup.pk}/candidate-pool/").data["candidates"]
+        eligible = [c["id"] for c in pool if c["eligible"]]
+        ineligible = [c["id"] for c in pool if not c["eligible"]]
+        self.assertTrue(eligible and ineligible)
+
+        rejected = self.client.post(f"/api/committee/signups/{signup.pk}/release-candidates/",
+                                    {"observer_ids": [eligible[0], ineligible[0]]}, format="json")
+        released = self.client.post(f"/api/committee/signups/{signup.pk}/release-candidates/",
+                                    {"observer_ids": eligible[:5]}, format="json")
+
+        self.assertEqual(rejected.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Not eligible", rejected.data["detail"])
+        self.assertEqual(released.status_code, status.HTTP_200_OK)
+
+    def test_observers_qualify_by_teaching_the_level_in_the_last_two_years(self):
+        recent = User.objects.get(username="professor_e")
+        old = User.objects.get(username="professor_f")
+        for instructor, year in ((recent, 2024), (old, 2023)):
+            Course.objects.create(department=self.professor_a_course.department, instructor=instructor,
+                                  course_number="2340", section="001", course_level=2000,
+                                  schedule="F 9:00 AM - 10:15 AM", semester="Fall", year=year)
+        signup = Signup.objects.create(user=self.professor_a, cycle=self.cycle, course=self.professor_a_course)
+        self.as_user(self.committee)
+
+        pool = self.client.get(f"/api/committee/signups/{signup.pk}/candidate-pool/").data["candidates"]
+        eligible = {c["id"]: c["eligible"] for c in pool}
+
+        self.assertTrue(eligible[recent.pk])
+        self.assertFalse(eligible[old.pk])
+
     def test_committee_members_are_not_observer_candidates(self):
         signup = Signup.objects.create(user=self.professor_a, cycle=self.cycle, course=self.professor_a_course)
         self.as_user(self.committee)

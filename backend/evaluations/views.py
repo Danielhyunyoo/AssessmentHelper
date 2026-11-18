@@ -774,29 +774,30 @@ def invitation_json(inv):
     }
 
 
+def screen_observers(signup, people):
+    courses = Course.objects.filter(instructor__in=people, year__gte=signup.course.year - 2, year__lte=signup.course.year)
+    courses_by_instructor = {}
+    for course in courses:
+        courses_by_instructor.setdefault(course.instructor_id, []).append(course)
+    return [
+        (u, recommendation_problems(signup.user, signup.course, u, courses_by_instructor.get(u.pk, [])))
+        for u in people
+    ]
+
+
 @api_view(["GET"])
 def committee_candidate_pool(request, signup_id):
-    """Committee pre-screening only; does NOT assert full eligibility."""
     person = get_current_professor(request)
     require_committee(person)
     signup = get_object_or_404(Signup.objects.select_related("user", "course"), pk=signup_id, cycle=get_current_cycle())
     if not signup.course_id:
         raise ValidationError({"detail": "Observee has not selected a course."})
     people = User.objects.filter(is_active=True, role="faculty", department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
-    courses = Course.objects.filter(instructor__in=people, semester=signup.course.semester, year=signup.course.year)
-    courses_by_instructor = {}
-    for course in courses:
-        courses_by_instructor.setdefault(course.instructor_id, []).append(course)
-    screened = [
-        (u, recommendation_problems(signup.user, signup.course, u, courses_by_instructor.get(u.pk, [])))
-        for u in people
-    ]
+    screened = screen_observers(signup, people)
     screened.sort(key=lambda pair: bool(pair[1]))
     confirmed = Pairing.objects.filter(cycle=signup.cycle, observee=signup.user, status="confirmed").select_related("observer")
     return Response({
         "signup_id": signup.pk,
-        "screening_only": True,
-        "warning": "Review academic rank, course-level rules, recent teaching history and scheduling conflicts manually before approval.",
         "candidates": [
             {"id": u.pk, "name": u.get_full_name() or u.username, "academic_level": u.academic_level,
              "department_id": u.department_id, "eligible": not problems,
@@ -833,6 +834,10 @@ def committee_release_candidates(request, signup_id):
         faculty = list(User.objects.filter(pk__in=ids, is_active=True, role="faculty", department_id=signup.course.department_id))
         if len(faculty) != len(ids) or signup.user_id in ids:
             raise ValidationError({"detail": "Every observer must be an active, different faculty member from the same department."})
+        ineligible = [f"{display_name(u)} {', '.join(PROBLEM_TEXT[p] for p in problems)}"
+                      for u, problems in screen_observers(signup, faculty) if problems]
+        if ineligible:
+            raise ValidationError({"detail": "Not eligible: " + "; ".join(ineligible) + "."})
         released_ids = set(MatchCandidate.objects.filter(signup=signup).values_list("observer_id", flat=True))
         if signup.matches_released_at is None or released_ids != set(ids):
             MatchCandidate.objects.filter(signup=signup).delete()

@@ -681,7 +681,6 @@ export default function A02FacultyMatching() {
         eligibleObservees.map(async (faculty: FacultyRow) => {
           const signupId = faculty.signup_id!;
           const facultyRec = faculty as unknown as Record<string, unknown>;
-          const observeeRankTier = getRankTier(faculty.academic_rank);
 
           try {
             const result = (await committeeApi.candidatePool(
@@ -698,42 +697,7 @@ export default function A02FacultyMatching() {
                 }[])
               : [];
 
-            const candidates = rawCandidates
-              .map((cand) => {
-                const candTier = getRankTier(cand.academic_level);
-                const rawProblems = Array.isArray(cand.problems)
-                  ? cand.problems
-                  : [];
-
-                if (
-                  observeeRankTier > 0 &&
-                  candTier > 0 &&
-                  candTier < observeeRankTier
-                ) {
-                  const filtered = rawProblems.filter(
-                    (p) => !p.toLowerCase().includes("does not teach a course")
-                  );
-                  return {
-                    ...cand,
-                    eligible: false,
-                    problems: [
-                      `academic rank (${cand.academic_level}) is below observee (${faculty.academic_rank})`,
-                      ...filtered,
-                    ],
-                  };
-                }
-
-                const nonCourseLevelProblems = rawProblems.filter(
-                  (p) => !p.toLowerCase().includes("does not teach a course")
-                );
-                const isEligible = nonCourseLevelProblems.length === 0;
-
-                return {
-                  ...cand,
-                  eligible: isEligible,
-                  problems: nonCourseLevelProblems,
-                };
-              })
+            const candidates = [...rawCandidates]
               .sort((a, b) => {
                 const aElig = a.eligible !== false ? 0 : 1;
                 const bElig = b.eligible !== false ? 0 : 1;
@@ -2277,7 +2241,8 @@ export default function A02FacultyMatching() {
                                     disabled={
                                       savingSignupId === signupId ||
                                       (!selectedIds.includes(candidate.id) &&
-                                        selectedIds.length >= 5)
+                                        (selectedIds.length >= 5 ||
+                                          candidate.eligible === false))
                                     }
                                   />
                                   <span style={{ flex: 1 }}>
