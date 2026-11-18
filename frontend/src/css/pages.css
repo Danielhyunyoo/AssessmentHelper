@@ -2960,37 +2960,50 @@ html.dark-mode body[data-route-bg="records"] {
 /* ==========================================================================
    11. PAGE: EVALUATION FORM WIZARD / SUBMISSION (S05)
    ========================================================================== */
-.form-summary-grid-4 {
+.eval-pairing-summary-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: stretch;
+}
+.eval-pairing-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.form-summary-cell {
+.eval-pairing-title-row h3 {
+  margin: 0;
+}
+
+.eval-pairing-summary-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.eval-pairing-summary-left .version-pill {
+  width: auto;
+  flex-shrink: 0;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.eval-pairing-summary-right {
   background-color: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 0.85rem 1rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.eval-summary-row {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-}
-
-.form-summary-cell .summary-field-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-}
-
-.form-summary-cell .summary-field-val {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  line-height: 1.4;
 }
 
 .eval-question-list {
@@ -6835,6 +6848,63 @@ body[data-route-bg] {
     padding-bottom: 0.5rem;
   }
 
+  .s03-section-card + .s03-section-card {
+    margin-top: 1.25rem;
+  }
+
+  .version-pill {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .eval-question-card,
+  .eval-signoff-box,
+  .s03-section-card,
+  .s05-signature-card,
+  .extra-metric-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .eval-question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .eval-pairing-summary-layout {
+    display: block !important;
+  }
+
+  .eval-pairing-title-row {
+    justify-content: space-between !important;
+    width: 100%;
+  }
+
+  .eval-pairing-summary-right {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin-top: 1rem !important;
+  }
+
+  .eval-summary-row {
+    background-color: var(--bg-subtle) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px !important;
+    padding: 0.85rem 1rem !important;
+  }
+
+  .eval-pairing-summary-left {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
   .footer-inner {
     display: flex;
     flex-direction: row;
@@ -6875,29 +6945,5 @@ body[data-route-bg] {
   .footer-copyright {
     font-size: 0.75rem;
     line-height: 1.1;
-  }
-
-  .s03-section-card + .s03-section-card {
-    margin-top: 1.25rem;
-  }
-
-  .version-pill {
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .eval-question-card,
-  .eval-signoff-box,
-  .s03-section-card,
-  .s05-signature-card,
-  .extra-metric-card {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  .eval-question-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
   }
 }
