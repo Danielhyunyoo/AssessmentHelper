@@ -49,6 +49,84 @@ function formatShortDate(isoDate: string): string {
   });
 }
 
+function formatUsNational(digits: string): string {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  }
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+}
+
+function formatInternationalBody(digits: string): string {
+  if (digits.startsWith("7")) {
+    const cc = "7";
+    const rest = digits.slice(1);
+    if (!rest) return `+${cc}`;
+    if (rest.length <= 3) return `+${cc} (${rest}`;
+    if (rest.length <= 6) return `+${cc} (${rest.slice(0, 3)}) ${rest.slice(3)}`;
+    if (rest.length <= 8) {
+      return `+${cc} (${rest.slice(0, 3)}) ${rest.slice(3, 6)}-${rest.slice(6)}`;
+    }
+    return `+${cc} (${rest.slice(0, 3)}) ${rest.slice(3, 6)}-${rest.slice(6, 8)}-${rest.slice(8, 10)}`;
+  }
+
+  const twoDigitCodes = new Set([
+    "20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43",
+    "44", "45", "46", "47", "48", "49", "51", "52", "53", "54", "55", "56",
+    "57", "58", "60", "61", "62", "63", "64", "65", "66", "81", "82", "84",
+    "86", "90", "91", "92", "93", "94", "95", "98",
+  ]);
+
+  const ccLen =
+    digits.length >= 2 && twoDigitCodes.has(digits.slice(0, 2))
+      ? 2
+      : Math.min(3, digits.length);
+
+  const cc = digits.slice(0, ccLen);
+  const body = digits.slice(ccLen);
+  if (!body) return `+${cc}`;
+
+  if (body.length <= 4) return `+${cc} ${body}`;
+  if (body.length <= 8) return `+${cc} ${body.slice(0, 4)} ${body.slice(4)}`;
+  return `+${cc} ${body.slice(0, 2)} ${body.slice(2, 6)} ${body.slice(6)}`;
+}
+
+function formatPhoneNumber(raw: string): string {
+  if (!raw) return "";
+
+  const extMatch = raw.match(/(?:\s*(?:ext\.?|x)\s*)(\d{1,6})$/i);
+  const mainPart = extMatch ? raw.slice(0, extMatch.index) : raw;
+  const extDigits = extMatch ? extMatch[1] : "";
+  const extSuffix = extDigits ? ` x${extDigits}` : "";
+
+  const trimmed = mainPart.trim();
+  if (!trimmed) return extSuffix.trim();
+
+  const hasLeadingPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "").slice(0, 15);
+
+  if (!digits) return hasLeadingPlus ? `+${extSuffix}` : extSuffix.trim();
+
+  if (hasLeadingPlus) {
+    if (digits.startsWith("1") && digits.length <= 11) {
+      const rest = digits.slice(1);
+      if (!rest) return `+1${extSuffix}`;
+      return `+1 ${formatUsNational(rest)}${extSuffix}`;
+    }
+    return `${formatInternationalBody(digits)}${extSuffix}`;
+  }
+
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `1 ${formatUsNational(digits.slice(1))}${extSuffix}`;
+  }
+
+  if (digits.length > 10) {
+    return `${formatInternationalBody(digits)}${extSuffix}`;
+  }
+
+  return `${formatUsNational(digits)}${extSuffix}`;
+}
+
 export default function S02Profile(): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -161,6 +239,9 @@ export default function S02Profile(): React.ReactElement {
         setIsCommitteeUser(professor.role === "admin");
 
         const profId = professor.user_id ?? professor.id;
+        const userKey = String(profId ?? professor.email ?? "");
+        const phoneMarkerKey = `s02_phone_saved_${userKey}`;
+
         let cachedPhoto = professor.profile_photo;
         if (!cachedPhoto && profId) {
           cachedPhoto =
@@ -184,11 +265,35 @@ export default function S02Profile(): React.ReactElement {
             : "No previous evaluation recorded"
         );
 
+        // Detect demo reset without needing DevBar changes:
+        // DevBar removes s01_checklist_open_v1 / observer_availability_v1 / faculty_planner_* on reset.
+        // If phone exists on backend without our local saved marker (or after a reset cleared demo keys), reset it to empty.
+        let rawStoredPhone = professor.phone || "";
+        try {
+          const hasLocalPhoneMarker = Boolean(
+            userKey && localStorage.getItem(phoneMarkerKey)
+          );
+          if (rawStoredPhone && !hasLocalPhoneMarker) {
+            rawStoredPhone = "";
+            void facultyApi
+              .updateProfile({
+                first_name: first,
+                last_name: last,
+                phone: "",
+              })
+              .catch(() => {});
+          }
+        } catch {
+          // Ignore storage errors
+        }
+
+        const formattedStoredPhone = formatPhoneNumber(rawStoredPhone);
+
         setFirstName(first);
         setLastName(last);
         setEmail(professor.email || "");
-        setPhone(professor.phone || "");
-        setEditPhone(professor.phone || "");
+        setPhone(formattedStoredPhone);
+        setEditPhone(formattedStoredPhone);
         setDepartment(professor.department_name || "Not provided");
         setAcademicRank(professor.academic_level || "Not provided");
 
@@ -290,12 +395,23 @@ export default function S02Profile(): React.ReactElement {
     }
 
     const handleDemoReset = () => {
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith("s02_phone_saved_"))
+          .forEach((k) => localStorage.removeItem(k));
+      } catch {
+        // Ignore storage errors
+      }
+      setPhone("");
+      setEditPhone("");
       setProfilePhoto("");
       setAvailDays(["Tue", "Thu"]);
       setAvailWindows(["Morning (8:00 AM - 12:00 PM)"]);
       setSpecificDates([]);
       setAvailNotes("");
       setAvailSavedStatus("");
+      setIsEditingInfo(false);
+      setSaveMessage("");
     };
 
     void loadProfile();
@@ -454,21 +570,41 @@ export default function S02Profile(): React.ReactElement {
     setSaveMessage("");
     setProfileError("");
 
+    const formattedPhoneToSave = formatPhoneNumber(editPhone);
+
     try {
       const result = await facultyApi.updateProfile({
         first_name: editFirstName.trim(),
         last_name: editLastName.trim(),
-        phone: editPhone.trim(),
+        phone: formattedPhoneToSave,
       });
 
       const professor = result.professor as any;
+      const savedPhone = formatPhoneNumber(
+        professor.phone ?? formattedPhoneToSave
+      );
+
+      try {
+        const userKey = String(
+          professor.user_id ?? professor.id ?? professor.email ?? ""
+        );
+        if (userKey) {
+          if (savedPhone) {
+            localStorage.setItem(`s02_phone_saved_${userKey}`, "1");
+          } else {
+            localStorage.removeItem(`s02_phone_saved_${userKey}`);
+          }
+        }
+      } catch {
+        // Ignore storage errors
+      }
 
       setFirstName(professor.first_name || "");
       setLastName(professor.last_name || "");
-      setPhone(professor.phone || "");
+      setPhone(savedPhone);
       setEditFirstName(professor.first_name || "");
       setEditLastName(professor.last_name || "");
-      setEditPhone(professor.phone || "");
+      setEditPhone(savedPhone);
 
       setIsEditingInfo(false);
       window.dispatchEvent(new Event("profile-changed"));
@@ -687,9 +823,11 @@ export default function S02Profile(): React.ReactElement {
                   <input
                     id="phone"
                     type="tel"
-                    placeholder="(555) 123-4567"
+                    placeholder="(555) 123-4567 or +44 20 7946 0958"
                     value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
+                    onChange={(e) =>
+                      setEditPhone(formatPhoneNumber(e.target.value))
+                    }
                   />
                 </div>
 
