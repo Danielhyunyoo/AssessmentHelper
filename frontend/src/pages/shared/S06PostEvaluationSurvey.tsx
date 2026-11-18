@@ -271,49 +271,53 @@ export default function S06PostEvaluationSurvey() {
 
       {/* Pairing Summary Card */}
       <section className="s03-section-card s05-section-accent-primary">
-        <div className="s01-card-top-bar">
-          <div>
-            <h3>Pairing Summary</h3>
-            <p className="s01-subtitle">
-              Completed peer observation details associated with this survey
-            </p>
+        <div className="eval-pairing-summary-layout">
+          {/* Left Column: Title & Subtitle */}
+          <div className="eval-pairing-summary-left">
+            <div>
+              <div className="eval-pairing-title-row">
+                <h3>Pairing Summary</h3>
+                {record?.course?.classroom && (
+                  <span className="version-pill">{record.course.classroom}</span>
+                )}
+              </div>
+              <p className="s01-subtitle">
+                Review observation/observee summary
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="form-summary-grid-4">
-          <div className="form-summary-cell">
-            <span className="summary-field-label">Observer</span>
-            <p className="summary-field-val">
-              {displayObserver?.name ?? "Not available"}
-            </p>
-          </div>
-          <div className="form-summary-cell">
-            <span className="summary-field-label">Observee</span>
-            <p className="summary-field-val">
-              {displayObservee?.name ?? "Not available"}
-            </p>
-          </div>
-          <div className="form-summary-cell">
-            <span className="summary-field-label">Course and Section</span>
-            <p className="summary-field-val">
-              {displayCourse
-                ? `${displayCourse.department_code} ${displayCourse.course_number}.${displayCourse.section}`
-                : "Not available"}
-            </p>
-          </div>
-          <div className="form-summary-cell">
-            <span className="summary-field-label">Observation Date</span>
-            <p className="summary-field-val">
-              {displayDate
-                ? new Date(displayDate).toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
-                : "Not available"}
-            </p>
+          {/* Right Column: Stacked Info Details */}
+          <div className="eval-pairing-summary-right">
+            <div className="eval-summary-row">
+              <span className="summary-field-label">Observer Name</span>
+              <p className="summary-field-val">{record.observer.name}</p>
+            </div>
+            <div className="eval-summary-row">
+              <span className="summary-field-label">Observee Name</span>
+              <p className="summary-field-val">{record.observee.name}</p>
+            </div>
+            <div className="eval-summary-row">
+              <span className="summary-field-label">Course and Section</span>
+              <p className="summary-field-val">
+                {record.course.department_code} {record.course.course_number} Sec {record.course.section}
+                {record.course.schedule ? ` (${record.course.schedule})` : ""}
+              </p>
+            </div>
+            <div className="eval-summary-row">
+              <span className="summary-field-label">Observation Date</span>
+              <p className="summary-field-val">
+                {record.confirmed_datetime
+                  ? new Date(record.confirmed_datetime).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : "Not scheduled"}
+              </p>
+            </div>
           </div>
         </div>
       </section>
