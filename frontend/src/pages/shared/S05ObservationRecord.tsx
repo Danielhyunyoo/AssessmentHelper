@@ -11,6 +11,17 @@ import type { ObservationRecord } from "../../api/types";
 import { formatDateTime } from "../../api/format";
 import { ApiError } from "../../api/http";
 
+function getInitials(name?: string | null) {
+  if (!name) return "?";
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter((word) => /[a-zA-Z]/.test(word));
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
 function recordError(err: unknown, record: ObservationRecord, fallback: string) {
   if (!(err instanceof Error)) return fallback;
   const payload =
@@ -68,7 +79,7 @@ function buildDemoObservationRecord(
       course_number: course?.course_number ?? "3345",
       course_level: course?.course_level ?? 3000,
       section: course?.section ?? "001",
-      schedule: course?.schedule ?? "MWF 10:00 AM - 10:50 AM",
+      schedule: course?.schedule ?? "MWF 10:00 AM to 10:50 AM",
       title: course?.title ?? "Data Structures and Algorithmic Analysis",
       classroom: course?.classroom ?? "ECSS 2.415",
     },
@@ -362,7 +373,7 @@ export default function S05ObservationRecord() {
         </Link>
       </div>
 
-      {/* Header matching A03-A08 */}
+      {/* Header matching A03 to A08 */}
       <div className="committee-page-header">
         <h2>Observation Record</h2>
 
@@ -413,52 +424,95 @@ export default function S05ObservationRecord() {
       {/* Pairing Summary Card */}
       <section className="s03-section-card s05-section-accent-primary">
         <div className="eval-pairing-summary-layout">
-          {/* Left Column: Title & Subtitle */}
+          {/* Left Column: Entire Pairing Summary */}
           <div className="eval-pairing-summary-left">
-            <div>
+            <div className="eval-pairing-header-block">
               <div className="eval-pairing-title-row">
                 <h3>Pairing Summary</h3>
-                {record?.course?.classroom && (
+                {record.course.classroom && (
                   <span className="version-pill">{record.course.classroom}</span>
                 )}
               </div>
               <p className="s01-subtitle">
-                Review observation/observee summary
+                Observation participants, course section, and scheduled time.
               </p>
+            </div>
+
+            <div className="eval-summary-stack">
+              <div className="eval-summary-person-row">
+                <div className="eval-person-avatar avatar-observer" aria-hidden="true">
+                  {getInitials(record.observer.name)}
+                </div>
+                <div className="eval-person-info">
+                  <span className="summary-field-label">Observer</span>
+                  <p className="summary-field-val">{record.observer.name}</p>
+                </div>
+              </div>
+
+              <div className="eval-summary-person-row">
+                <div className="eval-person-avatar avatar-observee" aria-hidden="true">
+                  {getInitials(record.observee.name)}
+                </div>
+                <div className="eval-person-info">
+                  <span className="summary-field-label">Observee</span>
+                  <p className="summary-field-val">{record.observee.name}</p>
+                </div>
+              </div>
+
+              <div className="eval-summary-row">
+                <span className="summary-field-label">Course and Section</span>
+                <p className="summary-field-val">
+                  {record.course.department_code} {record.course.course_number} Sec {record.course.section}
+                  {record.course.schedule ? ` (${record.course.schedule})` : ""}
+                </p>
+              </div>
+
+              <div className="eval-summary-row">
+                <span className="summary-field-label">Observation Date</span>
+                <p className="summary-field-val">
+                  {record.confirmed_datetime
+                    ? new Date(record.confirmed_datetime).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "Not scheduled"}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Stacked Info Details */}
+          {/* Right Column: How It Works Instructions */}
           <div className="eval-pairing-summary-right">
-            <div className="eval-summary-row">
-              <span className="summary-field-label">Observer Name</span>
-              <p className="summary-field-val">{record.observer.name}</p>
-            </div>
-            <div className="eval-summary-row">
-              <span className="summary-field-label">Observee Name</span>
-              <p className="summary-field-val">{record.observee.name}</p>
-            </div>
-            <div className="eval-summary-row">
-              <span className="summary-field-label">Course and Section</span>
-              <p className="summary-field-val">
-                {record.course.department_code} {record.course.course_number} Sec {record.course.section}
-                {record.course.schedule ? ` (${record.course.schedule})` : ""}
+            <div className="eval-instructions-header">
+              <h4 className="eval-instructions-title">How It Works</h4>
+              <p className="eval-instructions-sub">
+                Follow these steps to complete and finalize the observation record.
               </p>
             </div>
-            <div className="eval-summary-row">
-              <span className="summary-field-label">Observation Date</span>
-              <p className="summary-field-val">
-                {record.confirmed_datetime
-                  ? new Date(record.confirmed_datetime).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })
-                  : "Not scheduled"}
-              </p>
-            </div>
+
+            <ol className="eval-instructions-list">
+              <li>
+                <span className="eval-step-badge">1</span>
+                <span>
+                  The observer completes all required ratings and written feedback below, saving drafts as needed.
+                </span>
+              </li>
+              <li>
+                <span className="eval-step-badge">2</span>
+                <span>
+                  Once finalized, the observer signs the record to lock edits and notify the observee.
+                </span>
+              </li>
+              <li>
+                <span className="eval-step-badge">3</span>
+                <span>
+                  The observee reviews the completed form and adds their signature to finalize the record.
+                </span>
+              </li>
+            </ol>
           </div>
         </div>
       </section>
@@ -559,7 +613,7 @@ export default function S05ObservationRecord() {
                 }`}
               >
                 <span className="s05-signature-role">
-                  Observer - {record.observer.name}
+                  Observer: {record.observer.name}
                 </span>
                 <span className="s05-signature-status">
                   {record.observer_signed ? "Signed" : "Pending Signature"}
@@ -581,7 +635,7 @@ export default function S05ObservationRecord() {
                 }`}
               >
                 <span className="s05-signature-role">
-                  Observee - {record.observee.name}
+                  Observee: {record.observee.name}
                 </span>
                 <span className="s05-signature-status">
                   {record.observee_signed ? "Signed" : "Pending Signature"}
