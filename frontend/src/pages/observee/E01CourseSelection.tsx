@@ -308,6 +308,7 @@ export default function E01CourseSelection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [calendarError, setCalendarError] = useState("");
+  const [pageError, setPageError] = useState("");
   const [success, setSuccess] = useState("");
   const [datesSaved, setDatesSaved] = useState(false);
 
@@ -433,7 +434,7 @@ export default function E01CourseSelection() {
         err instanceof Error
           ? err.message
           : "Unable to load registration information.";
-      window.alert(msg);
+      setPageError(msg);
     } finally {
       setLoading(false);
     }
@@ -510,7 +511,7 @@ export default function E01CourseSelection() {
     if (isPairingConfirmed) return;
 
     if (selectedCourseId === "") {
-      window.alert("Please select a course section first.");
+      setPageError("Please select a course section first.");
       return;
     }
 
@@ -533,6 +534,7 @@ export default function E01CourseSelection() {
 
     setSaving(true);
     setSuccess("");
+    setPageError("");
 
     try {
       const courseIdNum = Number(selectedCourseId);
@@ -575,7 +577,7 @@ export default function E01CourseSelection() {
         err instanceof Error
           ? err.message
           : "Unable to confirm course selection.";
-      window.alert(msg);
+      setPageError(msg);
     } finally {
       setSaving(false);
     }
@@ -589,7 +591,6 @@ export default function E01CourseSelection() {
     if (newDates.length > 8) {
       const msg = "You can only select up to 8 dates.";
       setCalendarError(msg);
-      window.alert(msg);
       return;
     }
     setCalendarError("");
@@ -602,21 +603,18 @@ export default function E01CourseSelection() {
     if (confirmedCourseId === "") {
       const msg = "Please select a course section first.";
       setCalendarError(msg);
-      window.alert(msg);
       return;
     }
 
     if (selectedDates.length < 4) {
       const msg = "Please select at least four observation dates.";
       setCalendarError(msg);
-      window.alert(msg);
       return;
     }
 
     if (selectedDates.length > 8) {
       const msg = "You can select at most eight observation dates.";
       setCalendarError(msg);
-      window.alert(msg);
       return;
     }
 
@@ -624,7 +622,6 @@ export default function E01CourseSelection() {
       const msg =
         "Please confirm a course section before selecting observation dates.";
       setCalendarError(msg);
-      window.alert(msg);
       return;
     }
 
@@ -634,7 +631,6 @@ export default function E01CourseSelection() {
       const msg =
         "The selected course's meeting time could not be determined. Please contact the team to check the course schedule.";
       setCalendarError(msg);
-      window.alert(msg);
       return;
     }
 
@@ -709,7 +705,6 @@ export default function E01CourseSelection() {
           ? err.message
           : "Unable to save your observation dates.";
       setCalendarError(msg);
-      window.alert(msg);
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     } finally {
       setSaving(false);
@@ -775,6 +770,12 @@ export default function E01CourseSelection() {
           )}
         </div>
       </div>
+
+      {pageError && (
+        <p role="alert" className="observer-validation-error">
+          {pageError}
+        </p>
+      )}
 
       {success && (
         <div role="status" className="feedback-banner-success">
@@ -1218,7 +1219,6 @@ export default function E01CourseSelection() {
                       selectedDates={selectedDates}
                       onDateSelectionChange={handleDateSelectionChange}
                       allowedDaysOfWeek={allowedDays as DayOfWeek[]}
-                      maxSelections={8}
                       minDate={earliestAllowedDate}
                       maxDate={registration?.observation_deadline}
                       initialMonth={calendarStart.getMonth()}
