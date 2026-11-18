@@ -155,9 +155,19 @@ def avatar(letter, color):
     return ContentFile(buffer.getvalue())
 
 
-def seed_avatars(users):
+def seed_avatars(users, force=False):
     for index, user in enumerate(users.values()):
-        if user.profile_photo:
+        if user.profile_photo and not force:
             continue
+
         letter = user.last_name[:1].upper() or "?"
-        user.profile_photo.save(f"{user.username}.png", avatar(letter, AVATAR_COLORS[index % len(AVATAR_COLORS)]), save=True)
+        filename = f"{user.username}.png"
+
+        if force and user.profile_photo:
+            user.profile_photo.delete(save=False)
+
+        user.profile_photo.save(
+            filename,
+            avatar(letter, AVATAR_COLORS[index % len(AVATAR_COLORS)]),
+            save=True,
+        )

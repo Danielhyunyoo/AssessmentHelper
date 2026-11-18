@@ -30,6 +30,7 @@ function clearDemoLocalState() {
     key === "observer_availability_v1" ||
     key === "pending_course_change_request" ||
     key === "ac_approved_course_overrides" ||
+    key === "ac_cycle_transfers" ||
     key === "s01_checklist_open_v1" ||
     key === "s01_faculty_module_guide_open" ||
     key === "s01_committee_module_guide_open" ||
