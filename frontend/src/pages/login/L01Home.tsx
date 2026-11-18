@@ -1,10 +1,10 @@
 // src/pages/login/L01Home.tsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import campus from "../../assets/campus.png";
-import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg";
-import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg";
-import observation_record_management_card from "../../assets/observation_record_management_card.jpg";
+import campus from "../../assets/card-stock-images/campus.png";
+import course_and_section_selection_card from "../../assets/card-stock-images/course_and_section_selection_card.jpg";
+import current_and_past_observations_card from "../../assets/card-stock-images/current_and_past_observations_card.jpg";
+import observation_record_management_card from "../../assets/card-stock-images/observation_record_management_card.jpg";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor } from "../../api/types";
 

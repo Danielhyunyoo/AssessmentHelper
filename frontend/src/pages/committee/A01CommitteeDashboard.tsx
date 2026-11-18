@@ -9,13 +9,13 @@ import {
   COMMITTEE_OVERALL_BRIEF,
 } from "../../data/moduleGuides";
 
-import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg";
-import unmatched_observees_card from "../../assets/unmatched_observees_card.jpg";
-import observation_record_management_card from "../../assets/observation_record_management_card.jpg";
-import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg";
-import alerts_and_notifications_card from "../../assets/alerts_and_notifications_card.jpg";
-import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg";
-import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg";
+import observer_selection_matching_card from "../../assets/card-stock-images/observer_selection_matching_card.jpg";
+import unmatched_observees_card from "../../assets/card-stock-images/unmatched_observees_card.jpg";
+import observation_record_management_card from "../../assets/card-stock-images/observation_record_management_card.jpg";
+import current_and_past_observations_card from "../../assets/card-stock-images/current_and_past_observations_card.jpg";
+import alerts_and_notifications_card from "../../assets/card-stock-images/alerts_and_notifications_card.jpg";
+import profile_and_evaluation_status_card from "../../assets/card-stock-images/profile_and_evaluation_status_card.jpg";
+import course_and_section_selection_card from "../../assets/card-stock-images/course_and_section_selection_card.jpg";
 
 interface CommitteeDashboardData {
   cycle?: {

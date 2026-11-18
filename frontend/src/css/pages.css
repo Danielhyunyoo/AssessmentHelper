@@ -1,42 +1,53 @@
 /* ==========================================================================
-   1. DESIGN TOKENS & CSS VARIABLES
+   1. DESIGN TOKENS & CSS VARIABLES (UTD Forest Green + Flame Orange + Amber)
    ========================================================================== */
 :root {
-  /* Surfaces (Clean Alabaster & Warm Stone — zero yellow cast) */
+  /* Surfaces (Clean Alabaster & Warm Stone) */
   --bg-canvas: #f7f7f5;
   --bg-surface: #ffffff;
   --bg-subtle: #f1f1ee;
   --bg-muted: #e7e6e2;
   --bg-hover: #dcdbd6;
 
-  /* Borders & Tactile Shadows */
-  --border-subtle: #e3e2de;
-  --border-strong: #cfcec8;
-  --shadow-card: 0 2px 6px rgba(24, 24, 23, 0.04), 0 1px 2px rgba(24, 24, 23, 0.03);
-  --shadow-elevated: 0 10px 24px -4px rgba(24, 24, 23, 0.08), 0 2px 6px rgba(24, 24, 23, 0.04);
+/* Borders & Tactile Shadows */
+  --border-subtle: #d6d4ce;
+  --border-strong: #b8b6ae;
+  --shadow-card: 0 2px 8px rgba(24, 24, 23, 0.08), 0 1px 2px rgba(24, 24, 23, 0.05);
+  --shadow-elevated: 0 10px 26px -4px rgba(24, 24, 23, 0.14), 0 2px 6px rgba(24, 24, 23, 0.06);
 
   /* Typography */
-  --text-primary: #18181b;
-  --text-secondary: #3f3f46;
-  --text-muted: #63636c;
-  --text-faint: #8a8a93;
+  --text-primary: #121215;
+  --text-secondary: #2e2e34;
+  --text-muted: #4b4b53;
+  --text-faint: #6c6c75;
 
-  /* Brand & Accents (UTD Forest Sage + Warm Terracotta + Slate) */
+  --scrollbar-thumb: rgba(21, 71, 52, 0.28);
+  --scrollbar-thumb-hover: rgba(21, 71, 52, 0.52);
+
+  /* Brand & Accents (UTD Forest Green + UTD Flame Orange) */
   --accent-primary: #154734;       /* Deep UTD Forest Green */
   --accent-primary-hover: #0f3526;
   --accent-soft-bg: #e3eee9;
   --accent-soft-border: #9ec0b1;
   --accent-soft-text: #123d2d;
 
+  --utd-orange: #e87500;           /* UTD Flame Orange */
+  --utd-orange-soft-bg: #fff3e6;
+  --utd-orange-soft-border: #f3b87a;
+  --utd-orange-soft-text: #9a4b00;
+
+  /* Status: Success Green */
   --sage-soft-bg: #e2f1e7;
   --sage-soft-border: #9bc8aa;
   --sage-soft-text: #184a2c;
 
-  --amber-soft-bg: #fdf0e6;        /* Warm Terracotta/Apricot instead of yellow */
+/* Status: Warm Terracotta / Amber Banners */
+  --amber-soft-bg: #fdf0e6;
   --amber-soft-border: #eab692;
   --amber-soft-text: #8c3b08;
-  --amber-accent: #c75b12;         /* Muted UTD Flame Orange */
+  --amber-accent: #c75b12;
 
+  /* Status: Danger Red */
   --danger-soft-bg: #fce8e6;
   --danger-soft-border: #e5a59e;
   --danger-soft-text: #8a2319;
@@ -45,7 +56,7 @@
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 
-  /* Light, airy tint so campus architecture & foliage clearly shine through */
+/* Light, airy tint so campus architecture & foliage clearly shine through */
   --bg-wash-light: linear-gradient(
     180deg,
     rgba(244, 247, 245, 0.42) 0%,
@@ -55,16 +66,19 @@
   /* Subtle dark vignette so night-mode photos stay rich and moody */
   --bg-wash-dark: linear-gradient(
     180deg,
-    rgba(14, 18, 16, 0.48) 0%,
-    rgba(18, 17, 16, 0.64) 55%,
-    rgba(18, 17, 16, 0.76) 100%
+    rgba(12, 14, 13, 0.68) 0%,
+    rgba(15, 14, 13, 0.80) 55%,
+    rgba(15, 14, 13, 0.88) 100%
   );
+
   /* Crisp, nearly-solid cards so text, inputs & buttons never lose contrast */
-  --bg-surface-glass: rgba(255, 255, 255, 0.96);
-  --bg-header-glass: rgba(255, 255, 255, 0.88);
+  --bg-surface-glass: rgba(255, 255, 255, 0.97);
+  --bg-header-glass: rgba(255, 255, 255, 0.94);
 }
 
 html.dark-mode {
+  color-scheme: dark;
+
   /* Warm Espresso Charcoal Surfaces */
   --bg-canvas: #121110;
   --bg-surface: #191816;
@@ -73,40 +87,51 @@ html.dark-mode {
   --bg-hover: #33302c;
 
   /* Borders & Tactile Shadows */
-  --border-subtle: #2b2926;
-  --border-strong: #3d3a35;
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  --shadow-elevated: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --border-subtle: #2e2c28;
+  --border-strong: #45413b;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-elevated: 0 12px 28px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
-  /* Typography */
+  /* High-Contrast Typography */
   --text-primary: #f4f2ed;
   --text-secondary: #d6d2c9;
-  --text-muted: #9e998f;
-  --text-faint: #757067;
+  --text-muted: #a6a095;
+  --text-faint: #7d776e;
+
+  --scrollbar-thumb: rgba(82, 179, 139, 0.28);
+  --scrollbar-thumb-hover: rgba(82, 179, 139, 0.50);
 
   /* Brand & Accents */
-  --accent-primary: #5b8fa3;
-  --accent-primary-hover: #72a5b8;
-  --accent-soft-bg: rgba(91, 143, 163, 0.16);
-  --accent-soft-border: rgba(91, 143, 163, 0.36);
-  --accent-soft-text: #9ec5d4;
+  --accent-primary: #2d7a5b;
+  --accent-primary-hover: #37916d;
+  --accent-soft-bg: rgba(45, 122, 91, 0.22);
+  --accent-soft-border: rgba(82, 179, 139, 0.45);
+  --accent-soft-text: #8ce0bc;
 
-  --sage-soft-bg: rgba(74, 138, 92, 0.16);
-  --sage-soft-border: rgba(74, 138, 92, 0.36);
+  --utd-orange: #f58216;
+  --utd-orange-soft-bg: rgba(232, 117, 0, 0.20);
+  --utd-orange-soft-border: rgba(245, 130, 22, 0.45);
+  --utd-orange-soft-text: #ffb366;
+
+  /* Status: Success Green */
+  --sage-soft-bg: rgba(60, 122, 76, 0.22);
+  --sage-soft-border: rgba(98, 179, 118, 0.44);
   --sage-soft-text: #9bd1aa;
 
-  --amber-soft-bg: rgba(201, 138, 30, 0.15);
-  --amber-soft-border: rgba(201, 138, 30, 0.36);
-  --amber-soft-text: #e8be6b;
+  /* Status: Warm Amber / Terracotta Banners */
+  --amber-soft-bg: rgba(201, 138, 30, 0.18);
+  --amber-soft-border: rgba(217, 155, 43, 0.44);
+  --amber-soft-text: #ecc474;
   --amber-accent: #d99b2b;
 
-  --danger-soft-bg: rgba(184, 66, 53, 0.16);
-  --danger-soft-border: rgba(184, 66, 53, 0.38);
-  --danger-soft-text: #eba29a;
-  --danger-accent: #cf5648;
+  /* Status: Danger Red */
+  --danger-soft-bg: rgba(184, 66, 53, 0.22);
+  --danger-soft-border: rgba(219, 98, 84, 0.46);
+  --danger-soft-text: #f0aba3;
+  --danger-accent: #d95d4f;
 
-  --bg-surface-glass: rgba(25, 24, 22, 0.95);
-  --bg-header-glass: rgba(25, 24, 22, 0.88);
+  --bg-surface-glass: rgba(25, 24, 22, 0.96);
+  --bg-header-glass: rgba(25, 24, 22, 0.90);
 }
 
 
@@ -123,6 +148,33 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 *,
@@ -227,7 +279,6 @@ h4 {
   overflow-x: auto;
 }
 
-.table-scroll-box::-webkit-scrollbar,
 .a04-scroll-box::-webkit-scrollbar,
 .a05-scroll-box::-webkit-scrollbar,
 .unmatched-table-wrapper::-webkit-scrollbar,
@@ -237,7 +288,6 @@ h4 {
   height: 6px;
 }
 
-.table-scroll-box::-webkit-scrollbar-thumb,
 .a04-scroll-box::-webkit-scrollbar-thumb,
 .a05-scroll-box::-webkit-scrollbar-thumb,
 .unmatched-table-wrapper::-webkit-scrollbar-thumb,
@@ -412,10 +462,10 @@ h4 {
    4. PAGE: LANDING / HOME (L01)
    ========================================================================== */
 body[data-route-bg="home"] {
-  background-image: var(--bg-wash-light), url("../assets/campus_bkgr.jpg");
+  background-image: var(--bg-wash-light), url("../assets/backgrounds/utd_bkgr.jpg");
 }
 html.dark-mode body[data-route-bg="home"] {
-  background-image: var(--bg-wash-dark), url("../assets/utd_magnolias_bkgr.jpg");
+  background-image: var(--bg-wash-dark), url("../assets/backgrounds/utd_bkgr.jpg");
 }
 
 .home-container {
@@ -617,7 +667,7 @@ body[data-route-bg="signin"] {
       rgba(15, 35, 26, 0.22) 0%,
       rgba(15, 28, 22, 0.38) 100%
     ),
-    url("../assets/utd_magnolias_bkgr.jpg");
+    url("../assets/backgrounds/utd_magnolias_bkgr.jpg");
 }
 
 body[data-route-bg="signin"] .signin-card {
@@ -629,7 +679,7 @@ body[data-route-bg="signin"] .signin-card {
 }
 
 html.dark-mode body[data-route-bg="signin"] .signin-card {
-  background-color: rgba(24, 24, 22, 0.96);
+  background-color: var(--bg-surface-glass);
 }
 
 .signin-page-container {
@@ -1471,10 +1521,10 @@ html.dark-mode body[data-route-bg="signin"] .signin-card {
    7. PAGE: FACULTY DASHBOARD (S01)
    ========================================================================== */
 body[data-route-bg="faculty"] {
-  background-image: var(--bg-wash-light), url("../assets/trees_bkgr.jpg");
+  background-image: var(--bg-wash-light), url("../assets/backgrounds/trees_bkgr.jpg");
 }
 html.dark-mode body[data-route-bg="faculty"] {
-  background-image: var(--bg-wash-dark), url("../assets/trees_bkgr.jpg");
+  background-image: var(--bg-wash-dark), url("../assets/backgrounds/trees_bkgr.jpg");
 }
 
 .s01-subtitle {
@@ -1720,9 +1770,15 @@ html.dark-mode body[data-route-bg="faculty"] {
 .s01-workspace-header-bar {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.75rem;
+  padding: 0.9rem 1.25rem;
+  border-radius: 12px;
+  background-color: var(--bg-header-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--accent-primary);
 }
 
 .s01-collapsed-summary-bar {
@@ -1733,7 +1789,8 @@ html.dark-mode body[data-route-bg="faculty"] {
   gap: 0.5rem;
   padding: 0.6rem 1rem;
   border-radius: 8px;
-  background-color: var(--bg-surface);
+  background-color: var(--bg-surface-glass);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-strong);
   font-size: 0.82rem;
   color: var(--text-secondary);
@@ -1753,10 +1810,10 @@ html.dark-mode body[data-route-bg="faculty"] {
    8. PAGE: PROFILE & USER SETTINGS (S02)
    ========================================================================== */
 body[data-route-bg="records"] {
-  background-image: var(--bg-wash-light), url("../assets/ecsn_bkgr.jpg");
+  background-image: var(--bg-wash-light), url("../assets/backgrounds/ecsn_bkgr.jpg");
 }
 html.dark-mode body[data-route-bg="records"] {
-  background-image: var(--bg-wash-dark), url("../assets/ecsn_bkgr.jpg");
+  background-image: var(--bg-wash-dark), url("../assets/backgrounds/ecsn_bkgr.jpg");
 }
 
 .profile-page-title {
@@ -3192,10 +3249,10 @@ html.dark-mode body[data-route-bg="records"] {
    12. PAGE: SCHEDULE SELECTION & COURSE CALENDAR (E01)
    ========================================================================== */
 body[data-route-bg="scheduling"] {
-  background-image: var(--bg-wash-light), url("../assets/yellow_tones_bkgr.jpg");
+  background-image: var(--bg-wash-light), url("../assets/backgrounds/yellow_tones_bkgr.jpg");
 }
 html.dark-mode body[data-route-bg="scheduling"] {
-  background-image: var(--bg-wash-dark), url("../assets/yellow_tones_bkgr.jpg");
+  background-image: var(--bg-wash-dark), url("../assets/backgrounds/yellow_tones_bkgr.jpg");
 }
 
 .e01-active-course-card {
@@ -3775,10 +3832,10 @@ html.dark-mode body[data-route-bg="scheduling"] {
    15. PAGE: COMMITTEE DASHBOARD & OVERVIEW (A01)
    ========================================================================== */
 body[data-route-bg="committee-core"] {
-  background-image: var(--bg-wash-light), url("../assets/ecsw_bkgr.jpg");
+  background-image: var(--bg-wash-light), url("../assets/backgrounds/ecsw_bkgr.jpg");
 }
 html.dark-mode body[data-route-bg="committee-core"] {
-  background-image: var(--bg-wash-dark), url("../assets/ecsw_bkgr.jpg");
+  background-image: var(--bg-wash-dark), url("../assets/backgrounds/ecsw_bkgr.jpg");
 }
 
 .dashboard-container {
@@ -3979,15 +4036,6 @@ html.dark-mode body[data-route-bg="committee-core"] {
   flex-direction: column;
   gap: 0.55rem;
   padding-right: 0.25rem;
-}
-
-.a01-alerts-scroll::-webkit-scrollbar {
-  width: 5px;
-}
-
-.a01-alerts-scroll::-webkit-scrollbar-thumb {
-  background-color: var(--border-strong);
-  border-radius: 9999px;
 }
 
 .a01-alert-banner {
@@ -5353,10 +5401,10 @@ html.dark-mode body[data-route-bg="committee-core"] {
    19. PAGE: AUDIT LOGS & MONITORING (A05)
    ========================================================================== */
 body[data-route-bg="committee-ops"] {
-  background-image: var(--bg-wash-light), url("../assets/utd_bkgr.jpg");
+  background-image: var(--bg-wash-light), url("../assets/backgrounds/utd_bkgr.jpg");
 }
 html.dark-mode body[data-route-bg="committee-ops"] {
-  background-image: var(--bg-wash-dark), url("../assets/utd_bkgr.jpg");
+  background-image: var(--bg-wash-dark), url("../assets/backgrounds/utd_bkgr.jpg");
 }
 
 .a05-controls-bar {
@@ -5541,9 +5589,9 @@ html.dark-mode body[data-route-bg="committee-ops"] {
 }
 
 .a07-kpi-accent-blue { border-top: 3px solid #2563eb; }
-.a07-kpi-accent-red { border-top: 3px solid #dc2626; }
+.a07-kpi-accent-red { border-top: 3px solid #d64949; }
 .a07-kpi-accent-amber { border-top: 3px solid #d97706; }
-.a07-kpi-accent-purple { border-top: 3px solid #7c3aed; }
+.a07-kpi-accent-purple { border-top: 3px solid #6e49af; }
 .a07-kpi-accent-green { border-top: 3px solid #16a34a; }
 .a07-kpi-accent-slate { border-top: 3px solid var(--text-faint); }
 
@@ -6487,6 +6535,20 @@ html.dark-mode body[data-route-bg="committee-ops"] {
   border-bottom: none;
 }
 
+.a01-phase-title-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 0.75rem 1.15rem;
+  border-radius: 10px;
+  background-color: var(--bg-header-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--accent-primary);
+  box-shadow: var(--shadow-card);
+}
+
 .a01-phase-title-group,
 .profile-section-title-row,
 .a02-section-title-group,
@@ -6659,8 +6721,8 @@ body[data-route-bg] {
 }
 
 .a01-phase-pill {
-  border-left: 3px solid #e87500;
-  color: var(--accent-primary);
+  border-left: 3px solid var(--utd-orange);
+  color: var(--accent-soft-text);
 }
 
 

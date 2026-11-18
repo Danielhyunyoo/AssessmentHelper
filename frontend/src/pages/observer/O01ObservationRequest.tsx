@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { matchingApi } from "../../api/endpoints";
 import type { Invitation } from "../../api/types";
 import { Link } from "react-router-dom";
-import profileIcon from "../../assets/profile_icon.png";
+import profileIcon from "../../assets/icons/profile_icon.png";
 import { formatDateTime as formatMoment } from "../../api/format";
 
 interface ProposedDateSlot {

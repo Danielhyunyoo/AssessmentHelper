@@ -1,7 +1,7 @@
 // src/components/Header.tsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import darkModeLogo from "../assets/dark_mode_logo.png";
+import utdLogo from "../assets/icons/utd_logo.png";
 import { authApi, facultyApi } from "../api/endpoints";
 import type { Notification, Professor } from "../api/types";
 import {
@@ -483,7 +483,7 @@ export default function Header() {
         )}
 
         <div id="logo">
-          <img src={darkModeLogo} alt="UTD Logo" className="header-logo" />
+          <img src={utdLogo} alt="UTD Logo" className="header-logo" />
           <h1>UTD Assessment Helper</h1>
         </div>
 

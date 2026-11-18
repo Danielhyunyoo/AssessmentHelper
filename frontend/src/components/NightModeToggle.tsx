@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import SunIcon from "../assets/sun.png";
-import MoonIcon from "../assets/moon.png";
-import defaultLogo from "../assets/default_logo.png";
-import darkModeLogo from "../assets/dark_mode_logo.png";
+import SunIcon from "../assets/icons/sun.png";
+import MoonIcon from "../assets/icons/moon.png";
+import defaultLogo from "../assets/icons/utd_logo.png";
+import utdLogo from "../assets/icons/utd_logo.png";
 
 interface NightModeToggleProps {
   onThemeChange?: (isDark: boolean) => void;
@@ -49,7 +49,7 @@ export default function NightModeToggle({ onThemeChange }: NightModeToggleProps)
 
 export function useLogo(
   lightLogoPath: string = defaultLogo,
-  darkLogoPath: string = darkModeLogo
+  darkLogoPath: string = utdLogo
 ) {
   const [isDark, setIsDark] = useState<boolean>(() =>
     document.documentElement.classList.contains("dark-mode")
