@@ -5,9 +5,9 @@ matching, evaluation forms, and assessment tracking.
 
 CS 4485 Group 39, for Prof. Priya Narayanasami. TA: Gopika Murali.
 
-## What it will do
+## What it does
 
-Faculty who are due for an evaluation will use the app to:
+Faculty who are due for an evaluation use the app to:
 
 1. Sign up one of their courses to be observed.
 2. Get a list of eligible observers and propose 4 to 8 observation dates.
@@ -23,7 +23,7 @@ completed, overdue, or need attention.
 The prototype uses demo accounts and anonymized sample data only. Course
 data comes from a one-time CourseBook sample import.
 
-## Planned stack
+## Stack
 
 | Part | Tools |
 |------|-------|
@@ -31,6 +31,49 @@ data comes from a one-time CourseBook sample import.
 | Backend | Django, Django REST Framework |
 | Database | MySQL |
 | Deployment | Docker Compose on a Linux VM |
+
+## Run locally
+
+Needs Docker, Python 3.13+, and Node 22+.
+
+```sh
+cd backend
+cp .env.example .env
+docker compose up -d --wait mysql
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py seed_demo --reset
+.venv/bin/python manage.py seed_sample_data --reset
+.venv/bin/python manage.py runserver
+```
+
+```sh
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. Sign in as `professora@utdallas.edu` (A to H) or
+`committee@utdallas.edu`, password `demo-password`. The Demo Controls panel
+switches users, sets the simulated date, and resets the data.
+
+Tests: `cd backend && .venv/bin/python manage.py test evaluations`
+
+## Deploy
+
+`deploy/` runs MySQL, Django, Caddy, and a Cloudflare quick tunnel with
+Docker Compose.
+
+```sh
+cd deploy
+cp .env.example .env   # set DJANGO_SECRET_KEY and the passwords
+docker compose up -d --build
+```
+
+The tunnel URL changes when the tunnel restarts.
+`deploy/update-link.sh [ssh-host]` points the stable link
+(`deploy/link`, a Cloudflare Worker) at the current URL.
 
 ## Project documents
 

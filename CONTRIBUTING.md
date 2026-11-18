@@ -4,7 +4,7 @@
 
 1. Pull the latest `main` and make a branch for your task.
 2. Commit, push, and open a pull request (PR) into `main`.
-3. After one teammate approves, merge it with **Squash and merge**.
+3. Merge after CI passes and one teammate approves.
 
 ## Branches
 
@@ -33,7 +33,7 @@ git rebase origin/main
 - **Schema changes go through Django migrations.** No separate SQL schema
   file.
 - **Requirements come from the [project documents](README.md#project-documents).**
-  If code needs a rule that is not written down.
+  If code needs a rule that is not written down, ask the team before adding it.
 
 ## Issues
 
