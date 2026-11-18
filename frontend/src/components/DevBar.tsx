@@ -201,6 +201,10 @@ export default function DevBar() {
           path: "/shared/post-evaluation-survey?pairingId=1",
           matchPrefix: "/shared/post-evaluation-survey",
         },
+        {
+          label: "S07 - Contact Committee",
+          path: "/shared/contact-committee",
+        },
       ],
     },
     {

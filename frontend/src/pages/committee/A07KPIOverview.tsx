@@ -455,7 +455,7 @@ export default function A07KpiOverview() {
 
           {/* 4. Definitions Section */}
           {kpis.length > 0 && (
-            <section className="dashboard-phase">
+            <section className="dashboard-phase report-page-break">
               <div className="table-container summary-card-padding">
                 <div className="a07-section-header">
                   <h3 className="kpi-section-heading a02-zero-margin">
