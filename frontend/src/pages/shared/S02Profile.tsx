@@ -64,6 +64,7 @@ export default function S02Profile(): React.ReactElement {
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
   const [academicRank, setAcademicRank] = useState("");
+  const [isCommitteeUser, setIsCommitteeUser] = useState(false);
 
   const [evaluationCycle, setEvaluationCycle] = useState("");
   const [evaluationStatus, setEvaluationStatus] = useState("");
@@ -157,6 +158,7 @@ export default function S02Profile(): React.ReactElement {
         const professor = result.professor as any;
         const first = professor.first_name || "";
         const last = professor.last_name || "";
+        setIsCommitteeUser(professor.role === "admin");
 
         const profId = professor.user_id ?? professor.id;
         let cachedPhoto = professor.profile_photo;
@@ -516,12 +518,25 @@ export default function S02Profile(): React.ReactElement {
 
   const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
+  const hasFullPortalAccess = isCommitteeUser || isRegisteredObservee;
+  const backDestination = isCommitteeUser
+    ? "/committee/dashboard"
+    : isRegisteredObservee
+    ? "/shared/faculty-dashboard"
+    : "/login/signin2";
+  const backTopLabel = hasFullPortalAccess
+    ? "← Back to Dashboard"
+    : "← Back to Cycle Registration";
+  const backBottomLabel = hasFullPortalAccess
+    ? "Return to Dashboard"
+    : "Return to Cycle Registration";
+
   return (
     <div className="dashboard-container">
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
-        <Link className="back-dashboard-link" to="/shared/faculty-dashboard">
-          ← Back to Dashboard
+        <Link className="back-dashboard-link" to={backDestination}>
+          {backTopLabel}
         </Link>
       </div>
 
@@ -928,9 +943,14 @@ export default function S02Profile(): React.ReactElement {
               <span className="status-label">
                 Registered Course (As Observee)
               </span>
-              <Link className="notif-action-link" to="/observee/course-selection">
-                Manage →
-              </Link>
+              {hasFullPortalAccess && (
+                <Link
+                  className="notif-action-link"
+                  to="/observee/course-selection"
+                >
+                  Manage →
+                </Link>
+              )}
             </div>
 
             {isRegisteredObservee ? (
@@ -964,7 +984,7 @@ export default function S02Profile(): React.ReactElement {
               </span>
               <Link
                 className="notif-action-link"
-                to="/observer/active-observations"
+                to="/shared/current-past-observations"
               >
                 View All →
               </Link>
@@ -1017,8 +1037,8 @@ export default function S02Profile(): React.ReactElement {
       </section>
 
       <div className="dashboard-center-action">
-        <Link className="btn-secondary" to="/shared/faculty-dashboard">
-          Return to Dashboard
+        <Link className="btn-secondary" to={backDestination}>
+          {backBottomLabel}
         </Link>
       </div>
     </div>

@@ -179,6 +179,7 @@ export function hasUnseenCommitteeMessages(user?: Professor | null): boolean {
 
 export default function S07ContactCommittee() {
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [isCycleRegistered, setIsCycleRegistered] = useState<boolean>(true);
   const [loadingUser, setLoadingUser] = useState(true);
   const [rosterRecipients, setRosterRecipients] = useState<
     FacultyRecipientOption[]
@@ -214,9 +215,19 @@ export default function S07ContactCommittee() {
     name: senderName,
     isCommittee,
   } = getUserIdentity(currentUser);
-  const dashboardPath = isCommittee
+
+  const hasFullPortalAccess = isCommittee || isCycleRegistered;
+  const backDestination = isCommittee
     ? "/committee/dashboard"
-    : "/shared/faculty-dashboard";
+    : isCycleRegistered
+    ? "/shared/faculty-dashboard"
+    : "/login/signin2";
+  const backTopLabel = hasFullPortalAccess
+    ? "← Back to Dashboard"
+    : "← Back to Cycle Registration";
+  const backBottomLabel = hasFullPortalAccess
+    ? "Return to Dashboard"
+    : "Return to Cycle Registration";
 
   const activeTopicOptions = isCommittee
     ? COMMITTEE_TOPIC_OPTIONS
@@ -258,6 +269,7 @@ export default function S07ContactCommittee() {
           const adminUser = isCommitteeAccount(resolvedUser);
 
           if (adminUser) {
+            setIsCycleRegistered(true);
             try {
               const apiRecord = facultyApi as unknown as Record<
                 string,
@@ -294,6 +306,17 @@ export default function S07ContactCommittee() {
               }
             } catch {
               // Fallback recipients will be derived from existing threads if roster endpoint is unavailable
+            }
+          } else {
+            try {
+              const regRes = await facultyApi.registrationStatus();
+              if (!cancelled) {
+                setIsCycleRegistered(Boolean(regRes.is_registered));
+              }
+            } catch {
+              if (!cancelled) {
+                setIsCycleRegistered(false);
+              }
             }
           }
 
@@ -594,8 +617,8 @@ export default function S07ContactCommittee() {
   return (
     <div className="dashboard-container">
       <div className="back-dashboard-wrapper">
-        <Link to={dashboardPath} className="back-dashboard-link">
-          ← Back to Dashboard
+        <Link to={backDestination} className="back-dashboard-link">
+          {backTopLabel}
         </Link>
       </div>
 
@@ -1305,8 +1328,8 @@ export default function S07ContactCommittee() {
       </section>
 
       <div className="dashboard-center-action">
-        <Link to={dashboardPath} className="btn-secondary">
-          Return to Dashboard
+        <Link to={backDestination} className="btn-secondary">
+          {backBottomLabel}
         </Link>
       </div>
     </div>

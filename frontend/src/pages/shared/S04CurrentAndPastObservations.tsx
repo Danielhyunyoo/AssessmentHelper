@@ -376,6 +376,20 @@ export default function S04CurrentAndPastObservations() {
   };
 
   const isCommitteeMember = currentUser?.role === "admin";
+  const isCycleRegistered =
+    isCommitteeMember || Boolean(registration?.is_registered);
+  const backDestination = isCommitteeMember
+    ? "/committee/dashboard"
+    : isCycleRegistered
+    ? "/shared/faculty-dashboard"
+    : "/login/signin2";
+  const backTopLabel = isCycleRegistered
+    ? "← Back to Dashboard"
+    : "← Back to Cycle Registration";
+  const backBottomLabel = isCycleRegistered
+    ? "Return to Dashboard"
+    : "Return to Cycle Registration";
+
   const currentUserId = getNumericId(currentUser);
   const currentUserName = currentUser
     ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`
@@ -464,8 +478,9 @@ export default function S04CurrentAndPastObservations() {
     )
   );
 
-  const totalActiveCount =
-    allCurrentRecords.length + allActiveScheduledVisits.length;
+  const totalActiveCount = isCycleRegistered
+    ? allCurrentRecords.length + allActiveScheduledVisits.length
+    : 0;
 
   const pastRecordsBySemester = pastRecords.reduce<
     Record<string, ObservationRecord[]>
@@ -504,26 +519,21 @@ export default function S04CurrentAndPastObservations() {
   return (
     <div className="dashboard-container">
       <div className="back-dashboard-wrapper">
-        <Link
-          to={
-            isCommitteeMember
-              ? "/committee/dashboard"
-              : "/shared/faculty-dashboard"
-          }
-          className="back-dashboard-link"
-        >
-          ← Back to Dashboard
+        <Link to={backDestination} className="back-dashboard-link">
+          {backTopLabel}
         </Link>
       </div>
 
-      {/* Header matching A03-A08 */}
+      {/* Header matching A03 to A08 */}
       <div className="committee-page-header">
         <h2>Current and Past Observations</h2>
 
         {!liveLoading && (
           <div className="committee-page-header-meta">
             <span className="a01-cycle-badge">
-              {totalActiveCount} Active - {allPastRecords.length} Archived
+              {isCycleRegistered
+                ? `${totalActiveCount} Active - ${allPastRecords.length} Archived`
+                : `${allPastRecords.length} Archived`}
             </span>
           </div>
         )}
@@ -622,7 +632,7 @@ export default function S04CurrentAndPastObservations() {
         </div>
       )}
 
-      {!liveLoading && !liveError && (
+      {!liveLoading && !liveError && isCycleRegistered && (
         <section className="s04-section-panel">
           <div className="s04-section-header">
             <div className="a01-phase-title-group">
@@ -1021,15 +1031,8 @@ export default function S04CurrentAndPastObservations() {
       )}
 
       <div className="dashboard-center-action">
-        <Link
-          to={
-            isCommitteeMember
-              ? "/committee/dashboard"
-              : "/shared/faculty-dashboard"
-          }
-          className="btn-secondary"
-        >
-          Return to Dashboard
+        <Link to={backDestination} className="btn-secondary">
+          {backBottomLabel}
         </Link>
       </div>
     </div>

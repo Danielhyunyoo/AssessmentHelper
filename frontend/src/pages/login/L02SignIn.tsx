@@ -1,7 +1,7 @@
 // src/pages/login/L02SignIn.tsx
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { authApi } from "../../api/endpoints";
+import { authApi, facultyApi } from "../../api/endpoints";
 
 interface LocationState {
   redirectTo?: string;
@@ -40,7 +40,32 @@ export default function L02SignIn(): React.ReactElement {
     try {
       await authApi.csrf();
       await authApi.login(email.trim(), password);
-      navigate("/login/signin2", { state: redirectTo ? { redirectTo } : undefined });
+
+      const { professor } = await authApi.session();
+
+      // 1. Committee members go straight to Committee Dashboard (or requested deep link)
+      if (professor?.role === "admin") {
+        navigate(redirectTo || "/committee/dashboard", { replace: true });
+        return;
+      }
+
+      // 2. Check faculty registration status for the current cycle
+      try {
+        const regStatus = await facultyApi.registrationStatus();
+        if (regStatus.is_registered) {
+          // Already registered -> skip L03 and go straight to Faculty Dashboard
+          navigate(redirectTo || "/shared/faculty-dashboard", { replace: true });
+          return;
+        }
+      } catch {
+        // If status check fails, fall through to L03 setup
+      }
+
+      // 3. Unregistered faculty -> force L03 registration/records gate
+      navigate("/login/signin2", {
+        replace: true,
+        state: redirectTo ? { redirectTo } : undefined,
+      });
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Invalid email or password. Please try again."
@@ -125,7 +150,6 @@ export default function L02SignIn(): React.ReactElement {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
-
       </div>
     </div>
   );

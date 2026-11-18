@@ -8,6 +8,12 @@ import observation_record_management_card from "../../assets/card-stock-images/o
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor } from "../../api/types";
 
+const UNREGISTERED_ALLOWED_PATHS = [
+  "/login/signin2",
+  "/shared/current-past-observations",
+  "/shared/contact-committee",
+];
+
 export default function L01Home() {
   const navigate = useNavigate();
 
@@ -25,18 +31,28 @@ export default function L01Home() {
         setUser(professor);
 
         if (professor) {
+          if (professor.role === "admin") {
+            setIsRegistered(true);
+            return;
+          }
+
           try {
             const status = await facultyApi.registrationStatus();
             if (!cancelled) {
-              setIsRegistered(status.is_registered);
+              setIsRegistered(Boolean(status.is_registered));
             }
           } catch {
-            // Committee accounts may not have a personal faculty registration record.
+            if (!cancelled) {
+              setIsRegistered(false);
+            }
           }
+        } else {
+          setIsRegistered(false);
         }
       } catch {
         if (!cancelled) {
           setUser(null);
+          setIsRegistered(false);
         }
       }
     }
@@ -50,9 +66,10 @@ export default function L01Home() {
 
   const isLoggedIn = user !== null;
   const isCommittee = user?.role === "admin";
+  const hasFullPortalAccess = isCommittee || isRegistered;
 
   const handleFacultyButtonClick = () => {
-    if (!isRegistered) {
+    if (!hasFullPortalAccess) {
       navigate("/login/signin2");
     } else {
       navigate("/shared/faculty-dashboard");
@@ -60,15 +77,26 @@ export default function L01Home() {
   };
 
   const handleProtectedNavigate = (targetPath: string) => {
-    if (isLoggedIn) {
-      navigate(targetPath);
-    } else {
+    if (!isLoggedIn) {
       navigate("/login/signin", { state: { redirectTo: targetPath } });
+      return;
     }
+
+    const isRecordDetail = targetPath.startsWith("/shared/observation-record/");
+    const isAllowedForUnregistered =
+      UNREGISTERED_ALLOWED_PATHS.includes(targetPath) || isRecordDetail;
+
+    if (!hasFullPortalAccess && !isAllowedForUnregistered) {
+      navigate("/login/signin2");
+      return;
+    }
+
+    navigate(targetPath);
   };
 
   return (
     <div className="home-container">
+      {/* Main Hero Section */}
       <div className="home-main-card">
         <div className="home-content">
           <div className="home-text">
@@ -109,9 +137,9 @@ export default function L01Home() {
                   onClick={handleFacultyButtonClick}
                   className="btn-primary btn-block home-main-btn"
                 >
-                  {!isRegistered
-                    ? "Register for Cycle / Faculty Dashboard"
-                    : "Go to Faculty Dashboard"}
+                  {hasFullPortalAccess
+                    ? "Go to Faculty Dashboard"
+                    : "Complete Cycle Registration"}
                 </button>
               )}
             </div>
@@ -123,6 +151,7 @@ export default function L01Home() {
         </div>
       </div>
 
+      {/* Feature Modules Grid */}
       <section className="home-modules-section">
         <span className="a01-phase-pill">Quick Workspace Access</span>
 
@@ -141,7 +170,9 @@ export default function L01Home() {
             </p>
             <button
               type="button"
-              onClick={() => handleProtectedNavigate("/observee/course-selection")}
+              onClick={() =>
+                handleProtectedNavigate("/observee/course-selection")
+              }
               className="btn-secondary home-box-btn"
             >
               Select Courses
@@ -162,7 +193,9 @@ export default function L01Home() {
             </p>
             <button
               type="button"
-              onClick={() => handleProtectedNavigate("/observer/observation-request")}
+              onClick={() =>
+                handleProtectedNavigate("/observer/observation-request")
+              }
               className="btn-secondary home-box-btn"
             >
               Review Requests
@@ -183,7 +216,9 @@ export default function L01Home() {
             </p>
             <button
               type="button"
-              onClick={() => handleProtectedNavigate("/shared/current-past-observations")}
+              onClick={() =>
+                handleProtectedNavigate("/shared/current-past-observations")
+              }
               className="btn-secondary home-box-btn"
             >
               Access Past Records

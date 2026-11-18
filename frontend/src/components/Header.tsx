@@ -215,6 +215,7 @@ export default function Header() {
   const profileRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<NotificationPreview[]>([]);
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [isCycleRegistered, setIsCycleRegistered] = useState<boolean>(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [headerError, setHeaderError] = useState("");
@@ -223,6 +224,7 @@ export default function Header() {
   const isLoggedIn = currentUser !== null;
   const isCommitteeUser = isCommitteeAccount(currentUser);
   const isFacultyUser = isLoggedIn && !isCommitteeUser;
+  const hasFullPortalAccess = isCommitteeUser || isCycleRegistered;
 
   const customAvatarUrl = !avatarFailed ? getStoredUserPhoto(currentUser) : "";
   const hasCustomAvatar = Boolean(customAvatarUrl);
@@ -330,6 +332,7 @@ export default function Header() {
     } finally {
       closeAllMenus();
       setCurrentUser(null);
+      setIsCycleRegistered(false);
       setHasUnreadMessages(false);
       setAvatarFailed(false);
       navigate("/login/signin", { replace: true });
@@ -387,14 +390,21 @@ export default function Header() {
           setHasUnreadMessages(false);
           setBackendUnreadCount(0);
           setCurrentUser(null);
+          setIsCycleRegistered(false);
           setAvatarFailed(false);
           return;
         }
 
-        const [notificationResponse, profileResponse] = await Promise.all([
-          facultyApi.notifications(),
-          facultyApi.profile(),
-        ]);
+        const [notificationResponse, profileResponse, regResponse] =
+          await Promise.all([
+            facultyApi.notifications(),
+            facultyApi.profile(),
+            isCommitteeAccount(professor)
+              ? Promise.resolve({ is_registered: true })
+              : facultyApi.registrationStatus().catch(() => ({
+                  is_registered: false,
+                })),
+          ]);
 
         if (cancelled) return;
 
@@ -448,6 +458,7 @@ export default function Header() {
         setBackendUnreadCount(totalUnread);
         setAvatarFailed(false);
         setCurrentUser(resolvedUser);
+        setIsCycleRegistered(Boolean(regResponse.is_registered));
         setHasUnreadMessages(hasUnseenCommitteeMessages(resolvedUser));
         setHeaderError("");
       } catch {
@@ -461,12 +472,14 @@ export default function Header() {
 
     window.addEventListener("notifications-changed", loadHeaderData);
     window.addEventListener("profile-changed", loadHeaderData);
+    window.addEventListener("registration-changed", loadHeaderData);
     window.addEventListener("demo-reset", loadHeaderData);
 
     return () => {
       cancelled = true;
       window.removeEventListener("notifications-changed", loadHeaderData);
       window.removeEventListener("profile-changed", loadHeaderData);
+      window.removeEventListener("registration-changed", loadHeaderData);
       window.removeEventListener("demo-reset", loadHeaderData);
     };
   }, [location.pathname]);
@@ -488,6 +501,7 @@ export default function Header() {
         </div>
 
         <nav id="user-shortcuts">
+          {/* Home button is always visible */}
           <Link to="/" title="Go to Home" onClick={closeAllMenus}>
             <HomeShortcutIcon />
           </Link>
@@ -512,95 +526,97 @@ export default function Header() {
             </a>
           )}
 
-          <div ref={notifRef} className="header-popover-container">
-            <button
-              type="button"
-              onClick={toggleNotifications}
-              title="Notifications"
-              className="header-icon-btn"
-            >
-              <BellShortcutIcon
-                active={unreadCount > 0 && hasUnreadNotifications}
-              />
-            </button>
+          {(!isLoggedIn || hasFullPortalAccess) && (
+            <div ref={notifRef} className="header-popover-container">
+              <button
+                type="button"
+                onClick={toggleNotifications}
+                title="Notifications"
+                className="header-icon-btn"
+              >
+                <BellShortcutIcon
+                  active={unreadCount > 0 && hasUnreadNotifications}
+                />
+              </button>
 
-            {isNotifOpen && (
-              <div className="notif-popover">
-                <div className="notif-header">
-                  <span className="notif-header-title">NOTIFICATIONS</span>
-                  <span className="notif-unread-badge">{unreadCount} New</span>
-                </div>
+              {isNotifOpen && (
+                <div className="notif-popover">
+                  <div className="notif-header">
+                    <span className="notif-header-title">NOTIFICATIONS</span>
+                    <span className="notif-unread-badge">{unreadCount} New</span>
+                  </div>
 
-                <div className="notif-scroll-list">
-                  {notifications.length === 0 ? (
-                    <div className="notif-empty-text">
-                      No new notifications right now.
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => handleNotificationClick(n.id)}
-                        className={`menu-item-hover notif-item ${
-                          n.unread
-                            ? "notif-unread-highlight"
-                            : "notif-read-item"
-                        }`}
-                      >
-                        <p
-                          className={`notif-item-title ${
-                            n.unread ? "fw-bold" : "fw-medium"
-                          }`}
-                        >
-                          {n.title}
-                        </p>
-                        <span
-                          className={`notif-item-time ${
-                            n.unread ? "text-unread" : "text-read"
-                          }`}
-                        >
-                          {n.time}
-                        </span>
+                  <div className="notif-scroll-list">
+                    {notifications.length === 0 ? (
+                      <div className="notif-empty-text">
+                        No new notifications right now.
                       </div>
-                    ))
-                  )}
-                </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => handleNotificationClick(n.id)}
+                          className={`menu-item-hover notif-item ${
+                            n.unread
+                              ? "notif-unread-highlight"
+                              : "notif-read-item"
+                          }`}
+                        >
+                          <p
+                            className={`notif-item-title ${
+                              n.unread ? "fw-bold" : "fw-medium"
+                            }`}
+                          >
+                            {n.title}
+                          </p>
+                          <span
+                            className={`notif-item-time ${
+                              n.unread ? "text-unread" : "text-read"
+                            }`}
+                          >
+                            {n.time}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
 
-                <div className="notif-footer">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeAllMenus();
-                      navigate("/shared/notifications");
-                    }}
-                    className="menu-item-hover notif-action-btn"
-                  >
-                    View All Notifications
-                  </button>
+                  <div className="notif-footer">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeAllMenus();
+                        navigate("/shared/notifications");
+                      }}
+                      className="menu-item-hover notif-action-btn"
+                    >
+                      View All Notifications
+                    </button>
 
-                  <div className="notif-sim-row">
-                    <label className="notif-sim-label">
-                      <input
-                        type="checkbox"
-                        checked={hasUnreadNotifications}
-                        onChange={(e) => {
-                          setHasUnreadNotifications(e.target.checked);
-                          if (e.target.checked) {
-                            setNotifications((prev) =>
-                              prev.map((n, i) =>
-                                i < 2 ? { ...n, unread: true } : n
-                              )
-                            );
-                          }
-                        }}
-                      />
-                      <span>Simulate Active Bell Dot</span>
-                    </label>
+                    <div className="notif-sim-row">
+                      <label className="notif-sim-label">
+                        <input
+                          type="checkbox"
+                          checked={hasUnreadNotifications}
+                          onChange={(e) => {
+                            setHasUnreadNotifications(e.target.checked);
+                            if (e.target.checked) {
+                              setNotifications((prev) =>
+                                prev.map((n, i) =>
+                                  i < 2 ? { ...n, unread: true } : n
+                                )
+                              );
+                            }
+                          }}
+                        />
+                        <span>Simulate Active Bell Dot</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div ref={profileRef} className="header-popover-container">
             <button
@@ -651,7 +667,9 @@ export default function Header() {
                         : "Loading profile..."}
                     </h4>
                     <p className="profile-popover-role">
-                      {currentUser?.academic_level || currentUser?.role || ""}
+                      {!hasFullPortalAccess
+                        ? "Unregistered"
+                        : currentUser?.academic_level || currentUser?.role || ""}
                     </p>
                   </div>
                 </div>
@@ -669,6 +687,19 @@ export default function Header() {
                   >
                     Profile Settings
                   </button>
+
+                  {!hasFullPortalAccess && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeAllMenus();
+                        navigate("/login/signin2");
+                      }}
+                      className="menu-item-hover profile-link-btn"
+                    >
+                      Register for Cycle
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -709,6 +740,13 @@ export default function Header() {
             </div>
 
             <div className="menu-body">
+              <div className="menu-section">
+                <h4>Home</h4>
+                <Link to="/" onClick={closeAllMenus}>
+                  Portal Home
+                </Link>
+              </div>
+
               {isCommitteeUser && (
                 <>
                   <div className="menu-section">
@@ -793,7 +831,22 @@ export default function Header() {
                 </>
               )}
 
-              {isFacultyUser && (
+              {isFacultyUser && !isCycleRegistered && (
+                <div className="menu-section">
+                  <h4>Cycle Access</h4>
+                  <Link to="/login/signin2" onClick={closeAllMenus}>
+                    Register for Current Cycle
+                  </Link>
+                  <Link
+                    to="/shared/current-past-observations"
+                    onClick={closeAllMenus}
+                  >
+                    Current and Past Observations
+                  </Link>
+                </div>
+              )}
+
+              {isFacultyUser && isCycleRegistered && (
                 <>
                   <div className="menu-section">
                     <h4>Dashboard</h4>
@@ -841,7 +894,7 @@ export default function Header() {
                 </>
               )}
 
-              {isLoggedIn && (
+              {isLoggedIn && hasFullPortalAccess && (
                 <div className="menu-section">
                   <h4>Shared Records</h4>
                   <Link

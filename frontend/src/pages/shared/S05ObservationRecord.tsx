@@ -13,12 +13,19 @@ import { ApiError } from "../../api/http";
 
 function recordError(err: unknown, record: ObservationRecord, fallback: string) {
   if (!(err instanceof Error)) return fallback;
-  const payload = err instanceof ApiError && typeof err.payload === "object" ? err.payload : null;
+  const payload =
+    err instanceof ApiError && typeof err.payload === "object"
+      ? err.payload
+      : null;
   const answers = payload?.responses;
   if (!answers || typeof answers !== "object") return err.message;
   const byMessage: Record<string, string[]> = {};
-  for (const [id, message] of Object.entries(answers as Record<string, unknown>)) {
-    const question = record.template.questions.find((item) => String(item.id) === id);
+  for (const [id, message] of Object.entries(
+    answers as Record<string, unknown>
+  )) {
+    const question = record.template.questions.find(
+      (item) => String(item.id) === id
+    );
     const key = String(message).replace(/\.$/, "");
     byMessage[key] = [...(byMessage[key] ?? []), question?.text ?? id];
   }
@@ -128,10 +135,14 @@ function buildDemoObservationRecord(
 export default function S05ObservationRecord() {
   const { observationId } = useParams();
   const [record, setRecord] = useState<ObservationRecord | null>(null);
-  const [responses, setResponses] = useState<Record<string, string | number>>({});
+  const [responses, setResponses] = useState<Record<string, string | number>>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isDemoPreview, setIsDemoPreview] = useState(false);
+  const [isCommittee, setIsCommittee] = useState(false);
+  const [isCycleRegistered, setIsCycleRegistered] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -143,23 +154,37 @@ export default function S05ObservationRecord() {
     async function loadRecord() {
       const numericId = Number(observationId) || 1;
 
+      const sessionData = await authApi
+        .session()
+        .catch(() => ({ professor: null }));
+      const sessionProf = sessionData?.professor ?? null;
+      const adminUser = sessionProf?.role === "admin";
+      setIsCommittee(adminUser);
+
+      if (adminUser) {
+        setIsCycleRegistered(true);
+      } else if (sessionProf) {
+        const reg = await facultyApi
+          .registrationStatus()
+          .catch(() => ({ is_registered: false }));
+        setIsCycleRegistered(Boolean(reg.is_registered));
+      }
+
       try {
         const result = await observationApi.detail(numericId);
         setRecord(result);
         setResponses(result.responses ?? {});
         setIsDemoPreview(false);
       } catch {
-        const [session, profile, incoming, sent] = await Promise.all([
-          authApi.session().catch(() => ({ professor: null })),
+        const [profile, incoming, sent] = await Promise.all([
           facultyApi.profile().catch(() => null),
           matchingApi.incomingInvitations().catch(() => []),
           matchingApi.sentInvitations().catch(() => []),
         ]);
 
-        const currentUser = session?.professor;
-        const currentName = currentUser
-          ? `${currentUser.first_name} ${currentUser.last_name}`.trim() ||
-            currentUser.username
+        const currentName = sessionProf
+          ? `${sessionProf.first_name} ${sessionProf.last_name}`.trim() ||
+            sessionProf.username
           : "Professor A";
 
         const activeIncoming = (Array.isArray(incoming) ? incoming : []).find(
@@ -296,6 +321,18 @@ export default function S05ObservationRecord() {
     }
   };
 
+  const backDestination = isCommittee
+    ? "/committee/dashboard"
+    : isCycleRegistered
+    ? "/shared/faculty-dashboard"
+    : "/shared/current-past-observations";
+  const backTopLabel = isCycleRegistered
+    ? "← Back to Dashboard"
+    : "← Back to Observations";
+  const backBottomLabel = isCycleRegistered
+    ? "Return to Dashboard"
+    : "Return to Observations";
+
   if (loading) {
     return (
       <div className="dashboard-container">
@@ -320,8 +357,8 @@ export default function S05ObservationRecord() {
   return (
     <div className="dashboard-container">
       <div className="back-dashboard-wrapper">
-        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+        <Link to={backDestination} className="back-dashboard-link">
+          {backTopLabel}
         </Link>
       </div>
 
@@ -359,7 +396,8 @@ export default function S05ObservationRecord() {
       )}
       {record.locked && (
         <div className="s05-completed-banner" role="status">
-          This observation record has been signed by both participants and is now locked.
+          This observation record has been signed by both participants and is
+          now locked.
         </div>
       )}
       {!record.can_edit && !record.locked && record.status !== "cancelled" && (
@@ -599,8 +637,8 @@ export default function S05ObservationRecord() {
       </section>
 
       <div className="dashboard-center-action">
-        <Link to="/shared/faculty-dashboard" className="btn-secondary">
-          Return to Dashboard
+        <Link to={backDestination} className="btn-secondary">
+          {backBottomLabel}
         </Link>
       </div>
     </div>

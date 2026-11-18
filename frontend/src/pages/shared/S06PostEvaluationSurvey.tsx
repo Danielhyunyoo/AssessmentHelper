@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
+  authApi,
+  facultyApi,
   observationApi,
   surveyApi,
 } from "../../api/endpoints";
@@ -21,6 +23,8 @@ export default function S06PostEvaluationSurvey() {
     "observer" | "observee" | null
   >(null);
   const [supportingFile, setSupportingFile] = useState<File | null>(null);
+  const [isCommittee, setIsCommittee] = useState(false);
+  const [isCycleRegistered, setIsCycleRegistered] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,6 +51,22 @@ export default function S06PostEvaluationSurvey() {
       setError("");
 
       try {
+        const sessionData = await authApi
+          .session()
+          .catch(() => ({ professor: null }));
+        const sessionProf = sessionData?.professor ?? null;
+        const adminUser = sessionProf?.role === "admin";
+        setIsCommittee(adminUser);
+
+        if (adminUser) {
+          setIsCycleRegistered(true);
+        } else if (sessionProf) {
+          const reg = await facultyApi
+            .registrationStatus()
+            .catch(() => ({ is_registered: false }));
+          setIsCycleRegistered(Boolean(reg.is_registered));
+        }
+
         if (surveyId) {
           const result = await surveyApi.detail(Number(surveyId));
           setSurvey(result);
@@ -177,6 +197,18 @@ export default function S06PostEvaluationSurvey() {
   const displayDate = survey?.observation_datetime ?? record?.confirmed_datetime;
   const canEdit = survey ? survey.can_edit : Boolean(record && template);
 
+  const backDestination = isCommittee
+    ? "/committee/dashboard"
+    : isCycleRegistered
+    ? "/shared/faculty-dashboard"
+    : "/shared/current-past-observations";
+  const backTopLabel = isCycleRegistered
+    ? "← Back to Dashboard"
+    : "← Back to Observations";
+  const backBottomLabel = isCycleRegistered
+    ? "Return to Dashboard"
+    : "Return to Observations";
+
   if (loading) {
     return (
       <div className="dashboard-container">
@@ -199,8 +231,8 @@ export default function S06PostEvaluationSurvey() {
   return (
     <div className="dashboard-container">
       <div className="back-dashboard-wrapper">
-        <Link to="/shared/faculty-dashboard" className="back-dashboard-link">
-          ← Back to Dashboard
+        <Link to={backDestination} className="back-dashboard-link">
+          {backTopLabel}
         </Link>
       </div>
 
@@ -435,8 +467,8 @@ export default function S06PostEvaluationSurvey() {
       </section>
 
       <div className="dashboard-center-action">
-        <Link to="/shared/faculty-dashboard" className="btn-secondary">
-          Return to Dashboard
+        <Link to={backDestination} className="btn-secondary">
+          {backBottomLabel}
         </Link>
       </div>
     </div>
