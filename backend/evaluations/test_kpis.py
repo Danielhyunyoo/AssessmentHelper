@@ -136,4 +136,4 @@ class ProposalKpiTests(APITestCase):
         professor_c = next(c for c in pool if c["name"] == "Professor C")
         self.assertEqual(eligible, ["Professor B", "Professor D"])
         self.assertEqual([c["name"] for c in pool[:2]], eligible)
-        self.assertEqual(professor_c["problems"], ["does not teach a course at this level"])
+        self.assertEqual(professor_c["problems"], ["has not taught this course level in the last two years"])

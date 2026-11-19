@@ -128,7 +128,7 @@ export default function A07KpiOverview() {
       });
 
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
+      const pdf = new jsPDF("p", "mm", "letter");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
@@ -317,7 +317,7 @@ export default function A07KpiOverview() {
           </section>
 
           {/* 2. Rank Breakdowns Section */}
-          <section className="dashboard-phase report-page-break">
+          <section className="dashboard-phase">
             <div className="table-container theme-green summary-card-padding">
               <div className="a07-section-header">
                 <h3 className="kpi-section-heading a02-zero-margin">
@@ -433,7 +433,7 @@ export default function A07KpiOverview() {
           </section>
 
           {/* 3. Proposal KPIs Section */}
-          <section className="dashboard-phase report-page-break">
+          <section className="dashboard-phase">
             <div className="table-container theme-orange summary-card-padding">
               <div className="a07-section-header">
                 <h3 className="kpi-section-heading a02-zero-margin">
@@ -513,6 +513,12 @@ export default function A07KpiOverview() {
         >
           Print Report
         </button>
+      </div>
+
+      <div className="dashboard-center-action">
+        <Link to="/committee/dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
       </div>
     </div>
   );

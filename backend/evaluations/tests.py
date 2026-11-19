@@ -6,7 +6,7 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Course, Cycle, Department, Signup
+from .models import Course, Cycle, Department, EvaluationCarryForward, Signup
 
 User = get_user_model()
 
@@ -147,6 +147,38 @@ class EvaluationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["signup_id"], signup.signup_id)
         self.assertEqual(Signup.objects.count(), 1)
+
+    def test_carried_forward_professor_cannot_register_again(self):
+        signup = Signup.objects.create(user=self.professor, cycle=self.cycle)
+        spring = Cycle.objects.create(
+            semester="Spring 2027",
+            start_date=date.today() + timedelta(days=90),
+            end_date=date.today() + timedelta(days=180),
+            signup_deadline=date.today() + timedelta(days=100),
+            observation_deadline=date.today() + timedelta(days=150),
+            survey_deadline=date.today() + timedelta(days=170),
+            status="upcoming",
+        )
+        EvaluationCarryForward.objects.create(
+            source_signup=signup, target_cycle=spring,
+            reason="No observer available", created_by=self.other_professor,
+        )
+
+        reg = self.client.get("/api/registration/status/")
+        self.assertFalse(reg.data["is_registered"])
+        self.assertTrue(reg.data["carried_forward"])
+        self.assertEqual(reg.data["target_cycle"], "Spring 2027")
+
+        response = self.client.post("/api/signups/", {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "Your evaluation was moved to Spring 2027.")
+
+        response = self.client.patch(
+            "/api/signups/course/", {"course_id": self.course.course_id}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        signup.refresh_from_db()
+        self.assertIsNone(signup.course_id)
 
     def test_second_signup_with_another_course_is_rejected(self):
         Signup.objects.create(

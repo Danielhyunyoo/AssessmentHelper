@@ -1,7 +1,16 @@
 // src/pages/committee/A02FacultyMatching.tsx
 import { useEffect, useState } from "react";
-import { committeeApi, demoApi, facultyApi } from "../../api/endpoints";
-import type { Course, FacultyRow } from "../../api/types";
+import {
+  committeeApi,
+  demoApi,
+  facultyApi,
+} from "../../api/endpoints";
+import type {
+  Course,
+  FacultyRow,
+  Professor,
+  RegistrationStatus,
+} from "../../api/types";
 import { Link } from "react-router-dom";
 
 function formatDay(isoDate: string): string {
@@ -87,6 +96,124 @@ type ResolutionActionType =
   | "transfer_cycle"
   | "deny_request";
 
+export function clearA02DemoStorage(): void {
+  try {
+    localStorage.removeItem(PENDING_COURSE_CHANGE_KEY);
+    localStorage.removeItem(LEGACY_PENDING_COURSE_CHANGE_KEY);
+    localStorage.removeItem(APPROVED_COURSE_OVERRIDES_KEY);
+    localStorage.removeItem(CYCLE_TRANSFER_STORAGE_KEY);
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith("pending_course_change") ||
+          key.startsWith("a03_") ||
+          key.includes("cycle_transfer") ||
+          key.includes("carried_forward"))
+      ) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function getCarriedForwardRecordForUser(
+  user?: Professor | null,
+  registration?: RegistrationStatus | null
+): CycleTransferRecord | null {
+  if (!user || user.role === "admin") return null;
+
+  const userRec = user as unknown as Record<string, unknown>;
+  const regRec = (registration ?? {}) as unknown as Record<string, unknown>;
+
+  const rawId = userRec.user_id ?? userRec.id ?? userRec.faculty_id;
+  const numericId =
+    rawId !== undefined && rawId !== null ? Number(rawId) : null;
+
+  const fullName = `${user.first_name ?? ""} ${user.last_name ?? ""}`
+    .trim()
+    .toLowerCase();
+  const username = (user.username ?? "").trim().toLowerCase();
+
+  try {
+    const raw = localStorage.getItem(CYCLE_TRANSFER_STORAGE_KEY);
+    const transfers = raw
+      ? (JSON.parse(raw) as Record<string, CycleTransferRecord>)
+      : {};
+
+    for (const rec of Object.values(transfers)) {
+      if (rec.status !== "carried_forward") continue;
+
+      const matchesId =
+        numericId !== null &&
+        rec.faculty_id !== null &&
+        rec.faculty_id !== undefined &&
+        Number(rec.faculty_id) === numericId;
+
+      const recName = (rec.professor_name ?? "").trim().toLowerCase();
+      const matchesName =
+        Boolean(recName) &&
+        ((Boolean(fullName) && recName === fullName) ||
+          (Boolean(username) && recName === username));
+
+      if (matchesId || matchesName) {
+        return rec;
+      }
+    }
+  } catch {
+    // Ignore storage parse errors
+  }
+
+  const statusStr = String(
+    regRec.status ??
+      regRec.signup_status ??
+      regRec.evaluation_status ??
+      userRec.evaluation_status ??
+      ""
+  ).toLowerCase();
+
+  const backendCarriedForward =
+    Boolean(regRec.carried_forward) ||
+    Boolean(regRec.already_carried_forward) ||
+    Boolean(regRec.transferred_to_next_cycle) ||
+    statusStr === "carried_forward" ||
+    statusStr === "transferred" ||
+    statusStr === "deferred";
+
+  if (backendCarriedForward) {
+    return {
+      professor_name:
+        `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
+        user.username ||
+        "Faculty Member",
+      target_cycle:
+        typeof regRec.target_cycle === "string" && regRec.target_cycle.trim()
+          ? regRec.target_cycle
+          : "Next Evaluation Cycle",
+      note:
+        typeof regRec.carry_forward_reason === "string"
+          ? regRec.carry_forward_reason
+          : typeof regRec.reason === "string"
+          ? regRec.reason
+          : "",
+      transferred_at: new Date().toISOString(),
+      status: "carried_forward",
+    };
+  }
+
+  return null;
+}
+
+export function isUserTransferredToNextCycle(
+  user?: Professor | null,
+  registration?: RegistrationStatus | null
+): boolean {
+  return getCarriedForwardRecordForUser(user, registration) !== null;
+}
+
 function readApprovedCourseOverrides(): Record<string, ApprovedCourseOverride> {
   try {
     const raw = localStorage.getItem(APPROVED_COURSE_OVERRIDES_KEY);
@@ -119,6 +246,19 @@ function writeApprovedCourseOverride(
   }
 }
 
+function removeApprovedCourseOverride(professorName: string) {
+  try {
+    const existing = readApprovedCourseOverrides();
+    delete existing[professorName.toLowerCase()];
+    localStorage.setItem(
+      APPROVED_COURSE_OVERRIDES_KEY,
+      JSON.stringify(existing)
+    );
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 function normalizeRequestItem(
   raw: unknown,
   storageKey: string,
@@ -139,7 +279,7 @@ function normalizeRequestItem(
   const reqId =
     typeof obj.request_id === "string" && obj.request_id.trim()
       ? obj.request_id
-      : `${storageKey}::${profName}::${obj.requested_course_id}::${submittedAt}::${fallbackIndex}`;
+      : `${profName}::${obj.requested_course_id}::${submittedAt}::${fallbackIndex}`;
 
   return {
     request_id: reqId,
@@ -173,9 +313,10 @@ function normalizeRequestItem(
 function readAllPendingChangeRequests(): CourseChangeRequestItem[] {
   const collected: CourseChangeRequestItem[] = [];
   const seenIds = new Set<string>();
+  let migrated = false;
 
   try {
-    for (let i = 0; i < localStorage.length; i++) {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
       if (!key || !key.startsWith("pending_course_change")) continue;
 
@@ -198,6 +339,22 @@ function readAllPendingChangeRequests(): CourseChangeRequestItem[] {
           collected.push(item);
         }
       }
+
+      if (key !== PENDING_COURSE_CHANGE_KEY) {
+        migrated = true;
+        localStorage.removeItem(key);
+      }
+    }
+
+    if (migrated) {
+      if (collected.length > 0) {
+        localStorage.setItem(
+          PENDING_COURSE_CHANGE_KEY,
+          JSON.stringify(collected)
+        );
+      } else {
+        localStorage.removeItem(PENDING_COURSE_CHANGE_KEY);
+      }
     }
   } catch {
     // Ignore storage errors
@@ -211,64 +368,24 @@ function readAllPendingChangeRequests(): CourseChangeRequestItem[] {
 function deletePendingChangeRequest(
   targetReq: CourseChangeRequestItem
 ): CourseChangeRequestItem[] {
+  const existing = readAllPendingChangeRequests();
+  const next = existing.filter((norm) => {
+    const sameId =
+      targetReq.request_id && norm.request_id === targetReq.request_id;
+    const sameSignature =
+      norm.professor_name?.toLowerCase() ===
+        targetReq.professor_name?.toLowerCase() &&
+      norm.requested_course_id === targetReq.requested_course_id &&
+      norm.submitted_at === targetReq.submitted_at;
+    return !sameId && !sameSignature;
+  });
+
   try {
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (!key || !key.startsWith("pending_course_change")) continue;
-
-      const rawVal = localStorage.getItem(key);
-      if (!rawVal) continue;
-
-      const parsed = JSON.parse(rawVal);
-      if (Array.isArray(parsed)) {
-        const remaining = parsed.filter((entry, idx) => {
-          const norm = normalizeRequestItem(entry, key, idx);
-          if (!norm) return false;
-          const sameId =
-            targetReq.request_id && norm.request_id === targetReq.request_id;
-          const sameSignature =
-            norm.professor_name?.toLowerCase() ===
-              targetReq.professor_name?.toLowerCase() &&
-            norm.requested_course_id === targetReq.requested_course_id &&
-            norm.submitted_at === targetReq.submitted_at;
-          return !sameId && !sameSignature;
-        });
-
-        if (remaining.length > 0) {
-          localStorage.setItem(key, JSON.stringify(remaining));
-        } else {
-          localStorage.removeItem(key);
-        }
-      } else {
-        const norm = normalizeRequestItem(parsed, key, 0);
-        const sameId =
-          norm &&
-          targetReq.request_id &&
-          norm.request_id === targetReq.request_id;
-        const sameSignature =
-          norm &&
-          norm.professor_name?.toLowerCase() ===
-            targetReq.professor_name?.toLowerCase() &&
-          norm.requested_course_id === targetReq.requested_course_id &&
-          norm.submitted_at === targetReq.submitted_at;
-
-        if (
-          sameId ||
-          sameSignature ||
-          key === LEGACY_PENDING_COURSE_CHANGE_KEY
-        ) {
-          localStorage.removeItem(key);
-        }
-      }
-    }
-  } catch {
-    // Ignore storage errors
-  }
-
-  const next = readAllPendingChangeRequests();
-  try {
+    localStorage.removeItem(LEGACY_PENDING_COURSE_CHANGE_KEY);
     if (next.length > 0) {
       localStorage.setItem(PENDING_COURSE_CHANGE_KEY, JSON.stringify(next));
+    } else {
+      localStorage.removeItem(PENDING_COURSE_CHANGE_KEY);
     }
   } catch {
     // Ignore storage errors
@@ -278,67 +395,11 @@ function deletePendingChangeRequest(
   return next;
 }
 
-function readLocalConfirmedObserverMap(): Record<string, ConfirmedMatchInfo> {
-  const map: Record<string, ConfirmedMatchInfo> = {};
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      if (
-        key.includes("confirmed_observer") ||
-        key.includes("approved_observer") ||
-        key.includes("accepted_match")
-      ) {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        const items = Array.isArray(parsed)
-          ? parsed
-          : typeof parsed === "object" && parsed !== null
-          ? Object.values(parsed)
-          : [];
-        for (const item of items) {
-          if (!item || typeof item !== "object") continue;
-          const rec = item as Record<string, unknown>;
-          const observeeName =
-            typeof rec.observee_name === "string"
-              ? rec.observee_name
-              : typeof rec.professor_name === "string"
-              ? rec.professor_name
-              : null;
-          const observerName =
-            typeof rec.observer_name === "string"
-              ? rec.observer_name
-              : typeof rec.name === "string"
-              ? rec.name
-              : null;
-          if (observeeName && observerName) {
-            const k = observeeName.toLowerCase();
-            if (!map[k]) {
-              map[k] = {
-                confirmedObserverNames: [],
-                confirmedAt:
-                  typeof rec.confirmed_at === "string"
-                    ? rec.confirmed_at
-                    : undefined,
-              };
-            }
-            if (!map[k].confirmedObserverNames.includes(observerName)) {
-              map[k].confirmedObserverNames.push(observerName);
-            }
-          }
-        }
-      }
-    }
-  } catch {
-    // Ignore storage errors
-  }
-  return map;
-}
-
 export default function A02FacultyMatching() {
   const [observeeList, setObserveeList] = useState<FacultyRow[]>([]);
-  const [departmentFilter, setDepartmentFilter] = useState("Computer Science");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [confirmedDeptFilter, setConfirmedDeptFilter] = useState("");
+
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [candidateOptions, setCandidateOptions] = useState<
     Record<
@@ -360,11 +421,14 @@ export default function A02FacultyMatching() {
   >({});
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [savingSignupId, setSavingSignupId] = useState<number | null>(null);
+  const [cancellingSignupId, setCancellingSignupId] = useState<number | null>(
+    null
+  );
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
   const [matchError, setMatchError] = useState("");
   const [matchSuccess, setMatchSuccess] = useState("");
   const [showA03LinkBanner, setShowA03LinkBanner] = useState(false);
 
-  // Master-Detail active observee selection
   const [activeSignupId, setActiveSignupId] = useState<number | null>(null);
 
   const [matchSearchQuery, setMatchSearchQuery] = useState("");
@@ -372,10 +436,7 @@ export default function A02FacultyMatching() {
     "all" | "released" | "unreleased" | "pending_change"
   >("all");
   const [changeReqSearchQuery, setChangeReqSearchQuery] = useState("");
-
-  // Confirmed Section Search & Department Filter states
   const [confirmedSearchQuery, setConfirmedSearchQuery] = useState("");
-  const [confirmedDeptFilter, setConfirmedDeptFilter] = useState("");
 
   const [pendingChangeRequests, setPendingChangeRequests] = useState<
     CourseChangeRequestItem[]
@@ -561,16 +622,6 @@ export default function A02FacultyMatching() {
 
       const approvedOverrides = readApprovedCourseOverrides();
 
-      const eligibleObservees: FacultyRow[] = roster.faculty
-        .filter(
-          (faculty: FacultyRow) =>
-            faculty.signup_id !== null && faculty.course !== null
-        )
-        .map((faculty: FacultyRow) => {
-          const override = approvedOverrides[faculty.name.toLowerCase()];
-          return override ? { ...faculty, course: override.course } : faculty;
-        });
-
       const courseMap = new Map<number, Course>();
       (Array.isArray(coursesResp) ? coursesResp : []).forEach((c: Course) =>
         courseMap.set(c.course_id, c)
@@ -586,13 +637,22 @@ export default function A02FacultyMatching() {
         }
       });
       setAvailableCourses(Array.from(courseMap.values()));
+
+      const eligibleObservees: FacultyRow[] = roster.faculty
+        .filter(
+          (faculty: FacultyRow) =>
+            faculty.signup_id !== null && faculty.course !== null
+        )
+        .map((faculty: FacultyRow) => {
+          const override = approvedOverrides[faculty.name.toLowerCase()];
+          return override ? { ...faculty, course: override.course } : faculty;
+        });
+
       setObserveeList(eligibleObservees);
 
       const currentReqs = readAllPendingChangeRequests();
       setPendingChangeRequests(currentReqs);
-      if (currentReqs.length > 0) {
-        setHadRequestsThisSession(true);
-      }
+      setHadRequestsThisSession(currentReqs.length > 0);
       setReassignedCourseByReq((prev) => {
         const next = { ...prev };
         currentReqs.forEach((req, idx) => {
@@ -603,8 +663,6 @@ export default function A02FacultyMatching() {
         });
         return next;
       });
-
-      const localConfirmed = readLocalConfirmedObserverMap();
 
       const poolResults: [
         number,
@@ -624,8 +682,6 @@ export default function A02FacultyMatching() {
         eligibleObservees.map(async (faculty: FacultyRow) => {
           const signupId = faculty.signup_id!;
           const facultyRec = faculty as unknown as Record<string, unknown>;
-          const localInfo = localConfirmed[faculty.name.toLowerCase()];
-          const observeeRankTier = getRankTier(faculty.academic_rank);
 
           try {
             const result = (await committeeApi.candidatePool(
@@ -642,46 +698,7 @@ export default function A02FacultyMatching() {
                 }[])
               : [];
 
-            // Ensure rank & course-level eligibility rules are consistent
-            const candidates = rawCandidates
-              .map((cand) => {
-                const candTier = getRankTier(cand.academic_level);
-                const rawProblems = Array.isArray(cand.problems)
-                  ? cand.problems
-                  : [];
-
-                // Check if candidate's rank is strictly below the observee's rank
-                if (
-                  observeeRankTier > 0 &&
-                  candTier > 0 &&
-                  candTier < observeeRankTier
-                ) {
-                  const filtered = rawProblems.filter(
-                    (p) => !p.toLowerCase().includes("does not teach a course")
-                  );
-                  return {
-                    ...cand,
-                    eligible: false,
-                    problems: [
-                      `academic rank (${cand.academic_level}) is below observee (${faculty.academic_rank})`,
-                      ...filtered,
-                    ],
-                  };
-                }
-
-                // Clear false-positive course-level blocks when backend flagged a peer/senior professor
-                const nonCourseLevelProblems = rawProblems.filter(
-                  (p) => !p.toLowerCase().includes("does not teach a course")
-                );
-                const isEligible =
-                  nonCourseLevelProblems.length === 0 ? true : false;
-
-                return {
-                  ...cand,
-                  eligible: isEligible,
-                  problems: nonCourseLevelProblems,
-                };
-              })
+            const candidates = [...rawCandidates]
               .sort((a, b) => {
                 const aElig = a.eligible !== false ? 0 : 1;
                 const bElig = b.eligible !== false ? 0 : 1;
@@ -765,24 +782,19 @@ export default function A02FacultyMatching() {
               rosterStatus === "matched" ||
               rosterStatus === "scheduled" ||
               rosterStatus === "in_progress" ||
-              rosterStatus === "completed" ||
-              Boolean(localInfo);
+              rosterStatus === "completed";
 
             let confirmedInfo: ConfirmedMatchInfo | null = null;
             if (isConfirmed) {
               const mergedNames = Array.from(
-                new Set([
-                  ...rawConfirmedNames,
-                  ...candidateAcceptedNames,
-                  ...(localInfo?.confirmedObserverNames ?? []),
-                ])
+                new Set([...rawConfirmedNames, ...candidateAcceptedNames])
               );
               confirmedInfo = {
                 confirmedObserverNames: mergedNames,
                 confirmedAt:
                   typeof result.match_confirmed_at === "string"
                     ? result.match_confirmed_at
-                    : localInfo?.confirmedAt,
+                    : undefined,
               };
             }
 
@@ -797,7 +809,7 @@ export default function A02FacultyMatching() {
                 candidates: [],
                 releasedObserverIds: [],
                 releasedAt: null,
-                confirmedInfo: localInfo ?? null,
+                confirmedInfo: null,
               },
             ];
           }
@@ -852,6 +864,7 @@ export default function A02FacultyMatching() {
           return {};
         }
       })();
+      setTransferredObservees(queuedMap);
 
       const activePool = eligibleObservees.filter((f: FacultyRow) => {
         const sid = f.signup_id!;
@@ -895,9 +908,7 @@ export default function A02FacultyMatching() {
     const syncPending = () => {
       const latest = readAllPendingChangeRequests();
       setPendingChangeRequests(latest);
-      if (latest.length > 0) {
-        setHadRequestsThisSession(true);
-      }
+      setHadRequestsThisSession(latest.length > 0);
       try {
         const rawTransfers = localStorage.getItem(CYCLE_TRANSFER_STORAGE_KEY);
         setTransferredObservees(rawTransfers ? JSON.parse(rawTransfers) : {});
@@ -905,17 +916,85 @@ export default function A02FacultyMatching() {
         // Ignore storage errors
       }
     };
+
+    const handleDemoReset = () => {
+      clearA02DemoStorage();
+      setPendingChangeRequests([]);
+      setHadRequestsThisSession(false);
+      setTransferredObservees({});
+      setExpandedRequestIds({});
+      setResolutionActionByReq({});
+      setReassignedCourseByReq({});
+      setAcNoteByReq({});
+      setUnlockedSignupIds({});
+      setMatchStatusFilter("all");
+      setMatchSearchQuery("");
+      setChangeReqSearchQuery("");
+      setConfirmedSearchQuery("");
+      setShowA03LinkBanner(false);
+      setMatchError("");
+      setMatchSuccess("");
+      window.dispatchEvent(new Event("course-change-request-updated"));
+      window.dispatchEvent(new Event("cycle-transfers-updated"));
+      void loadMatchingData(() => cancelled);
+    };
+
     window.addEventListener("course-change-request-updated", syncPending);
+    window.addEventListener("cycle-transfers-updated", syncPending);
     window.addEventListener("notifications-changed", syncPending);
     window.addEventListener("storage", syncPending);
+    window.addEventListener("demo-reset", handleDemoReset);
 
     return () => {
       cancelled = true;
       window.removeEventListener("course-change-request-updated", syncPending);
+      window.removeEventListener("cycle-transfers-updated", syncPending);
       window.removeEventListener("notifications-changed", syncPending);
       window.removeEventListener("storage", syncPending);
+      window.removeEventListener("demo-reset", handleDemoReset);
     };
   }, []);
+
+  const handleCancelConfirmedMatch = async (
+    person: FacultyRow,
+    observerNames: string[]
+  ) => {
+    const signupId = person.signup_id!;
+    const observerSummary =
+      observerNames.length > 0 ? observerNames.join(", ") : "their observer";
+
+    setConfirmCancelId(null);
+
+    setCancellingSignupId(signupId);
+    setMatchError("");
+    setMatchSuccess("");
+    setShowA03LinkBanner(false);
+
+    try {
+      const result = await committeeApi.cancelMatch(signupId);
+      removeApprovedCourseOverride(person.name);
+
+      window.dispatchEvent(new Event("notifications-changed"));
+      await loadMatchingData();
+
+      const unmatchedObservers =
+        result.unmatched_observer_names.length > 0
+          ? result.unmatched_observer_names.join(", ")
+          : observerSummary;
+
+      setMatchSuccess(
+        `Cancelled confirmed match for ${person.name}. ${person.name} and ${unmatchedObservers} are now unmatched, and ${person.name}'s class selection has been cleared (they remain registered for the cycle).`
+      );
+    } catch (err) {
+      setMatchError(
+        err instanceof Error
+          ? err.message
+          : "Unable to cancel the confirmed pairing."
+      );
+    } finally {
+      setCancellingSignupId(null);
+    }
+  };
 
   const handleResolveChangeRequest = async (
     req: CourseChangeRequestItem,
@@ -1106,10 +1185,19 @@ export default function A02FacultyMatching() {
           status: "queued_for_a03",
         };
 
+        let latestTransfers: Record<string, CycleTransferRecord> = {};
+        try {
+          const raw = localStorage.getItem(CYCLE_TRANSFER_STORAGE_KEY);
+          latestTransfers = raw ? JSON.parse(raw) : {};
+        } catch {
+          latestTransfers = { ...transferredObservees };
+        }
+
         const updatedTransfers = {
-          ...transferredObservees,
+          ...latestTransfers,
           [observeeName.toLowerCase()]: transferRecord,
         };
+
         setTransferredObservees(updatedTransfers);
         try {
           localStorage.setItem(
@@ -1182,7 +1270,9 @@ export default function A02FacultyMatching() {
       }));
       setUnlockedSignupIds((prev) => ({ ...prev, [signupId]: false }));
       setMatchSuccess(
-        `Released ${observerIds.length} observer${observerIds.length === 1 ? "" : "s"} to ${observeeName}. They have been notified.`
+        `Released ${observerIds.length} observer${
+          observerIds.length === 1 ? "" : "s"
+        } to ${observeeName}. They have been notified.`
       );
     } catch (err) {
       setMatchError(
@@ -1244,15 +1334,20 @@ export default function A02FacultyMatching() {
       validObservees.map((person) => person.department).filter(Boolean)
     ),
   ].sort() as string[];
-  const shownDepartment = departments.includes(departmentFilter)
-    ? departmentFilter
-    : "";
+
+  const activeDeptSelection =
+    departmentFilter && departments.includes(departmentFilter)
+      ? departmentFilter
+      : "";
   const shownActive = activeObservees.filter(
-    (person) => !shownDepartment || person.department === shownDepartment
+    (person) =>
+      !activeDeptSelection || person.department === activeDeptSelection
   );
-  const shownConfirmed = confirmedObservees.filter(
-    (person) => !shownDepartment || person.department === shownDepartment
-  );
+
+  const confirmedDeptSelection =
+    confirmedDeptFilter && departments.includes(confirmedDeptFilter)
+      ? confirmedDeptFilter
+      : "";
 
   const releasedCount = shownActive.filter((p) =>
     Boolean(releasedAt[p.signup_id!])
@@ -1294,7 +1389,7 @@ export default function A02FacultyMatching() {
     );
   });
 
-  const filteredConfirmedObservees = shownConfirmed.filter((person) => {
+  const filteredConfirmedObservees = confirmedObservees.filter((person) => {
     const sid = person.signup_id!;
     const confirmedInfo = confirmedBySignupId[sid];
     const candidates = candidateOptions[sid] ?? [];
@@ -1307,7 +1402,7 @@ export default function A02FacultyMatching() {
             .filter((c) => selectedIds.includes(c.id))
             .map((c) => c.name);
 
-    if (confirmedDeptFilter && person.department !== confirmedDeptFilter) {
+    if (confirmedDeptSelection && person.department !== confirmedDeptSelection) {
       return false;
     }
 
@@ -1358,7 +1453,8 @@ export default function A02FacultyMatching() {
 
         <div className="committee-page-header-meta">
           <span className="status-chip chip-draft">
-            {shownActive.length} ACTIVE, {shownConfirmed.length} CONFIRMED
+            {shownActive.length} ACTIVE, {filteredConfirmedObservees.length}{" "}
+            CONFIRMED
           </span>
           {queuedForA03Count > 0 && (
             <Link to="/committee/unmatched-observees" className="btn-secondary">
@@ -1560,7 +1656,8 @@ export default function A02FacultyMatching() {
                             onChange={(e) =>
                               setResolutionActionByReq((prev) => ({
                                 ...prev,
-                                [reqKey]: e.target.value as ResolutionActionType,
+                                [reqKey]: e.target
+                                  .value as ResolutionActionType,
                               }))
                             }
                             disabled={isProcessingThis}
@@ -1572,8 +1669,7 @@ export default function A02FacultyMatching() {
                               Approve course and keep current observers
                             </option>
                             <option value="reassign_course">
-                              Reassign to different course and select
-                              observers
+                              Reassign to different course and select observers
                             </option>
                             <option value="transfer_cycle">
                               Move to Unmatched Observees (A03) for next cycle
@@ -1745,7 +1841,6 @@ export default function A02FacultyMatching() {
         </div>
 
         <div className="table-container theme-blue summary-card-padding">
-          {/* Polished Search & Status Filter Toolbar */}
           <div className="a02-match-toolbar a02-toolbar-flush">
             <div className="a02-search-field">
               <SearchIcon />
@@ -1773,7 +1868,7 @@ export default function A02FacultyMatching() {
               <select
                 aria-label="Filter matched lists by department"
                 className="slot-select-input a02-status-filter"
-                value={shownDepartment}
+                value={activeDeptSelection}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
               >
                 <option value="">All Departments</option>
@@ -1856,7 +1951,8 @@ export default function A02FacultyMatching() {
 
           {shownActive.length === 0 ? (
             <p className="font-slate font-sm a02-zero-margin">
-              All active observees have confirmed their observer matches.
+              All active observees in this view have confirmed their observer
+              matches.
             </p>
           ) : filteredObservees.length === 0 ? (
             <p className="font-slate font-sm a02-zero-margin">
@@ -1864,7 +1960,6 @@ export default function A02FacultyMatching() {
             </p>
           ) : (
             <div className="a02-split-workspace">
-              {/* LEFT COLUMN: Clean Compact Roster */}
               <div className="a02-roster-column">
                 <div className="a02-column-header">
                   <span className="a02-column-title">Observee Roster</span>
@@ -1932,7 +2027,6 @@ export default function A02FacultyMatching() {
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: Streamlined Inspector & Assignment Panel */}
               <div className="a02-inspector-column">
                 <div className="a02-column-header">
                   <span className="a02-column-title">
@@ -2142,7 +2236,8 @@ export default function A02FacultyMatching() {
                                     disabled={
                                       savingSignupId === signupId ||
                                       (!selectedIds.includes(candidate.id) &&
-                                        selectedIds.length >= 5)
+                                        (selectedIds.length >= 5 ||
+                                          candidate.eligible === false))
                                     }
                                   />
                                   <span style={{ flex: 1 }}>
@@ -2218,7 +2313,7 @@ export default function A02FacultyMatching() {
       </section>
 
       {/* 4. Confirmed Observer Matches */}
-      {shownConfirmed.length > 0 && (
+      {confirmedObservees.length > 0 && (
         <section className="dashboard-phase section-margin-top">
           <div className="a02-section-header-bar">
             <div className="a02-section-title-group">
@@ -2269,7 +2364,7 @@ export default function A02FacultyMatching() {
                 <select
                   aria-label="Filter confirmed matches by department"
                   className="slot-select-input a02-status-filter"
-                  value={confirmedDeptFilter}
+                  value={confirmedDeptSelection}
                   onChange={(e) => setConfirmedDeptFilter(e.target.value)}
                 >
                   <option value="">All Departments</option>
@@ -2301,6 +2396,7 @@ export default function A02FacultyMatching() {
                       : candidates
                           .filter((c) => selectedIds.includes(c.id))
                           .map((c) => c.name);
+                  const isCancelling = cancellingSignupId === sid;
 
                   return (
                     <div key={sid} className="a02-confirmed-row">
@@ -2334,13 +2430,61 @@ export default function A02FacultyMatching() {
                         </div>
                       </div>
 
-                      <div className="a02-confirmed-meta">
+                      <div
+                        className="a02-confirmed-meta"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.65rem",
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <span className="status-chip chip-draft a02-status-nowrap">
                           Match Confirmed
                           {confirmedInfo?.confirmedAt
                             ? ` · ${formatDay(confirmedInfo.confirmedAt)}`
                             : ""}
                         </span>
+
+                        {confirmCancelId === person.signup_id ? (
+                          <>
+                            <span className="font-sm">
+                              Both become unmatched and {person.name} picks a
+                              course again.
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              disabled={isCancelling}
+                              onClick={() =>
+                                void handleCancelConfirmedMatch(
+                                  person,
+                                  displayObservers
+                                )
+                              }
+                            >
+                              {isCancelling ? "Cancelling..." : "Yes, cancel match"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => setConfirmCancelId(null)}
+                            >
+                              Keep
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={isCancelling}
+                            onClick={() =>
+                              setConfirmCancelId(person.signup_id ?? null)
+                            }
+                          >
+                            Cancel Match & Clear Class
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

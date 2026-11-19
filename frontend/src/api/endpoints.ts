@@ -70,6 +70,7 @@ export const committeeApi = {
   updateCycleDates: (dates: Partial<CycleDates>) => patch<CycleDates>("/committee/cycle-dates/", dates),
   candidatePool: (signupId:number) => get<JsonObject>(`/committee/signups/${signupId}/candidate-pool/`),
   releaseCandidates: (signupId:number,observer_ids:number[]) => post<JsonObject>(`/committee/signups/${signupId}/release-candidates/`,{observer_ids}),
+  cancelMatch: (signupId: number) => post<{ cancelled: boolean; observee_id: number; observee_name: string; unmatched_observer_ids: number[]; unmatched_observer_names: string[] }>(`/committee/signups/${signupId}/cancel-match/`, {}),
   unmatched: () => get<JsonObject>("/committee/unmatched/"),
   carryForwards: () => get<JsonObject>("/committee/carry-forwards/"),
   carryForward: (signup_ids:number[],target_cycle_id:number,reason:string) => post<JsonObject>("/committee/carry-forwards/create/",{signup_ids,target_cycle_id,reason}),

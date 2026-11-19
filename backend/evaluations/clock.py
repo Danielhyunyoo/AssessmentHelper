@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.core.cache import cache
 from django.utils import timezone
 
@@ -28,4 +30,5 @@ def now():
     simulated = simulated_date()
     if simulated is None:
         return real_now
-    return real_now + (simulated - timezone.localdate(real_now))
+    local = timezone.localtime(real_now)
+    return timezone.make_aware(datetime.combine(simulated, local.time().replace(tzinfo=None)))

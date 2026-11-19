@@ -228,7 +228,7 @@ export default function A04FacultyRoster() {
       <a
         href={`mailto:${email}`}
         title={`Email ${name} (${email})`}
-        className="a04-email-pill-btn"
+        className="btn-pill-blue"
       >
         <span aria-hidden="true">✉</span>
         <span>Email</span>
@@ -250,9 +250,6 @@ export default function A04FacultyRoster() {
         <div className="committee-page-title-block">
           <div className="committee-page-title-row">
             <h2>Faculty Registration and Communications</h2>
-            <span className="status-chip chip-draft">
-              {filteredFaculty.length} FACULTY
-            </span>
           </div>
         </div>
       </div>
@@ -649,6 +646,12 @@ export default function A04FacultyRoster() {
           </div>
         </div>
       </section>
+
+      <div className="dashboard-center-action">
+        <Link to="/committee/dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
+      </div>
 
       {/* Faculty Profile Quick-View Modal */}
       {selectedMember && (

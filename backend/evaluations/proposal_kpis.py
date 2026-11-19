@@ -15,18 +15,18 @@ SCHEDULE = re.compile(r"^\s*([MTWRFSU]+)\s+(\d{1,2}:\d{2}\s*[AP]M)\s*-\s*(\d{1,2
 PROBLEM_TEXT = {
     "self": "is the observee",
     "department": "is in another department",
-    "level": "does not teach a course at this level",
+    "level": "has not taught this course level in the last two years",
     "schedule": "teaches at the same time",
 }
 
 DEFINITIONS = {
     "eligibility_accuracy": (
         "KPI-01 Eligibility Accuracy",
-        "Recommended observers who are not the observee, are in the same department, teach the same "
-        "course level, and have no class at the same time ÷ all recommended observers.",
+        "Recommended observers who are not the observee, are in the same department, taught the same "
+        "course level in the last two years, and have no class at the same time ÷ all recommended observers.",
     ),
     "list_sufficiency": ("KPI-02 List Sufficiency", "Eligible candidates per released list, counting at most 5."),
-    "participation_rate": ("KPI-03 Participation Rate", "Due or overdue faculty who signed up ÷ due or overdue faculty."),
+    "participation_rate": ("KPI-03 Participation Rate", "Faculty who signed up ÷ faculty who are due, overdue, or already observed this cycle."),
     "overdue_count": ("KPI-04 Overdue Count", "Faculty past their due year without a completed observation."),
     "observer_utilization": ("KPI-05 Observer Utilization Rate", "Observers in confirmed pairings ÷ faculty who signed up."),
     "missing_observations": (
@@ -68,7 +68,8 @@ def recommendation_problems(observee, course, observer, observer_courses):
         problems.append("department")
     if not any(c.course_level == course.course_level and c.department_id == course.department_id for c in observer_courses):
         problems.append("level")
-    if any(overlaps(c.schedule, course.schedule) for c in observer_courses):
+    current = [c for c in observer_courses if c.semester == course.semester and c.year == course.year]
+    if any(overlaps(c.schedule, course.schedule) for c in current):
         problems.append("schedule")
     return problems
 
@@ -93,7 +94,7 @@ def proposal_kpis(cycle, statuses):
     owed |= completed_observees & set(statuses)
 
     courses_by_instructor = defaultdict(list)
-    for course in Course.objects.filter(semester=term, year=year):
+    for course in Course.objects.filter(year__gte=year - 2, year__lte=year):
         courses_by_instructor[course.instructor_id].append(course)
 
     released = [s for s in signups if s.course_id and s.matches_released_at]

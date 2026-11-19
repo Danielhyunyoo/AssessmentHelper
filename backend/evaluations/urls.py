@@ -32,6 +32,7 @@ urlpatterns += [
 urlpatterns += [
     path("committee/signups/<int:signup_id>/candidate-pool/", views.committee_candidate_pool, name="committee-candidate-pool"),
     path("committee/signups/<int:signup_id>/release-candidates/", views.committee_release_candidates, name="committee-release-candidates"),
+    path("committee/signups/<int:signup_id>/cancel-match/", views.committee_cancel_match, name="committee-cancel-match"),
     path("matches/", views.my_matched_candidates, name="my-matches"),
     path("invitations/", views.my_sent_invitations, name="sent-invitations"),
     path("invitations/send/", views.send_invitation, name="send-invitation"),

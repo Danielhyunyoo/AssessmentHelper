@@ -26,7 +26,16 @@ function clearDemoLocalState() {
     key.startsWith("faculty_planner_") ||
     key.startsWith("profile_photo_") ||
     key === "cleared_notification_ids" ||
-    key === "manual_unread_notification_ids";
+    key === "manual_unread_notification_ids" ||
+    key === "observer_availability_v1" ||
+    key === "pending_course_change_request" ||
+    key === "ac_approved_course_overrides" ||
+    key === "ac_cycle_transfers" ||
+    key === "s01_checklist_open_v1" ||
+    key === "s01_faculty_module_guide_open" ||
+    key === "s01_committee_module_guide_open" ||
+    key === "a01_committee_module_guide_open" ||
+    key === "s04_role_checklist_manual_v1";
 
   try {
     Object.keys(localStorage)
@@ -45,6 +54,8 @@ function clearDemoLocalState() {
   }
 
   window.dispatchEvent(new Event("profile-changed"));
+  window.dispatchEvent(new Event("observer-availability-changed"));
+  window.dispatchEvent(new Event("course-change-request-updated"));
   window.dispatchEvent(new Event("demo-reset"));
 }
 
@@ -189,6 +200,10 @@ export default function DevBar() {
           label: "S06 - Post-Evaluation Survey",
           path: "/shared/post-evaluation-survey?pairingId=1",
           matchPrefix: "/shared/post-evaluation-survey",
+        },
+        {
+          label: "S07 - Contact Committee",
+          path: "/shared/contact-committee",
         },
       ],
     },
@@ -565,19 +580,19 @@ export default function DevBar() {
                   <span>2</span> Register for the evaluation cycle.
                 </li>
                 <li>
-                  <span>3</span> Select course &amp; submit observation dates.
+                  <span>3</span> Select course and submit observation dates.
                 </li>
                 <li>
                   <span>4</span> Sign in as Assessment Committee.
                 </li>
                 <li>
-                  <span>5</span> Review matching &amp; release candidates.
+                  <span>5</span> Review matching and release candidates.
                 </li>
                 <li>
-                  <span>6</span> Sign in as observee &amp; pick observer.
+                  <span>6</span> Sign in as observee and pick observer.
                 </li>
                 <li>
-                  <span>7</span> Complete record &amp; submit signatures.
+                  <span>7</span> Complete record and submit signatures.
                 </li>
                 <li>
                   <span>8</span> Advance demo date past observation deadline.
@@ -586,7 +601,7 @@ export default function DevBar() {
                   <span>9</span> Submit process surveys.
                 </li>
                 <li>
-                  <span>10</span> Review survey tracking &amp; KPIs.
+                  <span>10</span> Review survey tracking and KPIs.
                 </li>
               </ol>
             )}

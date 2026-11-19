@@ -1,17 +1,21 @@
 // src/components/Header.tsx
+import { getInitials } from "../utils/faculty";
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import darkModeLogo from "../assets/dark_mode_logo.png";
+import utdLogo from "../assets/icons/utd_logo.png";
 import { authApi, facultyApi } from "../api/endpoints";
 import type { Notification, Professor } from "../api/types";
 import {
   hasUnseenCommitteeMessages,
   isCommitteeAccount,
 } from "../pages/shared/S07ContactCommittee";
+import { isUserTransferredToNextCycle } from "../pages/committee/A02FacultyMatching";
 
 interface NotificationPreview {
   id: string;
   title: string;
+  message: string;
+  destination: string;
   time: string;
   unread: boolean;
 }
@@ -25,17 +29,14 @@ function HomeShortcutIcon() {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      {/* Roof overhang */}
       <path
         className="icon-stroke-primary"
         d="M3.5 13.5L14 5L24.5 13.5"
       />
-      {/* House walls */}
       <path
         className="icon-stroke-primary"
         d="M6.5 12V21.5C6.5 22.05 6.95 22.5 7.5 22.5H20.5C21.05 22.5 21.5 22.05 21.5 21.5V12"
       />
-      {/* Doorway only filled */}
       <path
         className="icon-fill-orange icon-stroke-primary"
         d="M11.5 22.5V16.2C11.5 15.54 12.04 15 12.7 15H15.3C15.96 15 16.5 15.54 16.5 16.2V22.5"
@@ -53,12 +54,10 @@ function ContactCommitteeIcon({ active = false }: { active?: boolean }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      {/* Top flap only filled */}
       <path
         className="icon-fill-green"
         d="M4.2 7.4C4.6 6.85 5.25 6.5 6 6.5H22C22.75 6.5 23.4 6.85 23.8 7.4L14.9 14.4C14.37 14.82 13.63 14.82 13.1 14.4L4.2 7.4Z"
       />
-      {/* Envelope outer frame */}
       <rect
         className="icon-stroke-primary"
         x="3.5"
@@ -67,12 +66,10 @@ function ContactCommitteeIcon({ active = false }: { active?: boolean }) {
         height="15"
         rx="3"
       />
-      {/* Envelope flap crease */}
       <path
         className="icon-stroke-primary"
         d="M4.3 7.6L13.1 14.4C13.63 14.82 14.37 14.82 14.9 14.4L23.7 7.6"
       />
-      {/* Red unread message indicator dot */}
       {active && (
         <circle
           className="icon-unread-dot"
@@ -94,19 +91,15 @@ function BellShortcutIcon({ active }: { active: boolean }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      {/* Clean bell outline */}
       <path
         className="icon-stroke-primary"
         d="M14 5.5C9.86 5.5 6.8 8.65 6.8 12.7V16.8L4.8 19.2C4.45 19.62 4.75 20.25 5.3 20.25H22.7C23.25 20.25 23.55 19.62 23.2 19.2L21.2 16.8V12.7C21.2 8.65 18.14 5.5 14 5.5Z"
       />
-      {/* Top finial */}
       <path className="icon-stroke-primary" d="M14 3.5V5.5" />
-      {/* Clapper */}
       <path
         className="icon-stroke-primary"
         d="M11.2 21C11.65 22.35 12.72 23.25 14 23.25C15.28 23.25 16.35 22.35 16.8 21"
       />
-      {/* Red unread indicator dot */}
       {active && (
         <circle
           className="icon-unread-dot"
@@ -128,21 +121,18 @@ function ProfileShortcutIcon() {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      {/* Outer ring */}
       <circle
         className="icon-stroke-primary"
         cx="14"
         cy="14"
         r="10.2"
       />
-      {/* Person head shaded */}
       <circle
         className="icon-fill-green icon-stroke-primary"
         cx="14"
         cy="11.1"
         r="3.3"
       />
-      {/* Person shoulders shaded */}
       <path
         className="icon-fill-green icon-stroke-primary"
         d="M7.9 21.7C9.1 18.6 11.3 17.1 14 17.1C16.7 17.1 18.9 18.6 20.1 21.7C18.4 23.2 16.3 24.1 14 24.1C11.7 24.1 9.6 23.2 7.9 21.7Z"
@@ -160,7 +150,6 @@ function MenuShortcutIcon() {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      {/* Subtle accent pill behind middle line */}
       <rect
         className="icon-fill-orange"
         x="4.5"
@@ -174,13 +163,6 @@ function MenuShortcutIcon() {
       <path className="icon-stroke-primary" d="M5 19.5H23" />
     </svg>
   );
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0 || !parts[0]) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 function getStoredUserPhoto(user: Professor | null): string {
@@ -215,6 +197,9 @@ export default function Header() {
   const profileRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<NotificationPreview[]>([]);
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
+  const [isCycleRegistered, setIsCycleRegistered] = useState<boolean>(false);
+  const [isTransferredToNextCycle, setIsTransferredToNextCycle] =
+    useState<boolean>(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [headerError, setHeaderError] = useState("");
@@ -223,6 +208,8 @@ export default function Header() {
   const isLoggedIn = currentUser !== null;
   const isCommitteeUser = isCommitteeAccount(currentUser);
   const isFacultyUser = isLoggedIn && !isCommitteeUser;
+  const hasFullPortalAccess =
+    isCommitteeUser || (isCycleRegistered && !isTransferredToNextCycle);
 
   const customAvatarUrl = !avatarFailed ? getStoredUserPhoto(currentUser) : "";
   const hasCustomAvatar = Boolean(customAvatarUrl);
@@ -311,7 +298,8 @@ export default function Header() {
       setHeaderError("Unable to mark this notification as read.");
     } finally {
       closeAllMenus();
-      navigate("/shared/notifications");
+      const target = notifications.find((n) => n.id === id)?.destination;
+      navigate(target?.startsWith("/") ? target : "/shared/notifications");
     }
   };
 
@@ -330,6 +318,8 @@ export default function Header() {
     } finally {
       closeAllMenus();
       setCurrentUser(null);
+      setIsCycleRegistered(false);
+      setIsTransferredToNextCycle(false);
       setHasUnreadMessages(false);
       setAvatarFailed(false);
       navigate("/login/signin", { replace: true });
@@ -387,14 +377,22 @@ export default function Header() {
           setHasUnreadMessages(false);
           setBackendUnreadCount(0);
           setCurrentUser(null);
+          setIsCycleRegistered(false);
+          setIsTransferredToNextCycle(false);
           setAvatarFailed(false);
           return;
         }
 
-        const [notificationResponse, profileResponse] = await Promise.all([
-          facultyApi.notifications(),
-          facultyApi.profile(),
-        ]);
+        const [notificationResponse, profileResponse, regResponse] =
+          await Promise.all([
+            facultyApi.notifications(),
+            facultyApi.profile(),
+            isCommitteeAccount(professor)
+              ? Promise.resolve({ is_registered: true })
+              : facultyApi.registrationStatus().catch(() => ({
+                  is_registered: false,
+                })),
+          ]);
 
         if (cancelled) return;
 
@@ -434,6 +432,8 @@ export default function Header() {
           previews.map((n) => ({
             id: String(n.notification_id),
             title: n.title,
+            message: n.message,
+            destination: n.destination,
             time: new Date(n.created_at).toLocaleString([], {
               month: "short",
               day: "numeric",
@@ -444,10 +444,17 @@ export default function Header() {
           }))
         );
 
+        const transferred = isUserTransferredToNextCycle(
+          resolvedUser,
+          regResponse as never
+        );
+
         setHasUnreadNotifications(totalUnread > 0);
         setBackendUnreadCount(totalUnread);
         setAvatarFailed(false);
         setCurrentUser(resolvedUser);
+        setIsTransferredToNextCycle(transferred);
+        setIsCycleRegistered(Boolean(regResponse.is_registered) && !transferred);
         setHasUnreadMessages(hasUnseenCommitteeMessages(resolvedUser));
         setHeaderError("");
       } catch {
@@ -461,12 +468,16 @@ export default function Header() {
 
     window.addEventListener("notifications-changed", loadHeaderData);
     window.addEventListener("profile-changed", loadHeaderData);
+    window.addEventListener("registration-changed", loadHeaderData);
+    window.addEventListener("cycle-transfers-updated", loadHeaderData);
     window.addEventListener("demo-reset", loadHeaderData);
 
     return () => {
       cancelled = true;
       window.removeEventListener("notifications-changed", loadHeaderData);
       window.removeEventListener("profile-changed", loadHeaderData);
+      window.removeEventListener("registration-changed", loadHeaderData);
+      window.removeEventListener("cycle-transfers-updated", loadHeaderData);
       window.removeEventListener("demo-reset", loadHeaderData);
     };
   }, [location.pathname]);
@@ -483,7 +494,7 @@ export default function Header() {
         )}
 
         <div id="logo">
-          <img src={darkModeLogo} alt="UTD Logo" className="header-logo" />
+          <img src={utdLogo} alt="UTD Logo" className="header-logo" />
           <h1>UTD Assessment Helper</h1>
         </div>
 
@@ -554,6 +565,7 @@ export default function Header() {
                         >
                           {n.title}
                         </p>
+                        <p className="notif-item-message">{n.message}</p>
                         <span
                           className={`notif-item-time ${
                             n.unread ? "text-unread" : "text-read"
@@ -578,25 +590,6 @@ export default function Header() {
                     View All Notifications
                   </button>
 
-                  <div className="notif-sim-row">
-                    <label className="notif-sim-label">
-                      <input
-                        type="checkbox"
-                        checked={hasUnreadNotifications}
-                        onChange={(e) => {
-                          setHasUnreadNotifications(e.target.checked);
-                          if (e.target.checked) {
-                            setNotifications((prev) =>
-                              prev.map((n, i) =>
-                                i < 2 ? { ...n, unread: true } : n
-                              )
-                            );
-                          }
-                        }}
-                      />
-                      <span>Simulate Active Bell Dot</span>
-                    </label>
-                  </div>
                 </div>
               </div>
             )}
@@ -651,7 +644,9 @@ export default function Header() {
                         : "Loading profile..."}
                     </h4>
                     <p className="profile-popover-role">
-                      {currentUser?.academic_level || currentUser?.role || ""}
+                      {!hasFullPortalAccess
+                        ? "Unregistered"
+                        : currentUser?.academic_level || currentUser?.role || ""}
                     </p>
                   </div>
                 </div>
@@ -670,10 +665,23 @@ export default function Header() {
                     Profile Settings
                   </button>
 
+                  {!hasFullPortalAccess && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeAllMenus();
+                        navigate("/login/signin2");
+                      }}
+                      className="menu-item-hover profile-link-btn"
+                    >
+                      View Registration Status
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => void handleSignOut()}
-                    className="menu-item-hover menu-signout-item profile-link-btn profile-signout-btn"
+                    className="menu-item-hover profile-link-btn profile-signout-btn"
                   >
                     Sign Out
                   </button>
@@ -709,6 +717,13 @@ export default function Header() {
             </div>
 
             <div className="menu-body">
+              <div className="menu-section">
+                <h4>Home</h4>
+                <Link to="/" onClick={closeAllMenus}>
+                  Portal Home
+                </Link>
+              </div>
+
               {isCommitteeUser && (
                 <>
                   <div className="menu-section">
@@ -793,7 +808,28 @@ export default function Header() {
                 </>
               )}
 
-              {isFacultyUser && (
+              {isFacultyUser && !hasFullPortalAccess && (
+                <div className="menu-section">
+                  <h4>Cycle Access</h4>
+                  <Link to="/login/signin2" onClick={closeAllMenus}>
+                    Register for Current Cycle
+                  </Link>
+                  <Link
+                    to="/shared/current-past-observations"
+                    onClick={closeAllMenus}
+                  >
+                    Current and Past Observations
+                  </Link>
+                  <Link
+                    to="/observer/observation-request"
+                    onClick={closeAllMenus}
+                  >
+                    Observation Requests
+                  </Link>
+                </div>
+              )}
+
+              {isFacultyUser && hasFullPortalAccess && (
                 <>
                   <div className="menu-section">
                     <h4>Dashboard</h4>
@@ -841,7 +877,7 @@ export default function Header() {
                 </>
               )}
 
-              {isLoggedIn && (
+              {isLoggedIn && hasFullPortalAccess && (
                 <div className="menu-section">
                   <h4>Shared Records</h4>
                   <Link

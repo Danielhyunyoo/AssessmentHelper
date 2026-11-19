@@ -6,7 +6,8 @@ export interface Column<T> {
   header: string;
   accessor?: keyof T; // Key from SQL data object (e.g. "observerName")
   render?: (row: T, index: number) => React.ReactNode; // Custom cell renderer (inputs/buttons)
-  width?: string;
+  /** CSS class applied to the column header (for widths or alignment). */
+  headerClassName?: string;
 }
 
 interface DataTableProps<T> {
@@ -34,7 +35,7 @@ export default function DataTable<T extends Record<string, any>>({
           <thead>
             <tr>
               {columns.map((col, idx) => (
-                <th key={idx} style={{ width: col.width }}>
+                <th key={idx} className={col.headerClassName}>
                   {col.header}
                 </th>
               ))}

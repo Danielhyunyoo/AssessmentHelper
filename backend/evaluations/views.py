@@ -1,5 +1,6 @@
 from io import StringIO
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
 from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -246,7 +247,7 @@ def notify_course_selected(signup):
         title="Course selection saved",
         message=f"{signup.course} is your course for the {signup.cycle.semester} evaluation cycle.",
         type="registration",
-        destination="/dashboard",
+        destination="/observee/course-selection",
     )
 
 
@@ -303,12 +304,28 @@ def my_courses(request):
     return Response(CourseSerializer(courses, many=True).data)
 
 
+def carried_forward_to(signup):
+    if signup is None:
+        return None
+    try:
+        return signup.carry_forward.target_cycle
+    except ObjectDoesNotExist:
+        return None
+
+
+def reject_carried_forward(signup):
+    target = carried_forward_to(signup)
+    if target is not None:
+        raise ValidationError({"detail": f"Your evaluation was moved to {target.semester}."})
+
+
 @api_view(["GET"])
 def registration_status(request):
     """Return registration and course-selection state for the active cycle."""
     professor = get_current_professor(request)
     cycle = get_current_cycle()
     signup = Signup.objects.filter(user=professor, cycle=cycle).first()
+    moved_to = carried_forward_to(signup)
     return Response({
         "cycle_id": cycle.pk,
         "cycle_name": cycle.semester,
@@ -317,7 +334,9 @@ def registration_status(request):
         "signup_deadline": cycle.signup_deadline,
         "observation_deadline": cycle.observation_deadline,
         "survey_deadline": cycle.survey_deadline,
-        "is_registered": signup is not None,
+        "is_registered": signup is not None and moved_to is None,
+        "carried_forward": moved_to is not None,
+        "target_cycle": moved_to.semester if moved_to else None,
         "has_selected_course": bool(signup and signup.course_id),
         "selected_course_id": signup.course_id if signup else None,
         "today": clock.today(),
@@ -338,8 +357,9 @@ def create_signup(request):
     if course_id is not None:
         course = get_object_or_404(current_courses(professor, cycle), pk=course_id)
 
-    already_registered = Signup.objects.filter(user=professor, cycle=cycle).exists()
-    if not already_registered and clock.today() > cycle.signup_deadline:
+    existing = Signup.objects.filter(user=professor, cycle=cycle).first()
+    reject_carried_forward(existing)
+    if existing is None and clock.today() > cycle.signup_deadline:
         raise ValidationError({"detail": "The signup deadline has passed. Contact the Assessment Committee to register late."})
 
     # get_or_create honors unique_user_cycle_signup, including concurrent clicks.
@@ -367,6 +387,7 @@ def select_signup_course(request):
     signup = Signup.objects.filter(user=professor, cycle=cycle).first()
     if signup is None:
         raise ValidationError({"detail": "Register for the cycle before selecting a course."})
+    reject_carried_forward(signup)
     serializer = CourseSelectionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     course = get_object_or_404(
@@ -374,7 +395,8 @@ def select_signup_course(request):
     )
     if signup.matches_released_at or Invitation.objects.filter(cycle=cycle, sender=professor).exists():
         raise ValidationError({"detail": "Course selection is locked after matches are released."})
-    if clock.today() > cycle.signup_deadline:
+    # Allow selecting a course if the observee currently has no course assigned (e.g., after AC match cancellation)
+    if signup.course_id is not None and clock.today() > cycle.signup_deadline:
         raise ValidationError({"detail": "The course signup deadline has passed."})
     if signup.course_id != course.pk:
         signup.course = course
@@ -411,7 +433,7 @@ def faculty_dashboard(request):
     evaluation_status_reason = evaluation["reason"]
 
     has_selected_course = bool(signup and signup.course_id)
-    is_registered = signup is not None
+    is_registered = signup is not None and carried_forward_to(signup) is None
     before_signup_deadline = today <= cycle.signup_deadline
     before_observation_deadline = today <= cycle.observation_deadline
     before_survey_deadline = today <= cycle.survey_deadline
@@ -525,7 +547,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
-from .models import Invitation, ProposedDate, Pairing, MatchCandidate
+from .models import Invitation, ProposedDate, Pairing, MatchCandidate, Survey, EvaluationCarryForward
 from .serializers import (
     CandidateApprovalSerializer, InvitationCreateSerializer,
     InvitationResponseSerializer, PairingConfirmSerializer,
@@ -708,29 +730,37 @@ def display_name(user):
     return user.get_full_name() or user.username
 
 
+def course_label(course):
+    return f"{course} {course.title}" if course.title else str(course)
+
+
+def when(value):
+    return timezone.localtime(value).strftime("%a, %b %d at %I:%M %p").replace(" 0", " ")
+
+
 def process_invitation_deadlines():
     """Expire unanswered invitations and remind observers a day before they lapse."""
     now = clock.now()
     with transaction.atomic():
         overdue = Invitation.objects.select_for_update().filter(status="pending", expires_at__lte=now)
-        for inv in overdue.select_related("sender", "recipient"):
+        for inv in overdue.select_related("sender", "recipient", "course__department"):
             inv.status = "expired"
             inv.save(update_fields=["status"])
             send_workflow_notification(inv.sender, "Invitation expired",
-                                       f"{display_name(inv.recipient)} did not answer within 48 hours. You can invite them again.",
+                                       f"{display_name(inv.recipient)} did not answer your request for {course_label(inv.course)} within 48 hours. You can invite them again.",
                                        "/observee/observer-selection")
             send_workflow_notification(inv.recipient, "Invitation expired",
-                                       f"The observation request from {display_name(inv.sender)} expired.",
+                                       f"The request from {display_name(inv.sender)} to observe {course_label(inv.course)} expired.",
                                        "/observer/observation-request")
         expiring = Invitation.objects.select_for_update().filter(
             status="pending", reminded_at__isnull=True, expires_at__gt=now, expires_at__lte=now + timedelta(hours=24),
         )
-        for inv in expiring.select_related("sender", "recipient"):
+        for inv in expiring.select_related("sender", "recipient", "course__department"):
             inv.reminded_at = now
             inv.save(update_fields=["reminded_at"])
-            expires = timezone.localtime(inv.expires_at).strftime("%b %d at %I:%M %p").replace(" 0", " ")
+            expires = when(inv.expires_at)
             send_workflow_notification(inv.recipient, "Invitation expires soon",
-                                       f"The observation request from {display_name(inv.sender)} expires {expires}.",
+                                       f"The request from {display_name(inv.sender)} to observe {course_label(inv.course)} expires {expires}. Pick a date or decline before then.",
                                        "/observer/observation-request")
 
 
@@ -765,29 +795,30 @@ def invitation_json(inv):
     }
 
 
+def screen_observers(signup, people):
+    courses = Course.objects.filter(instructor__in=people, year__gte=signup.course.year - 2, year__lte=signup.course.year)
+    courses_by_instructor = {}
+    for course in courses:
+        courses_by_instructor.setdefault(course.instructor_id, []).append(course)
+    return [
+        (u, recommendation_problems(signup.user, signup.course, u, courses_by_instructor.get(u.pk, [])))
+        for u in people
+    ]
+
+
 @api_view(["GET"])
 def committee_candidate_pool(request, signup_id):
-    """Committee pre-screening only; does NOT assert full eligibility."""
     person = get_current_professor(request)
     require_committee(person)
     signup = get_object_or_404(Signup.objects.select_related("user", "course"), pk=signup_id, cycle=get_current_cycle())
     if not signup.course_id:
         raise ValidationError({"detail": "Observee has not selected a course."})
     people = User.objects.filter(is_active=True, role="faculty", department_id=signup.course.department_id).exclude(pk=signup.user_id).order_by("id")
-    courses = Course.objects.filter(instructor__in=people, semester=signup.course.semester, year=signup.course.year)
-    courses_by_instructor = {}
-    for course in courses:
-        courses_by_instructor.setdefault(course.instructor_id, []).append(course)
-    screened = [
-        (u, recommendation_problems(signup.user, signup.course, u, courses_by_instructor.get(u.pk, [])))
-        for u in people
-    ]
+    screened = screen_observers(signup, people)
     screened.sort(key=lambda pair: bool(pair[1]))
     confirmed = Pairing.objects.filter(cycle=signup.cycle, observee=signup.user, status="confirmed").select_related("observer")
     return Response({
         "signup_id": signup.pk,
-        "screening_only": True,
-        "warning": "Review academic rank, course-level rules, recent teaching history and scheduling conflicts manually before approval.",
         "candidates": [
             {"id": u.pk, "name": u.get_full_name() or u.username, "academic_level": u.academic_level,
              "department_id": u.department_id, "eligible": not problems,
@@ -824,14 +855,125 @@ def committee_release_candidates(request, signup_id):
         faculty = list(User.objects.filter(pk__in=ids, is_active=True, role="faculty", department_id=signup.course.department_id))
         if len(faculty) != len(ids) or signup.user_id in ids:
             raise ValidationError({"detail": "Every observer must be an active, different faculty member from the same department."})
+        ineligible = [f"{display_name(u)} {', '.join(PROBLEM_TEXT[p] for p in problems)}"
+                      for u, problems in screen_observers(signup, faculty) if problems]
+        if ineligible:
+            raise ValidationError({"detail": "Not eligible: " + "; ".join(ineligible) + "."})
         released_ids = set(MatchCandidate.objects.filter(signup=signup).values_list("observer_id", flat=True))
         if signup.matches_released_at is None or released_ids != set(ids):
             MatchCandidate.objects.filter(signup=signup).delete()
             MatchCandidate.objects.bulk_create([MatchCandidate(signup=signup, observer_id=i) for i in ids])
             signup.matches_released_at = clock.now()
             signup.save(update_fields=["matches_released_at"])
-            send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observee/observer-selection")
+            send_workflow_notification(signup.user, "Observer candidates available",
+                                       f"The committee released {len(ids)} observer candidates for {course_label(signup.course)}. Invite one or more with your dates.",
+                                       "/observee/observer-selection")
     return Response({"signup_id": signup.pk, "released": True, "observer_ids": ids})
+
+
+@api_view(["POST"])
+def committee_cancel_match(request, signup_id):
+    """Cancel an observee's confirmed pairing and clear their course/match state while keeping them registered for the cycle."""
+    person = get_current_professor(request)
+    require_committee(person)
+    cycle = get_current_cycle()
+
+    with transaction.atomic():
+        signup = get_object_or_404(
+            Signup.objects.select_for_update().select_related("user", "course"),
+            pk=signup_id,
+            cycle=cycle,
+        )
+        observee = signup.user
+
+        if EvaluationCarryForward.objects.filter(source_signup=signup).exists():
+            raise ValidationError({
+                "detail": "Cannot cancel a match for a signup that has already been carried forward."
+            })
+
+        pairings = list(
+            Pairing.objects.select_for_update()
+            .filter(cycle=cycle, observee=observee)
+            .select_related("observer")
+        )
+
+        # Prevent deleting/cancelling if any observation has already been signed
+        if Observation.objects.filter(
+            pairing__in=pairings
+        ).filter(Q(observer_signed=True) | Q(observee_signed=True)).exists():
+            raise ValidationError({
+                "detail": "Cannot cancel a match after an observation record has been signed."
+            })
+
+        # Prevent deleting/cancelling if any post-observation survey has been submitted
+        if Survey.objects.filter(
+            pairing__in=pairings,
+            submitted_at__isnull=False,
+        ).exists():
+            raise ValidationError({
+                "detail": "Cannot cancel a match after a post-observation survey has been submitted."
+            })
+
+        observer_users = []
+        seen_observer_ids = set()
+        for pairing in pairings:
+            if pairing.observer_id not in seen_observer_ids:
+                seen_observer_ids.add(pairing.observer_id)
+                observer_users.append(pairing.observer)
+
+        # Delete any unsigned draft observations and surveys tied to these pairings
+        Observation.objects.filter(pairing__in=pairings).delete()
+        Survey.objects.filter(pairing__in=pairings).delete()
+
+        # Delete the pairings so both observer and observee are completely unmatched
+        Pairing.objects.filter(pk__in=[p.pk for p in pairings]).delete()
+
+        # Delete invitations sent by this observee in this cycle so course selection isn't locked
+        Invitation.objects.filter(
+            cycle=cycle,
+            sender=observee,
+        ).delete()
+
+        # Remove released candidates and reset course/availability while keeping the cycle Signup intact
+        MatchCandidate.objects.filter(signup=signup).delete()
+        observee_name = display_name(observee)
+
+        signup.course = None
+        signup.availability = ""
+        signup.matches_released_at = None
+        signup.status = "pending"
+        signup.save(update_fields=["course", "availability", "matches_released_at", "status"])
+
+        # Notify observee and former observer(s)
+        send_workflow_notification(
+            observee,
+            "Observation pairing cancelled",
+            (
+                f"Your observation pairing and course assignment for the {cycle.semester} "
+                "evaluation cycle were cancelled by the Assessment Committee. "
+                "You remain registered for the cycle—please select a course section."
+            ),
+            "/observee/course-selection",
+        )
+
+        for observer in observer_users:
+            send_workflow_notification(
+                observer,
+                "Observation assignment cancelled",
+                (
+                    f"Your observation pairing with {observee_name} for {cycle.semester} "
+                    "was cancelled by the Assessment Committee. You are now unmatched."
+                ),
+                "/shared/faculty-dashboard",
+            )
+
+    return Response({
+        "cancelled": True,
+        "observee_id": observee.pk,
+        "observee_name": observee_name,
+        "unmatched_observer_ids": [obs.pk for obs in observer_users],
+        "unmatched_observer_names": [display_name(obs) for obs in observer_users],
+    })
 
 
 @api_view(["GET"])
@@ -877,7 +1019,9 @@ def send_invitation(request):
         inv = Invitation.objects.create(cycle=cycle, sender=sender, recipient_id=observer_id,
                                         course=signup.course, expires_at=now + timedelta(hours=48))
         ProposedDate.objects.bulk_create([ProposedDate(invitation=inv, proposed_datetime=d) for d in dates])
-        send_workflow_notification(inv.recipient, "Observation invitation", "You have a new observation request.", "/observer/observation-request")
+        send_workflow_notification(inv.recipient, "Observation invitation",
+                                   f"{display_name(sender)} asked you to observe {course_label(inv.course)}. Pick one of {len(dates)} dates by {when(inv.expires_at)}.",
+                                   "/observer/observation-request")
     return Response(invitation_json(inv), status=status.HTTP_201_CREATED)
 
 
@@ -924,12 +1068,13 @@ def respond_to_invitation(request, invitation_id):
             date.status = "accepted"
             date.save(update_fields=["status"])
             inv.status = "accepted"
+            message = f"{display_name(user)} accepted to observe {course_label(inv.course)} on {when(date.proposed_datetime)}. Confirm them to finalize the pairing."
         else:
             inv.status = "declined"
+            message = f"{display_name(user)} declined to observe {course_label(inv.course)}."
         inv.responded_at = clock.now()
         inv.save(update_fields=["status", "responded_at"])
-        send_workflow_notification(inv.sender, "Invitation response",
-                                   f"{display_name(inv.recipient)} {inv.status} your invitation.", "/observee/observer-selection")
+        send_workflow_notification(inv.sender, "Invitation response", message, "/observee/observer-selection")
     return Response(invitation_json(inv))
 
 
@@ -938,7 +1083,7 @@ def _reject(inv):
     inv.responded_at = inv.responded_at or clock.now()
     inv.save(update_fields=["status", "responded_at"])
     send_workflow_notification(inv.recipient, "Invitation withdrawn",
-                               f"{display_name(inv.sender)} withdrew their observation request.",
+                               f"{display_name(inv.sender)} withdrew the request to observe {course_label(inv.course)}.",
                                "/observer/observation-request")
 
 
@@ -1022,8 +1167,12 @@ def confirm_pairing(request):
         Invitation.objects.filter(pk__in=[other.pk for other in other_invitations]).update(status="closed")
         for other in other_invitations:
             send_workflow_notification(other.recipient, "Invitation closed",
-                                       "The observee confirmed another observer.", "/observer-requests")
-        send_workflow_notification(inv.recipient, "Observation confirmed", "Your observation assignment has been confirmed.", "/observer-assignments")
+                                       f"{display_name(observee)} confirmed another observer for {course_label(inv.course)}.",
+                                       "/observer/observation-request")
+        room = f" in {inv.course.classroom}" if inv.course.classroom else ""
+        send_workflow_notification(inv.recipient, "Observation confirmed",
+                                   f"{display_name(observee)} confirmed you as the observer for {course_label(inv.course)} on {when(date.proposed_datetime)}{room}.",
+                                   "/shared/current-past-observations")
     return Response({"pairing_id": pairing.pk, "observer_id": pairing.observer_id,
                      "course_id": pairing.course_id, "confirmed_datetime": pairing.confirmed_datetime}, status=status.HTTP_201_CREATED)
 
@@ -1235,14 +1384,14 @@ def sign_observation(request, observation_id):
             observation.status = "awaiting_observee_signature"
             observation.save(update_fields=["observer_signed", "observer_signed_at", "status"])
             send_workflow_notification(observation.pairing.observee, "Observation ready to sign",
-                                       "The observer submitted the evaluation record.", f"/shared/observation-record/{observation.pk}")
+                                       f"{display_name(user)} signed the record for {course_label(observation.pairing.course)}. Review and sign it to lock the record.", f"/shared/observation-record/{observation.pk}")
         else:
             observation.observee_signed = True
             observation.observee_signed_at = clock.now()
             observation.status = "completed"
             observation.save(update_fields=["observee_signed", "observee_signed_at", "status"])
             send_workflow_notification(observation.pairing.observer, "Observation completed",
-                                       "Both participants have signed the observation record.", f"/shared/observation-record/{observation.pk}")
+                                       f"{display_name(user)} signed the record for {course_label(observation.pairing.course)}. The record is now locked.", f"/shared/observation-record/{observation.pk}")
     return Response(_observation_json(observation, user))
 
 
@@ -1264,11 +1413,12 @@ def cancel_observation(request, observation_id):
         # next-cycle scheduling workflow is not yet implemented.
         other_user = observation.pairing.observee if user.pk == observation.pairing.observer_id else observation.pairing.observer
         send_workflow_notification(other_user, "Observation reported incomplete",
-                                   "The observation has been reported as not completed.", f"/observations/{observation.pk}")
+                                   f"{display_name(user)} reported that the observation for {course_label(observation.pairing.course)} did not happen.",
+                                   f"/shared/observation-record/{observation.pk}")
         for member in User.objects.filter(is_active=True).filter(Q(role="admin") | Q(is_staff=True) | Q(is_superuser=True)).distinct():
             send_workflow_notification(member, "Observation cancellation alert",
-                                       f"Observation {observation.pk} was cancelled: {observation.cancellation_reason}",
-                                       f"/committee/observations/{observation.pk}")
+                                       f"{display_name(user)} reported that the observation of {display_name(observation.pairing.observee)} for {course_label(observation.pairing.course)} did not happen. Reason: {observation.cancellation_reason}",
+                                       "/committee/pending-records")
     return Response(_observation_json(observation, user))
 
 
@@ -1368,7 +1518,7 @@ def _assert_survey_ready(pairing, user):
     today = clock.today()
     if today <= pairing.cycle.observation_deadline:
         raise ValidationError({
-            "detail": "Process surveys are not available until the observation period ends."
+            "detail": f"Surveys open after {pairing.cycle.observation_deadline:%b} {pairing.cycle.observation_deadline.day}, {pairing.cycle.observation_deadline.year}."
         })
     if today > pairing.cycle.survey_deadline:
         raise ValidationError({
@@ -2031,7 +2181,6 @@ def committee_dashboard(request):
 
 # A03 - unmatched faculty and committee-approved carry-forward.
 # Only zero released candidates are conclusively "unmatched" in this MVP.
-from .models import EvaluationCarryForward
 from .serializers import CarryForwardSerializer
 
 
@@ -2113,7 +2262,7 @@ def committee_carry_forward(request):
             Notification.objects.create(
                 user=signup.user, title="Evaluation moved to next cycle",
                 message=f"Your incomplete matching case will be due in {target.semester}. Reason: {reason}",
-                type="carry_forward", is_urgent=True, destination="/profile",
+                type="carry_forward", is_urgent=True, destination="/shared/profile",
             )
     return Response({
         "source_cycle_id": cycle.pk,

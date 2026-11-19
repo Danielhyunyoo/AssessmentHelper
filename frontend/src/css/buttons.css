@@ -12,8 +12,6 @@
 .btn-pill-green,
 .btn-pill-primary,
 .btn-pill-secondary,
-.a04-email-pill-btn,
-.a05-view-details-btn,
 .a04-action-btn,
 .a04-close-btn,
 .signin-submit-btn,
@@ -77,8 +75,6 @@
 .btn-accent-blue:disabled,
 .btn-pill-blue:disabled,
 .btn-pill-green:disabled,
-.a04-email-pill-btn:disabled,
-.a05-view-details-btn:disabled,
 .signin-submit-btn:disabled,
 .header-clone-btn:disabled,
 .notif-mark-read-btn:disabled,
@@ -192,8 +188,7 @@
 }
 
 /* Soft Accent Pill Buttons */
-.btn-pill-blue,
-.a04-email-pill-btn {
+.btn-pill-blue {
   padding: 0.42rem 0.9rem;
   font-size: 0.82rem;
   background-color: var(--accent-soft-bg);
@@ -201,15 +196,13 @@
   border: 1px solid var(--accent-soft-border);
 }
 
-.btn-pill-blue:hover:not(:disabled),
-.a04-email-pill-btn:hover:not(:disabled) {
+.btn-pill-blue:hover:not(:disabled) {
   background-color: var(--accent-primary);
   border-color: var(--accent-primary);
   color: #ffffff;
 }
 
-.btn-pill-green,
-.a05-view-details-btn {
+.btn-pill-green {
   padding: 0.42rem 0.9rem;
   font-size: 0.82rem;
   background-color: var(--sage-soft-bg);
@@ -217,8 +210,7 @@
   border: 1px solid var(--sage-soft-border);
 }
 
-.btn-pill-green:hover:not(:disabled),
-.a05-view-details-btn:hover:not(:disabled) {
+.btn-pill-green:hover:not(:disabled) {
   background-color: var(--accent-primary);
   border-color: var(--accent-primary);
   color: #ffffff;

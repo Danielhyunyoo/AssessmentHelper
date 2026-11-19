@@ -5,6 +5,7 @@ import { committeeApi } from "../../api/endpoints";
 import type { FacultyRow } from "../../api/types";
 import {
   CYCLE_TRANSFER_STORAGE_KEY,
+  clearA02DemoStorage,
   type CycleTransferRecord,
 } from "./A02FacultyMatching";
 
@@ -84,7 +85,7 @@ export default function A03UnmatchedObservees() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const loadUnmatched = async () => {
+  const loadUnmatched = async (isCancelled?: () => boolean) => {
     setLoading(true);
     setError("");
 
@@ -94,6 +95,9 @@ export default function A03UnmatchedObservees() {
         committeeApi.faculty().catch(() => ({ faculty: [] as FacultyRow[] })),
         committeeApi.cycleDates().catch(() => null),
       ]);
+
+      if (isCancelled?.()) return;
+
       const response = result as unknown as UnmatchedResponse;
       const queuedMap = readQueuedA02Transfers();
 
@@ -101,6 +105,8 @@ export default function A03UnmatchedObservees() {
         (rosterRes.faculty ?? []).map((f) => [f.name.toLowerCase(), f])
       );
 
+      // Seeded / backend unmatched observees: always keep them, and only mark
+      // carried forward if backend or current session transfer record says so
       const mergedList: UnmatchedFaculty[] = response.unmatched.map((item) => {
         const queued = queuedMap[item.name.toLowerCase()];
         const isCarried =
@@ -123,6 +129,8 @@ export default function A03UnmatchedObservees() {
         mergedList.map((item) => item.name.toLowerCase())
       );
 
+      // Only append manual A02 additions if they still exist in CYCLE_TRANSFER_STORAGE_KEY
+      // (which is wiped on demo-reset)
       let syntheticIdCounter = -1;
       Object.values(queuedMap).forEach((rec) => {
         const key = rec.professor_name.toLowerCase();
@@ -207,25 +215,51 @@ export default function A03UnmatchedObservees() {
           : String(availableCycles[0].cycle_id);
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to load unmatched faculty."
-      );
+      if (!isCancelled?.()) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load unmatched faculty."
+        );
+      }
     } finally {
-      setLoading(false);
+      if (!isCancelled?.()) setLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadUnmatched();
+    let cancelled = false;
+    void loadUnmatched(() => cancelled);
 
     const handleSync = () => {
-      void loadUnmatched();
+      void loadUnmatched(() => cancelled);
     };
+
+    const handleDemoReset = () => {
+      clearA02DemoStorage();
+      setSelectedIds([]);
+      setReason("");
+      setSearchQuery("");
+      setDepartmentFilter("");
+      setError("");
+      setMessage("");
+      window.dispatchEvent(new Event("cycle-transfers-updated"));
+      // Slight delay gives backend demo-reset endpoint time to re-seed unmatched rows if triggered concurrently
+      setTimeout(() => {
+        if (!cancelled) {
+          void loadUnmatched(() => cancelled);
+        }
+      }, 150);
+    };
+
     window.addEventListener("cycle-transfers-updated", handleSync);
     window.addEventListener("storage", handleSync);
+    window.addEventListener("demo-reset", handleDemoReset);
     return () => {
+      cancelled = true;
       window.removeEventListener("cycle-transfers-updated", handleSync);
       window.removeEventListener("storage", handleSync);
+      window.removeEventListener("demo-reset", handleDemoReset);
     };
   }, []);
 
@@ -403,18 +437,11 @@ export default function A03UnmatchedObservees() {
           {error}
         </div>
       )}
-      {message && (
-        <div role="status" className="feedback-banner-success">
-          {message}
-        </div>
-      )}
-
       {/* Info Alert Banner */}
       <div className="yellow-banner">
-        <strong>ALERT:</strong> The observees below either could not be matched
-        with the required minimum (5) of eligible observer candidates or were
-        deferred from Faculty Matching. Select faculty members below to transfer
-        them to the next evaluation cycle.
+        <strong>ALERT:</strong> The observees below have no eligible observers
+        this cycle or were deferred from Faculty Matching. Select faculty
+        members below to transfer them to the next evaluation cycle.
       </div>
 
       {/* Main Roster Table Card */}
@@ -633,8 +660,26 @@ export default function A03UnmatchedObservees() {
                   }to Next Evaluation Cycle`}
             </button>
           </div>
+
+          {selectedIds.length > 0 && !reason.trim() && (
+            <p className="font-slate font-sm a02-zero-margin">
+              Add a reason to enable the transfer.
+            </p>
+          )}
+
+          {message && (
+            <div role="status" className="feedback-banner-success">
+              {message}
+            </div>
+          )}
         </div>
       </section>
+
+      <div className="dashboard-center-action">
+        <Link to="/committee/dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
+      </div>
     </div>
   );
 }

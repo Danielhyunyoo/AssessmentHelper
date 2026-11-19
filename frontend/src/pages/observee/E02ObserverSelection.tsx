@@ -1,6 +1,6 @@
 // src/pages/observee/E02ObserverSelection.tsx
 import { useEffect, useState } from "react";
-import { matchingApi, facultyApi } from "../../api/endpoints";
+import { matchingApi, facultyApi, observationApi } from "../../api/endpoints";
 import type { Invitation, Course } from "../../api/types";
 import { Link, useLocation } from "react-router-dom";
 import DataTable, { Column } from "../../components/DataTable";
@@ -93,9 +93,6 @@ export default function E02ObserverSelection() {
   >({});
   const [candidateData, setCandidateData] = useState<CandidateRow[]>([]);
   const [responseData, setResponseData] = useState<ResponseRecord[]>([]);
-  const [selectedInvitationId, setSelectedInvitationId] = useState<
-    number | null
-  >(null);
   const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
   const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
   const [released, setReleased] = useState(false);
@@ -103,10 +100,13 @@ export default function E02ObserverSelection() {
   const [observationDeadline, setObservationDeadline] = useState<string | null>(
     null
   );
+  const [professorIdentity, setProfessorIdentity] = useState<{
+    id?: number;
+    name?: string;
+  }>({});
   const [pendingCourseChange, setPendingCourseChange] =
-    useState<PendingCourseChangeRequest | null>(() =>
-      getPendingCourseChangeRequest()
-    );
+    useState<PendingCourseChangeRequest | null>(null);
+  const [hasScheduledObservation, setHasScheduledObservation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState("");
@@ -122,16 +122,40 @@ export default function E02ObserverSelection() {
       setLoading(true);
 
       try {
-        const [matches, invitations, profile, availability, registration] =
-          await Promise.all([
-            matchingApi.matches(),
-            matchingApi.sentInvitations(),
-            facultyApi.profile(),
-            facultyApi.availability(),
-            facultyApi.registrationStatus(),
-          ]);
+        const [
+          matches,
+          invitations,
+          profile,
+          availability,
+          registration,
+          scheduledVisits,
+        ] = await Promise.all([
+          matchingApi
+            .matches()
+            .catch(() => ({ released: false, candidates: [] })),
+          matchingApi.sentInvitations().catch(() => [] as Invitation[]),
+          facultyApi.profile(),
+          facultyApi
+            .availability()
+            .catch(() => ({ available_datetimes: [] as string[] })),
+          facultyApi.registrationStatus(),
+          observationApi.scheduled().catch(() => []),
+        ]);
 
         if (cancelled) return;
+
+        const profRec = profile.professor as unknown as Record<string, unknown>;
+        const resolvedId =
+          typeof profRec?.id === "number"
+            ? profRec.id
+            : typeof profRec?.professor_id === "number"
+            ? profRec.professor_id
+            : undefined;
+        const resolvedName = profile.professor
+          ? `${profile.professor.first_name} ${profile.professor.last_name}`.trim()
+          : undefined;
+
+        setProfessorIdentity({ id: resolvedId, name: resolvedName });
 
         const savedDateTimes = availability.available_datetimes ?? [];
         setAvailableDateTimes(savedDateTimes);
@@ -160,10 +184,20 @@ export default function E02ObserverSelection() {
           }))
         );
 
+        const activeScheduled = (scheduledVisits ?? []).some((visit) => {
+          const vRec = visit as unknown as Record<string, unknown>;
+          const role = String(
+            vRec.role ?? vRec.user_role ?? ""
+          ).toLowerCase();
+          const status = String(vRec.status ?? "").toLowerCase();
+          return (
+            (!role || role === "observee") &&
+            status !== "cancelled" &&
+            status !== "canceled"
+          );
+        });
+        setHasScheduledObservation(activeScheduled);
         setRegisteredCourse(profile.selected_course);
-        setObservationDeadline(registration.observation_deadline);
-        setPendingCourseChange(getPendingCourseChangeRequest());
-
         setResponseData(
           toResponseRows(
             invitations,
@@ -174,6 +208,11 @@ export default function E02ObserverSelection() {
               ])
             )
           )
+        );
+
+        setObservationDeadline(registration.observation_deadline);
+        setPendingCourseChange(
+          getPendingCourseChangeRequest(resolvedId, resolvedName)
         );
       } catch (err) {
         if (!cancelled) {
@@ -191,18 +230,39 @@ export default function E02ObserverSelection() {
 
     void loadObserverSelection();
 
-    const syncPendingRequest = () =>
-      setPendingCourseChange(getPendingCourseChangeRequest());
-    window.addEventListener("course-change-request-updated", syncPendingRequest);
+    const handleDemoReset = () => {
+      void loadObserverSelection();
+    };
+
+    window.addEventListener("demo-reset", handleDemoReset);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("demo-reset", handleDemoReset);
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncPendingRequest = () => {
+      if (professorIdentity.id != null || professorIdentity.name) {
+        setPendingCourseChange(
+          getPendingCourseChangeRequest(
+            professorIdentity.id,
+            professorIdentity.name
+          )
+        );
+      }
+    };
+    window.addEventListener("course-change-request-updated", syncPendingRequest);
+    window.addEventListener("storage", syncPendingRequest);
+    return () => {
       window.removeEventListener(
         "course-change-request-updated",
         syncPendingRequest
       );
+      window.removeEventListener("storage", syncPendingRequest);
     };
-  }, []);
+  }, [professorIdentity]);
 
   useEffect(() => {
     if (!loading && location.hash === "#responses") {
@@ -313,7 +373,8 @@ export default function E02ObserverSelection() {
       .filter((row) => ["pending", "accepted", "confirmed"].includes(row.status))
       .map((row) => [row.observerId, row.status])
   );
-  const isFinalized = responseData.some((row) => row.status === "confirmed");
+  const confirmedRow = responseData.find((row) => row.status === "confirmed");
+  const isFinalized = Boolean(confirmedRow) || hasScheduledObservation;
   const hasAcceptedOrConfirmed = responseData.some(
     (row) => row.status === "accepted" || row.status === "confirmed"
   );
@@ -324,7 +385,7 @@ export default function E02ObserverSelection() {
   const candidateColumns: Column<CandidateRow>[] = [
     {
       header: "Select",
-      width: "84px",
+      headerClassName: "table-col-selection",
       render: (row) => {
         const status = openInvitationStatus[Number(row.id)];
         if (status) {
@@ -434,14 +495,11 @@ export default function E02ObserverSelection() {
           <span className="bulk-btn-group">
             <button
               type="button"
-              className={
-                selectedInvitationId === row.id
-                  ? "btn-accent-blue"
-                  : "btn-secondary"
-              }
-              onClick={() => setSelectedInvitationId(row.id)}
+              className="primary-btn"
+              onClick={() => void handleConfirmPairing(row.id)}
+              disabled={saving}
             >
-              {selectedInvitationId === row.id ? "✓ Selected" : "Select"}
+              Confirm
             </button>
             <button
               type="button"
@@ -479,7 +537,6 @@ export default function E02ObserverSelection() {
 
     try {
       await action();
-      setSelectedInvitationId(null);
       setSuccess(message);
       await reloadResponses();
     } catch (err) {
@@ -509,24 +566,15 @@ export default function E02ObserverSelection() {
     (row) => row.status === "pending" || row.status === "accepted"
   );
 
-  const handleConfirmPairing = async () => {
+  const handleConfirmPairing = async (invitationId: number) => {
     setSuccess("");
     setValidationError("");
     setMessageArea("responses");
-
-    if (selectedInvitationId === null) {
-      setValidationError(
-        "Please select an observer who has accepted an invitation."
-      );
-      return;
-    }
-
     setSaving(true);
 
     try {
-      await matchingApi.confirmPairing(selectedInvitationId);
+      await matchingApi.confirmPairing(invitationId);
       setSuccess("Observer and observation date confirmed.");
-      setSelectedInvitationId(null);
       const invitations = await matchingApi.sentInvitations();
       setResponseData(toResponseRows(invitations, observerNames));
     } catch (err) {
@@ -557,13 +605,17 @@ export default function E02ObserverSelection() {
           </div>
         </div>
 
-        {observationDeadline && (
-          <div className="committee-page-header-meta">
-            <span className="status-chip a02-chip-warning">
-              DEADLINE: {formatDate(observationDeadline).toUpperCase()}
-            </span>
-          </div>
-        )}
+        <div className="committee-page-header-meta">
+          {isFinalized ? (
+            <span className="status-chip chip-draft">PAIRING CONFIRMED</span>
+          ) : (
+            observationDeadline && (
+              <span className="status-chip a02-chip-warning">
+                DEADLINE: {formatDate(observationDeadline).toUpperCase()}
+              </span>
+            )
+          )}
+        </div>
       </div>
 
       {loading && (
@@ -583,12 +635,18 @@ export default function E02ObserverSelection() {
           <div>
             <h3 className="e02-card-title">Registered Course Information</h3>
             <p className="e02-card-subtitle">
-              Invitations will be sent for your registered class meeting times.
+              {isFinalized
+                ? "Your observation pairing and scheduled date are locked."
+                : "Invitations will be sent for your registered class meeting times."}
             </p>
           </div>
-          <Link to="/observee/course-selection" className="btn-secondary">
-            Edit Availability →
-          </Link>
+          {isFinalized ? (
+            <span className="status-pill-active">Confirmed &amp; Locked</span>
+          ) : (
+            <Link to="/observee/course-selection" className="btn-secondary">
+              Edit Availability →
+            </Link>
+          )}
         </div>
 
         <div className="form-summary-grid-4">
@@ -625,7 +683,7 @@ export default function E02ObserverSelection() {
           </div>
         </div>
 
-        {pendingCourseChange && (
+        {!isFinalized && pendingCourseChange && (
           <div className="e02-callout-notice observer-pending-change-banner">
             <strong>Pending Course Change Request:</strong> You requested to
             switch to{" "}
@@ -641,11 +699,17 @@ export default function E02ObserverSelection() {
         <div className="e02-dates-footer">
           <div className="e02-dates-footer-head">
             <span className="summary-field-label">
-              Saved Proposed Observation Dates ({selectedDatesList.length})
+              {isFinalized
+                ? "Confirmed Observation Date"
+                : `Saved Proposed Observation Dates (${selectedDatesList.length})`}
             </span>
           </div>
 
-          {selectedDatesList.length === 0 ? (
+          {isFinalized && confirmedRow?.date ? (
+            <div className="proposed-dates-pill-list">
+              <span className="e02-saved-date-chip">{confirmedRow.date}</span>
+            </div>
+          ) : selectedDatesList.length === 0 ? (
             <p className="font-slate font-sm a02-zero-margin">
               No observation dates selected.
             </p>
@@ -661,8 +725,48 @@ export default function E02ObserverSelection() {
         </div>
       </section>
 
+      {/* LOCKED BANNER WHEN PAIRING IS CONFIRMED */}
+      {isFinalized && (
+        <section className="dashboard-phase phase-spacing">
+          <div className="e02-callout-notice">
+            <p style={{ margin: "0 0 0.75rem 0" }}>
+              <strong>Observation Pairing Confirmed &amp; Locked:</strong> Your
+              observation pairing
+              {confirmedRow?.observerName
+                ? ` with ${confirmedRow.observerName}`
+                : ""}{" "}
+              is confirmed. Because both parties have confirmed this match, you
+              can no longer change your course, availability dates, or observer
+              selection here.
+            </p>
+            <p style={{ margin: "0 0 1rem 0" }}>
+              To request a cancellation or any changes to a confirmed
+              observation, please contact the Assessment Committee at{" "}
+              <a
+                href="mailto:assessment-committee@utdallas.edu?subject=Confirmed%20Observation%20Change%20Request"
+                className="s04-inline-link"
+              >
+                assessment-committee@utdallas.edu
+              </a>{" "}
+              or submit a message through the Contact Assessment Committee page.
+            </p>
+            <div className="bulk-btn-group">
+              <Link to="/shared/contact-committee" className="btn-primary">
+                Contact Assessment Committee (S07) →
+              </Link>
+              <a
+                href="mailto:assessment-committee@utdallas.edu?subject=Confirmed%20Observation%20Change%20Request"
+                className="btn-secondary"
+              >
+                Email Assessment Committee
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Section 2: Select from Matched Observer Candidates List */}
-      {!hasAcceptedOrConfirmed && (
+      {!isFinalized && !hasAcceptedOrConfirmed && (
         <section className="dashboard-phase phase-spacing">
           <div className="a01-phase-title-group">
             <span className="a01-phase-pill">Matched Pool</span>
@@ -684,6 +788,13 @@ export default function E02ObserverSelection() {
             </div>
           )}
 
+          {!released ? (
+            <div className="e02-callout-notice">
+              <strong>Waiting for the Assessment Committee:</strong> you will
+              get a notification when your observers are released.
+            </div>
+          ) : (
+          <>
           <DataTable
             themeColor="orange"
             instructionText="Select candidates and customize their 4–8 proposed dates before sending requests."
@@ -745,6 +856,8 @@ export default function E02ObserverSelection() {
               {success}
             </div>
           )}
+          </>
+          )}
         </section>
       )}
 
@@ -770,15 +883,21 @@ export default function E02ObserverSelection() {
           )}
         </div>
 
-        <div className="e02-callout-notice">
-          <strong>Finalizing Your Pairing:</strong> Confirming an accepted
-          observer locks in your pairing and automatically declines any
-          remaining open invitations.
-        </div>
+        {!isFinalized && (
+          <div className="e02-callout-notice">
+            <strong>Finalizing Your Pairing:</strong> Confirming an accepted
+            observer locks in your pairing and automatically declines any
+            remaining open invitations.
+          </div>
+        )}
 
         <DataTable
           themeColor="green"
-          instructionText="Review responses from invited observers."
+          instructionText={
+            isFinalized
+              ? "Your confirmed observer pairing details."
+              : "Review responses from invited observers."
+          }
           columns={responseColumns}
           data={responseData}
         />
@@ -792,14 +911,6 @@ export default function E02ObserverSelection() {
               disabled={saving}
             >
               Withdraw All Open Invitations
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => void handleConfirmPairing()}
-              disabled={saving || selectedInvitationId === null}
-            >
-              {saving ? "Confirming..." : "Confirm and Lock Pairing"}
             </button>
           </div>
         )}

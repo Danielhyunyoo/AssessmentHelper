@@ -44,6 +44,7 @@ function getNotificationCategory(notification: Notification): {
   }
 
   if (
+    titleLower.includes("ready to sign") ||
     titleLower.includes("reminder") ||
     titleLower.includes("deadline") ||
     titleLower.includes("declined") ||
@@ -66,10 +67,27 @@ function getNotificationCategory(notification: Notification): {
   return { label: "Cycle Notice", toneClass: "" };
 }
 
+const DESTINATION_LABELS: [string, string][] = [
+  ["/shared/observation-record", "Open Observation Record →"],
+  ["/shared/post-evaluation-survey", "Open Survey →"],
+  ["/shared/current-past-observations", "View Current and Past Observations →"],
+  ["/shared/profile", "View Profile and Status →"],
+  ["/shared/faculty-dashboard", "Go to Dashboard →"],
+  ["/observer/observation-request", "View Observation Request →"],
+  ["/observee/observer-selection", "Go to Observer Selection →"],
+  ["/observee/course-selection", "Go to Course Selection →"],
+];
+
 function resolveNotificationDestination(notification: Notification): {
   to: string;
   label: string;
 } {
+  const sent = (notification.destination || "").trim();
+  if (sent.startsWith("/")) {
+    const match = DESTINATION_LABELS.find(([prefix]) => sent.startsWith(prefix));
+    return { to: sent, label: match ? match[1] : "Open →" };
+  }
+
   const typeLower = (notification.type || "").toLowerCase().trim();
   const titleLower = (notification.title || "").toLowerCase();
   const messageLower = (notification.message || "").toLowerCase();

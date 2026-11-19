@@ -14,8 +14,6 @@ export interface CalendarProps {
   minDate?: string;
   /** Latest selectable date string (YYYY-MM-DD) */
   maxDate?: string;
-  /** Maximum number of dates user can select (e.g., 8) */
-  maxSelections?: number;
   /** Disables click interaction (display mode only) */
   readOnly?: boolean;
   /** Initial month to view (0-11, default is current month) */
@@ -46,7 +44,6 @@ export default function Calendar({
   allowedDaysOfWeek,
   minDate,
   maxDate,
-  maxSelections = 8,
   readOnly = false,
   initialMonth = new Date().getMonth(),
   initialYear = new Date().getFullYear(),
@@ -115,12 +112,6 @@ export default function Calendar({
       // Remove date
       onDateSelectionChange(selectedDates.filter((d) => d !== dateStr));
     } else {
-      // Enforce max selections limit (e.g. 8)
-      if (selectedDates.length >= maxSelections) {
-        alert(`You can only select up to ${maxSelections} dates.`);
-        return;
-      }
-      // Add date
       onDateSelectionChange([...selectedDates, dateStr]);
     }
   };

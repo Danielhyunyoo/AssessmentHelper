@@ -9,13 +9,13 @@ import {
   COMMITTEE_OVERALL_BRIEF,
 } from "../../data/moduleGuides";
 
-import observer_selection_matching_card from "../../assets/observer_selection_matching_card.jpg";
-import unmatched_observees_card from "../../assets/unmatched_observees_card.jpg";
-import observation_record_management_card from "../../assets/observation_record_management_card.jpg";
-import current_and_past_observations_card from "../../assets/current_and_past_observations_card.jpg";
-import alerts_and_notifications_card from "../../assets/alerts_and_notifications_card.jpg";
-import profile_and_evaluation_status_card from "../../assets/profile_and_evaluation_status_card.jpg";
-import course_and_section_selection_card from "../../assets/course_and_section_selection_card.jpg";
+import observer_selection_matching_card from "../../assets/card-stock-images/observer_selection_matching_card.jpg";
+import unmatched_observees_card from "../../assets/card-stock-images/unmatched_observees_card.jpg";
+import observation_record_management_card from "../../assets/card-stock-images/observation_record_management_card.jpg";
+import current_and_past_observations_card from "../../assets/card-stock-images/current_and_past_observations_card.jpg";
+import alerts_and_notifications_card from "../../assets/card-stock-images/alerts_and_notifications_card.jpg";
+import profile_and_evaluation_status_card from "../../assets/card-stock-images/profile_and_evaluation_status_card.jpg";
+import course_and_section_selection_card from "../../assets/card-stock-images/course_and_section_selection_card.jpg";
 
 interface CommitteeDashboardData {
   cycle?: {
@@ -27,12 +27,14 @@ interface CommitteeDashboardData {
     observation_deadline?: string;
     survey_deadline?: string;
   };
-  metrics?: {
-    active_observees_count: number;
-    active_observers_count: number;
-    unmatched_observees_count: number;
-    pending_observations_count: number;
-    completed_surveys_count: number;
+  counts?: {
+    unregistered_faculty: number;
+    awaiting_candidate_release: number;
+    unmatched_faculty: number;
+    pending_observation_records: number;
+    surveys_open: boolean;
+    submitted_surveys: number;
+    expected_surveys: number;
   };
 }
 
@@ -78,7 +80,7 @@ export default function A01CommitteeDashboard() {
     void loadDashboard();
   }, []);
 
-  const metrics = dashboard?.metrics;
+  const counts = dashboard?.counts;
 
   const signupDeadlineLabel = (() => {
     const raw =
@@ -138,70 +140,58 @@ export default function A01CommitteeDashboard() {
         </p>
       )}
 
-      {/* High-Priority Action Alert */}
-      {metrics && metrics.unmatched_observees_count > 0 && (
-        <div className="yellow-banner a01-alert-banner" role="status">
-          <span>
-            <strong>Action Needed:</strong>{" "}
-            {metrics.unmatched_observees_count} observee(s) currently require
-            matching attention before the signup cutoff ({signupDeadlineLabel}).
-          </span>
-          <Link to="/committee/unmatched-observees" className="a01-banner-link">
-            Review Unmatched →
-          </Link>
-        </div>
-      )}
-
-      {/* Live Cycle KPI Summary Bar */}
-      {metrics && (
+      {counts && (
         <div className="a01-kpi-grid">
-          <Link to="/committee/faculty-roster" className="a01-kpi-card">
-            <span className="a01-kpi-label">Active Observees</span>
+          <Link
+            to="/committee/faculty-matching"
+            className={`a01-kpi-card ${
+              counts.awaiting_candidate_release > 0 ? "is-warning" : ""
+            }`}
+          >
+            <span className="a01-kpi-label">Awaiting Release</span>
             <span className="a01-kpi-value">
-              {metrics.active_observees_count}
+              {counts.awaiting_candidate_release}
             </span>
-            <span className="a01-kpi-hint">View faculty roster</span>
-          </Link>
-
-          <Link to="/committee/faculty-roster" className="a01-kpi-card">
-            <span className="a01-kpi-label">Active Observers</span>
-            <span className="a01-kpi-value">
-              {metrics.active_observers_count}
-            </span>
-            <span className="a01-kpi-hint">Eligible peer pool</span>
+            <span className="a01-kpi-hint">Observer lists to release</span>
           </Link>
 
           <Link
             to="/committee/unmatched-observees"
             className={`a01-kpi-card ${
-              metrics.unmatched_observees_count > 0 ? "is-warning" : ""
+              counts.unmatched_faculty > 0 ? "is-warning" : ""
             }`}
           >
-            <span className="a01-kpi-label">Unmatched Observees</span>
+            <span className="a01-kpi-label">Unmatched</span>
+            <span className="a01-kpi-value">{counts.unmatched_faculty}</span>
+            <span className="a01-kpi-hint">No eligible observers</span>
+          </Link>
+
+          <Link to="/committee/faculty-roster" className="a01-kpi-card">
+            <span className="a01-kpi-label">Not Registered</span>
             <span className="a01-kpi-value">
-              {metrics.unmatched_observees_count}
+              {counts.unregistered_faculty}
             </span>
-            <span className="a01-kpi-hint">
-              {metrics.unmatched_observees_count > 0
-                ? "Needs assignment"
-                : "All matched"}
-            </span>
+            <span className="a01-kpi-hint">Faculty to remind</span>
           </Link>
 
           <Link to="/committee/pending-records" className="a01-kpi-card">
             <span className="a01-kpi-label">Pending Records</span>
             <span className="a01-kpi-value">
-              {metrics.pending_observations_count}
+              {counts.pending_observation_records}
             </span>
-            <span className="a01-kpi-hint">In-progress or unsigned</span>
+            <span className="a01-kpi-hint">Unfinished or unsigned</span>
           </Link>
 
           <Link to="/committee/survey-tracking" className="a01-kpi-card">
-            <span className="a01-kpi-label">Completed Surveys</span>
+            <span className="a01-kpi-label">Surveys</span>
             <span className="a01-kpi-value">
-              {metrics.completed_surveys_count}
+              {counts.surveys_open
+                ? `${counts.submitted_surveys} / ${counts.expected_surveys}`
+                : "Not open"}
             </span>
-            <span className="a01-kpi-hint">Post-observation feedback</span>
+            <span className="a01-kpi-hint">
+              Open after {observationDeadlineLabel}
+            </span>
           </Link>
         </div>
       )}
@@ -214,10 +204,9 @@ export default function A01CommitteeDashboard() {
         </div>
 
         <div className="yellow-banner" role="status">
-          <strong>Phase 1 Deadline ({signupDeadlineLabel}):</strong> Approve
-          faculty course signups, release matched observer lists, and follow up
-          with unregistered or unmatched faculty before{" "}
-          <strong>{signupDeadlineLabel}</strong>.
+          <strong>Phase 1 Deadline ({signupDeadlineLabel}):</strong> Release
+          matched observer lists and follow up with unregistered or unmatched
+          faculty.
         </div>
 
         <div className="card-grid">
@@ -255,8 +244,8 @@ export default function A01CommitteeDashboard() {
                 src={observation_record_management_card}
                 alt="Observation Record Management"
               />
-              <h4>Observation Record Management</h4>
-              <p>View active and non-active users and remind them</p>
+              <h4>Faculty Roster</h4>
+              <p>See who has registered and remind the rest</p>
               <div className="a01-card-footer">
                 <span className="a01-card-cta">Open Roster →</span>
               </div>

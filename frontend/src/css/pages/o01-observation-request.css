@@ -1,0 +1,92 @@
+/* ==========================================================================
+   PAGE: OBSERVER INVITATION & SLOT SCHEDULING (O01)
+   ========================================================================== */
+.o01-request-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 2.25rem;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .o01-request-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.o01-request-heading {
+  font-size: 1.25rem;
+  margin-bottom: 1.15rem;
+}
+
+.o01-details-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.o01-detail-val {
+  margin-top: 0.2rem;
+}
+
+.o01-avatar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.o01-avatar-ring {
+  width: 176px;
+  height: 176px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--border-strong);
+  background-color: var(--bg-subtle);
+  box-shadow: var(--shadow-card);
+}
+
+.o01-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.o01-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.o01-slot-option {
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  border-radius: 10px;
+  background-color: var(--bg-subtle);
+  border-color: var(--border-strong);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.o01-slot-option:hover {
+  border-color: var(--accent-primary);
+}
+
+.o01-slot-option.is-selected {
+  background-color: var(--accent-soft-bg);
+  border-color: var(--accent-primary);
+  box-shadow: inset 3px 0 0 var(--accent-primary);
+}
+
+.o01-slot-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.o01-slot-date {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}

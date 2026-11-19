@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
-import SunIcon from "../assets/sun.png";
-import MoonIcon from "../assets/moon.png";
-import defaultLogo from "../assets/default_logo.png";
-import darkModeLogo from "../assets/dark_mode_logo.png";
+import { useEffect, useRef, useState } from "react";
+import SunIcon from "../assets/icons/sun.png";
+import MoonIcon from "../assets/icons/moon.png";
+import defaultLogo from "../assets/icons/utd_logo.png";
+import utdLogo from "../assets/icons/utd_logo.png";
 
 interface NightModeToggleProps {
   onThemeChange?: (isDark: boolean) => void;
 }
+
+const TRANSITION_COOLDOWN_MS = 600;
 
 export default function NightModeToggle({ onThemeChange }: NightModeToggleProps) {
   const [isDark, setIsDark] = useState<boolean>(() => {
@@ -16,6 +18,8 @@ export default function NightModeToggle({ onThemeChange }: NightModeToggleProps)
       return false;
     }
   });
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (isDark) {
@@ -30,11 +34,32 @@ export default function NightModeToggle({ onThemeChange }: NightModeToggleProps)
     }
   }, [isDark, onThemeChange]);
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleToggle = () => {
+    if (isTransitioning) return;
+
+    setIsTransitioning(true);
+    setIsDark((prev) => !prev);
+
+    timeoutRef.current = window.setTimeout(() => {
+      setIsTransitioning(false);
+    }, TRANSITION_COOLDOWN_MS);
+  };
+
   return (
     <button
       type="button"
       className="nightmode-floating-btn"
-      onClick={() => setIsDark(!isDark)}
+      onClick={handleToggle}
+      disabled={isTransitioning}
+      aria-busy={isTransitioning}
       title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
       aria-label="Toggle Night Mode"
     >
@@ -49,7 +74,7 @@ export default function NightModeToggle({ onThemeChange }: NightModeToggleProps)
 
 export function useLogo(
   lightLogoPath: string = defaultLogo,
-  darkLogoPath: string = darkModeLogo
+  darkLogoPath: string = utdLogo
 ) {
   const [isDark, setIsDark] = useState<boolean>(() =>
     document.documentElement.classList.contains("dark-mode")

@@ -228,3 +228,50 @@ html.dark-mode .rating-score-btn:disabled:not(.selected):hover {
   background-color: #18181b;
   border-color: #27272a;
 }
+
+.signin-field input,
+.l03-notes-input,
+.slot-select-input,
+.unmatched-transfer-details select,
+.unmatched-transfer-details textarea,
+.a03-textarea,
+.editor-control-group select,
+.editor-control-group input,
+.full-row-textarea,
+.editor-question-row input[type="text"],
+.s01-add-note-input,
+.profile-field-group input,
+.s02-date-input,
+.s03-search-input,
+.eval-textarea,
+.styled-text-input,
+.styled-select-input {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  border-radius: 8px;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.signin-field input:focus,
+.l03-notes-input:focus,
+.slot-select-input:focus,
+.unmatched-transfer-details select:focus,
+.unmatched-transfer-details textarea:focus,
+.a03-textarea:focus,
+.editor-control-group select:focus,
+.editor-control-group input:focus,
+.full-row-textarea:focus,
+.editor-question-row input[type="text"]:focus,
+.s01-add-note-input:focus,
+.profile-field-group input:focus,
+.s02-date-input:focus,
+.s03-search-input:focus,
+.eval-textarea:focus,
+.styled-text-input:focus,
+.styled-select-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-soft-bg);
+}

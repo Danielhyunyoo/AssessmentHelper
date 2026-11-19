@@ -14,6 +14,9 @@ import type {
 } from "../../api/types";
 import { Link } from "react-router-dom";
 import { formatDateTime } from "../../api/format";
+import { isUserTransferredToNextCycle } from "../committee/A02FacultyMatching";
+
+const L03_ROUTE = "/login/signin2";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "In progress",
@@ -356,6 +359,7 @@ export default function S04CurrentAndPastObservations() {
     window.addEventListener("profile-changed", handleRefresh);
     window.addEventListener("simulated-date-changed", handleRefresh);
     window.addEventListener("demo-date-changed", handleRefresh);
+    window.addEventListener("cycle-transfers-updated", handleRefresh);
     window.addEventListener("demo-reset", handleRefresh);
 
     return () => {
@@ -364,6 +368,7 @@ export default function S04CurrentAndPastObservations() {
       window.removeEventListener("profile-changed", handleRefresh);
       window.removeEventListener("simulated-date-changed", handleRefresh);
       window.removeEventListener("demo-date-changed", handleRefresh);
+      window.removeEventListener("cycle-transfers-updated", handleRefresh);
       window.removeEventListener("demo-reset", handleRefresh);
     };
   }, []);
@@ -376,6 +381,25 @@ export default function S04CurrentAndPastObservations() {
   };
 
   const isCommitteeMember = currentUser?.role === "admin";
+  const isTransferredToNextCycle = isUserTransferredToNextCycle(
+    currentUser,
+    registration
+  );
+  const isCycleRegistered =
+    isCommitteeMember ||
+    (Boolean(registration?.is_registered) && !isTransferredToNextCycle);
+  const backDestination = isCommitteeMember
+    ? "/committee/dashboard"
+    : isCycleRegistered
+    ? "/shared/faculty-dashboard"
+    : L03_ROUTE;
+  const backTopLabel = isCycleRegistered
+    ? "← Back to Dashboard"
+    : "← Back to Cycle Registration";
+  const backBottomLabel = isCycleRegistered
+    ? "Return to Dashboard"
+    : "Return to Cycle Registration";
+
   const currentUserId = getNumericId(currentUser);
   const currentUserName = currentUser
     ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`
@@ -464,8 +488,10 @@ export default function S04CurrentAndPastObservations() {
     )
   );
 
-  const totalActiveCount =
+  const activeWorkCount =
     allCurrentRecords.length + allActiveScheduledVisits.length;
+  const showActive = isCycleRegistered || activeWorkCount > 0;
+  const totalActiveCount = showActive ? activeWorkCount : 0;
 
   const pastRecordsBySemester = pastRecords.reduce<
     Record<string, ObservationRecord[]>
@@ -504,26 +530,21 @@ export default function S04CurrentAndPastObservations() {
   return (
     <div className="dashboard-container">
       <div className="back-dashboard-wrapper">
-        <Link
-          to={
-            isCommitteeMember
-              ? "/committee/dashboard"
-              : "/shared/faculty-dashboard"
-          }
-          className="back-dashboard-link"
-        >
-          ← Back to Dashboard
+        <Link to={backDestination} className="back-dashboard-link">
+          {backTopLabel}
         </Link>
       </div>
 
-      {/* Header matching A03-A08 */}
+      {/* Header matching A03 to A08 */}
       <div className="committee-page-header">
         <h2>Current and Past Observations</h2>
 
         {!liveLoading && (
           <div className="committee-page-header-meta">
             <span className="a01-cycle-badge">
-              {totalActiveCount} Active - {allPastRecords.length} Archived
+              {showActive
+                ? `${totalActiveCount} Active - ${allPastRecords.length} Archived`
+                : `${allPastRecords.length} Archived`}
             </span>
           </div>
         )}
@@ -622,7 +643,7 @@ export default function S04CurrentAndPastObservations() {
         </div>
       )}
 
-      {!liveLoading && !liveError && (
+      {!liveLoading && !liveError && showActive && (
         <section className="s04-section-panel">
           <div className="s04-section-header">
             <div className="a01-phase-title-group">
@@ -640,7 +661,7 @@ export default function S04CurrentAndPastObservations() {
           {currentRecords.length === 0 && activeScheduledVisits.length === 0 ? (
             <div className="a07-state-box s04-zero-margin">
               {roleFilter === "all"
-                ? "No current observations or confirmed peer pairings yet."
+                ? "No active observations right now."
                 : `No ongoing observations in the ${roleFilter} role.`}
             </div>
           ) : (
@@ -1021,15 +1042,8 @@ export default function S04CurrentAndPastObservations() {
       )}
 
       <div className="dashboard-center-action">
-        <Link
-          to={
-            isCommitteeMember
-              ? "/committee/dashboard"
-              : "/shared/faculty-dashboard"
-          }
-          className="btn-secondary"
-        >
-          Return to Dashboard
+        <Link to={backDestination} className="btn-secondary">
+          {backBottomLabel}
         </Link>
       </div>
     </div>

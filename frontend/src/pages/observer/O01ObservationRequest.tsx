@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { matchingApi } from "../../api/endpoints";
 import type { Invitation } from "../../api/types";
 import { Link } from "react-router-dom";
-import profileIcon from "../../assets/profile_icon.png";
+import profileIcon from "../../assets/icons/profile_icon.png";
 import { formatDateTime as formatMoment } from "../../api/format";
 
 interface ProposedDateSlot {
@@ -183,15 +183,6 @@ export default function O01ObservationRequest() {
     ? `${invitation.sender.first_name} ${invitation.sender.last_name}`.trim() ||
       invitation.sender.username
     : "Faculty details unavailable";
-
-  const statusPillClass =
-    invitation?.status === "accepted" || invitation?.status === "confirmed"
-      ? "is-confirmed"
-      : invitation?.status === "declined" ||
-        invitation?.status === "expired" ||
-        invitation?.status === "rejected"
-      ? "is-declined"
-      : "is-pending";
 
   return (
     <div className="dashboard-container">

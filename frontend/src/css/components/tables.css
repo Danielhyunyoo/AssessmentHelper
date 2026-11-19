@@ -92,6 +92,7 @@
 
 .custom-data-table tbody tr,
 .roster-data-table tbody tr {
+  cursor: pointer;
   transition: background-color 0.14s ease;
 }
 
@@ -189,4 +190,40 @@
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-muted);
+}
+
+.table-scroll-box,
+.a04-scroll-box,
+.a05-scroll-box,
+.unmatched-table-wrapper {
+  max-height: 360px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.a04-scroll-box::-webkit-scrollbar,
+.a05-scroll-box::-webkit-scrollbar,
+.unmatched-table-wrapper::-webkit-scrollbar,
+.a02-confirmed-list::-webkit-scrollbar,
+.a05-modal-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.a04-scroll-box::-webkit-scrollbar-thumb,
+.a05-scroll-box::-webkit-scrollbar-thumb,
+.unmatched-table-wrapper::-webkit-scrollbar-thumb,
+.a02-confirmed-list::-webkit-scrollbar-thumb,
+.a05-modal-body::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 9999px;
+}
+
+.sticky-header-table thead th,
+.a04-sticky-table thead th,
+.a05-sticky-table thead th,
+.unmatched-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }

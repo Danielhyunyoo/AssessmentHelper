@@ -1,0 +1,166 @@
+/* ==========================================================================
+   PAGE: SIGN-IN (L02)
+   ========================================================================== */
+body[data-route-bg="signin"] {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(15, 35, 26, 0.22) 0%,
+      rgba(15, 28, 22, 0.38) 100%
+    ),
+    url("../../assets/backgrounds/utd_magnolias_bkgr.jpg");
+}
+
+body[data-route-bg="signin"] .signin-card {
+  background-color: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(14px);
+  border-top: 4px solid #154734;
+  border-bottom: 4px solid #e87500;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
+}
+
+html.dark-mode body[data-route-bg="signin"] .signin-card {
+  background-color: var(--bg-surface-glass);
+}
+
+.signin-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 72vh;
+  padding: 2.5rem 1rem;
+}
+
+.signin-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 2.25rem 2.4rem;
+  border-radius: 14px;
+  box-shadow: var(--shadow-elevated);
+}
+
+.signin-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.signin-back-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  margin-bottom: 1rem;
+  transition: color 0.15s ease;
+}
+
+.signin-back-link:hover {
+  color: var(--accent-primary);
+}
+
+.signin-badge {
+  margin-bottom: 0.75rem;
+}
+
+.signin-title {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.signin-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.signin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.signin-field label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.signin-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+}
+
+.signin-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.signin-toggle-pw {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.signin-toggle-pw:hover {
+  text-decoration: underline;
+}
+
+.signin-checkbox-container {
+  display: flex;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.signin-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.signin-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.signin-submit-btn {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+.signin-footer-note {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-strong);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.45;
+}

@@ -41,7 +41,7 @@ class Command(BaseCommand):
                 published("observation"),
                 published("survey"),
             )
-        seed_avatars(users)
+        seed_avatars(users, force=options["reset"])
 
         if options["reset"]:
             clear_background_activity()

@@ -453,6 +453,12 @@ export default function A05PendingObservationRecords() {
         </div>
       </section>
 
+      <div className="dashboard-center-action">
+        <Link to="/committee/dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
+      </div>
+
       {/* Confirmation Popup for Bulk Remind All */}
       {showConfirmAll && (
         <div

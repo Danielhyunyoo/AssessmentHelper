@@ -1,0 +1,212 @@
+/* ==========================================================================
+   PAGE: OBSERVER SELECTION & STATUS DASHBOARD (E02)
+   ========================================================================== */
+.e02-course-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-top: 3px solid var(--accent-primary);
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.e02-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.e02-card-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.e02-card-subtitle {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.e02-dates-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.proposed-dates-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.e02-saved-date-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background-color: var(--accent-soft-bg);
+  color: var(--accent-soft-text);
+  border: 1px solid var(--accent-soft-border);
+}
+
+.e02-callout-notice {
+  background-color: var(--amber-soft-bg);
+  border: 1px solid var(--amber-soft-border);
+  border-left: 4px solid var(--amber-accent);
+  color: var(--amber-soft-text);
+  padding: 0.8rem 1.05rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin: 0.75rem 0 1rem 0;
+}
+
+.observer-pending-change-banner {
+  margin: 0.25rem 0 0 0;
+}
+
+.observer-deadline-banner {
+  margin-bottom: 1rem;
+}
+
+.observer-validation-error {
+  color: var(--danger-accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+}
+
+.observer-feedback-banner {
+  margin-top: 1rem;
+}
+
+.e02-observer-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.e02-dates-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.candidate-date-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.candidate-date-pill-btn {
+  padding: 0.26rem 0.58rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.e02-date-count-tag {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: 6px;
+}
+
+.e02-date-count-tag.is-valid {
+  background-color: var(--sage-soft-bg);
+  color: var(--sage-soft-text);
+}
+
+.e02-date-count-tag.is-warning {
+  background-color: var(--danger-soft-bg);
+  color: var(--danger-soft-text);
+}
+
+.e02-responses-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.e02-status-summary-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.e02-summary-total {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-right: 0.2rem;
+}
+
+.e02-summary-chip {
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+
+.e02-response-status-cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.e02-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+
+.e02-status-pill.is-pending,
+.e02-status-pill.is-invited {
+  background-color: var(--amber-soft-bg);
+  color: var(--amber-soft-text);
+  border-color: var(--amber-soft-border);
+}
+
+.e02-status-pill.is-accepted,
+.e02-status-pill.is-confirmed {
+  background-color: var(--sage-soft-bg);
+  color: var(--sage-soft-text);
+  border-color: var(--sage-soft-border);
+}
+
+.e02-status-pill.is-declined,
+.e02-status-pill.is-rejected,
+.e02-status-pill.is-expired {
+  background-color: var(--danger-soft-bg);
+  color: var(--danger-soft-text);
+  border-color: var(--danger-soft-border);
+}

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { facultyApi, observationApi } from "../../api/endpoints";
 import type { Course, ScheduledVisit } from "../../api/types";
 import { Link } from "react-router-dom";
+import { getCarriedForwardRecordForUser } from "../committee/A02FacultyMatching";
 
 const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -49,6 +50,84 @@ function formatShortDate(isoDate: string): string {
   });
 }
 
+function formatUsNational(digits: string): string {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  }
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+}
+
+function formatInternationalBody(digits: string): string {
+  if (digits.startsWith("7")) {
+    const cc = "7";
+    const rest = digits.slice(1);
+    if (!rest) return `+${cc}`;
+    if (rest.length <= 3) return `+${cc} (${rest}`;
+    if (rest.length <= 6) return `+${cc} (${rest.slice(0, 3)}) ${rest.slice(3)}`;
+    if (rest.length <= 8) {
+      return `+${cc} (${rest.slice(0, 3)}) ${rest.slice(3, 6)}-${rest.slice(6)}`;
+    }
+    return `+${cc} (${rest.slice(0, 3)}) ${rest.slice(3, 6)}-${rest.slice(6, 8)}-${rest.slice(8, 10)}`;
+  }
+
+  const twoDigitCodes = new Set([
+    "20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43",
+    "44", "45", "46", "47", "48", "49", "51", "52", "53", "54", "55", "56",
+    "57", "58", "60", "61", "62", "63", "64", "65", "66", "81", "82", "84",
+    "86", "90", "91", "92", "93", "94", "95", "98",
+  ]);
+
+  const ccLen =
+    digits.length >= 2 && twoDigitCodes.has(digits.slice(0, 2))
+      ? 2
+      : Math.min(3, digits.length);
+
+  const cc = digits.slice(0, ccLen);
+  const body = digits.slice(ccLen);
+  if (!body) return `+${cc}`;
+
+  if (body.length <= 4) return `+${cc} ${body}`;
+  if (body.length <= 8) return `+${cc} ${body.slice(0, 4)} ${body.slice(4)}`;
+  return `+${cc} ${body.slice(0, 2)} ${body.slice(2, 6)} ${body.slice(6)}`;
+}
+
+function formatPhoneNumber(raw: string): string {
+  if (!raw) return "";
+
+  const extMatch = raw.match(/(?:\s*(?:ext\.?|x)\s*)(\d{1,6})$/i);
+  const mainPart = extMatch ? raw.slice(0, extMatch.index) : raw;
+  const extDigits = extMatch ? extMatch[1] : "";
+  const extSuffix = extDigits ? ` x${extDigits}` : "";
+
+  const trimmed = mainPart.trim();
+  if (!trimmed) return extSuffix.trim();
+
+  const hasLeadingPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "").slice(0, 15);
+
+  if (!digits) return hasLeadingPlus ? `+${extSuffix}` : extSuffix.trim();
+
+  if (hasLeadingPlus) {
+    if (digits.startsWith("1") && digits.length <= 11) {
+      const rest = digits.slice(1);
+      if (!rest) return `+1${extSuffix}`;
+      return `+1 ${formatUsNational(rest)}${extSuffix}`;
+    }
+    return `${formatInternationalBody(digits)}${extSuffix}`;
+  }
+
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `1 ${formatUsNational(digits.slice(1))}${extSuffix}`;
+  }
+
+  if (digits.length > 10) {
+    return `${formatInternationalBody(digits)}${extSuffix}`;
+  }
+
+  return `${formatUsNational(digits)}${extSuffix}`;
+}
+
 export default function S02Profile(): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,10 +143,14 @@ export default function S02Profile(): React.ReactElement {
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
   const [academicRank, setAcademicRank] = useState("");
+  const [isCommitteeUser, setIsCommitteeUser] = useState(false);
 
   const [evaluationCycle, setEvaluationCycle] = useState("");
   const [evaluationStatus, setEvaluationStatus] = useState("");
   const [lastEvaluated, setLastEvaluated] = useState("");
+  const [transferredTargetCycle, setTransferredTargetCycle] = useState<
+    string | null
+  >(null);
 
   const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
   const [isRegisteredObservee, setIsRegisteredObservee] = useState(false);
@@ -157,8 +240,18 @@ export default function S02Profile(): React.ReactElement {
         const professor = result.professor as any;
         const first = professor.first_name || "";
         const last = professor.last_name || "";
+        setIsCommitteeUser(professor.role === "admin");
+
+        const transferRec = getCarriedForwardRecordForUser(
+          professor,
+          regStatus
+        );
+        setTransferredTargetCycle(transferRec?.target_cycle ?? null);
 
         const profId = professor.user_id ?? professor.id;
+        const userKey = String(profId ?? professor.email ?? "");
+        const phoneMarkerKey = `s02_phone_saved_${userKey}`;
+
         let cachedPhoto = professor.profile_photo;
         if (!cachedPhoto && profId) {
           cachedPhoto =
@@ -170,7 +263,9 @@ export default function S02Profile(): React.ReactElement {
 
         setEvaluationCycle(result.evaluation_cycle || "Current Cycle");
         setEvaluationStatus(
-          String(result.evaluation_status || "undetermined")
+          transferRec
+            ? `transferred to ${transferRec.target_cycle}`
+            : String(result.evaluation_status || "undetermined")
         );
 
         const lastSemester = professor.last_evaluated_semester || "";
@@ -182,11 +277,32 @@ export default function S02Profile(): React.ReactElement {
             : "No previous evaluation recorded"
         );
 
+        let rawStoredPhone = professor.phone || "";
+        try {
+          const hasLocalPhoneMarker = Boolean(
+            userKey && localStorage.getItem(phoneMarkerKey)
+          );
+          if (rawStoredPhone && !hasLocalPhoneMarker) {
+            rawStoredPhone = "";
+            void facultyApi
+              .updateProfile({
+                first_name: first,
+                last_name: last,
+                phone: "",
+              })
+              .catch(() => {});
+          }
+        } catch {
+          // Ignore storage errors
+        }
+
+        const formattedStoredPhone = formatPhoneNumber(rawStoredPhone);
+
         setFirstName(first);
         setLastName(last);
         setEmail(professor.email || "");
-        setPhone(professor.phone || "");
-        setEditPhone(professor.phone || "");
+        setPhone(formattedStoredPhone);
+        setEditPhone(formattedStoredPhone);
         setDepartment(professor.department_name || "Not provided");
         setAcademicRank(professor.academic_level || "Not provided");
 
@@ -204,12 +320,14 @@ export default function S02Profile(): React.ReactElement {
         const availObj = availData as any;
         const dashObj = dashData as any;
 
-        const registeredFlag = Boolean(
-          regObj?.is_registered ||
-            regObj?.signup ||
-            regObj?.registered ||
-            dashObj?.is_registered
-        );
+        const registeredFlag =
+          !transferRec &&
+          Boolean(
+            regObj?.is_registered ||
+              regObj?.signup ||
+              regObj?.registered ||
+              dashObj?.is_registered
+          );
         setIsRegisteredObservee(registeredFlag);
 
         const directCourse =
@@ -288,7 +406,24 @@ export default function S02Profile(): React.ReactElement {
     }
 
     const handleDemoReset = () => {
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith("s02_phone_saved_"))
+          .forEach((k) => localStorage.removeItem(k));
+      } catch {
+        // Ignore storage errors
+      }
+      setPhone("");
+      setEditPhone("");
       setProfilePhoto("");
+      setTransferredTargetCycle(null);
+      setAvailDays(["Tue", "Thu"]);
+      setAvailWindows(["Morning (8:00 AM - 12:00 PM)"]);
+      setSpecificDates([]);
+      setAvailNotes("");
+      setAvailSavedStatus("");
+      setIsEditingInfo(false);
+      setSaveMessage("");
     };
 
     void loadProfile();
@@ -447,21 +582,41 @@ export default function S02Profile(): React.ReactElement {
     setSaveMessage("");
     setProfileError("");
 
+    const formattedPhoneToSave = formatPhoneNumber(editPhone);
+
     try {
       const result = await facultyApi.updateProfile({
         first_name: editFirstName.trim(),
         last_name: editLastName.trim(),
-        phone: editPhone.trim(),
+        phone: formattedPhoneToSave,
       });
 
       const professor = result.professor as any;
+      const savedPhone = formatPhoneNumber(
+        professor.phone ?? formattedPhoneToSave
+      );
+
+      try {
+        const userKey = String(
+          professor.user_id ?? professor.id ?? professor.email ?? ""
+        );
+        if (userKey) {
+          if (savedPhone) {
+            localStorage.setItem(`s02_phone_saved_${userKey}`, "1");
+          } else {
+            localStorage.removeItem(`s02_phone_saved_${userKey}`);
+          }
+        }
+      } catch {
+        // Ignore storage errors
+      }
 
       setFirstName(professor.first_name || "");
       setLastName(professor.last_name || "");
-      setPhone(professor.phone || "");
+      setPhone(savedPhone);
       setEditFirstName(professor.first_name || "");
       setEditLastName(professor.last_name || "");
-      setEditPhone(professor.phone || "");
+      setEditPhone(savedPhone);
 
       setIsEditingInfo(false);
       window.dispatchEvent(new Event("profile-changed"));
@@ -511,12 +666,30 @@ export default function S02Profile(): React.ReactElement {
 
   const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
+  const hasFullPortalAccess =
+    isCommitteeUser || (isRegisteredObservee && !transferredTargetCycle);
+  const backDestination = isCommitteeUser
+    ? "/committee/dashboard"
+    : hasFullPortalAccess
+    ? "/shared/faculty-dashboard"
+    : "/login/signin2";
+  const backTopLabel = hasFullPortalAccess
+    ? "← Back to Dashboard"
+    : transferredTargetCycle
+    ? "← Back to Cycle Status"
+    : "← Back to Cycle Registration";
+  const backBottomLabel = hasFullPortalAccess
+    ? "Return to Dashboard"
+    : transferredTargetCycle
+    ? "Return to Cycle Status"
+    : "Return to Cycle Registration";
+
   return (
     <div className="dashboard-container">
       {/* Top-Left Back Link */}
       <div className="back-dashboard-wrapper">
-        <Link className="back-dashboard-link" to="/shared/faculty-dashboard">
-          ← Back to Dashboard
+        <Link className="back-dashboard-link" to={backDestination}>
+          {backTopLabel}
         </Link>
       </div>
 
@@ -667,9 +840,11 @@ export default function S02Profile(): React.ReactElement {
                   <input
                     id="phone"
                     type="tel"
-                    placeholder="(555) 123-4567"
+                    placeholder="(555) 123-4567 or +44 20 7946 0958"
                     value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
+                    onChange={(e) =>
+                      setEditPhone(formatPhoneNumber(e.target.value))
+                    }
                   />
                 </div>
 
@@ -903,8 +1078,12 @@ export default function S02Profile(): React.ReactElement {
 
           <div className="profile-metric-box">
             <span className="status-label">Next Semester Due</span>
-            <span className="status-value muted-placeholder">
-              Pending cycle assignment
+            <span
+              className={`status-value ${
+                transferredTargetCycle ? "" : "muted-placeholder"
+              }`}
+            >
+              {transferredTargetCycle || "Pending cycle assignment"}
             </span>
           </div>
         </div>
@@ -923,9 +1102,14 @@ export default function S02Profile(): React.ReactElement {
               <span className="status-label">
                 Registered Course (As Observee)
               </span>
-              <Link className="notif-action-link" to="/observee/course-selection">
-                Manage →
-              </Link>
+              {hasFullPortalAccess && (
+                <Link
+                  className="notif-action-link"
+                  to="/observee/course-selection"
+                >
+                  Manage →
+                </Link>
+              )}
             </div>
 
             {isRegisteredObservee ? (
@@ -947,7 +1131,9 @@ export default function S02Profile(): React.ReactElement {
               )
             ) : (
               <p className="status-value muted-placeholder">
-                Not currently registered for a course observation.
+                {transferredTargetCycle
+                  ? `Carried forward to ${transferredTargetCycle}.`
+                  : "Not currently registered for a course observation."}
               </p>
             )}
           </div>
@@ -959,7 +1145,7 @@ export default function S02Profile(): React.ReactElement {
               </span>
               <Link
                 className="notif-action-link"
-                to="/observer/active-observations"
+                to="/shared/current-past-observations"
               >
                 View All →
               </Link>
@@ -1012,8 +1198,8 @@ export default function S02Profile(): React.ReactElement {
       </section>
 
       <div className="dashboard-center-action">
-        <Link className="btn-secondary" to="/shared/faculty-dashboard">
-          Return to Dashboard
+        <Link className="btn-secondary" to={backDestination}>
+          {backBottomLabel}
         </Link>
       </div>
     </div>
