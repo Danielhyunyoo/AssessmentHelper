@@ -91,6 +91,24 @@ type ResolutionActionType =
   | "transfer_cycle"
   | "deny_request";
 
+export function clearA02DemoStorage(): void {
+  try {
+    localStorage.removeItem(PENDING_COURSE_CHANGE_KEY);
+    localStorage.removeItem(LEGACY_PENDING_COURSE_CHANGE_KEY);
+    localStorage.removeItem(APPROVED_COURSE_OVERRIDES_KEY);
+    localStorage.removeItem(CYCLE_TRANSFER_STORAGE_KEY);
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("pending_course_change")) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 function readApprovedCourseOverrides(): Record<string, ApprovedCourseOverride> {
   try {
     const raw = localStorage.getItem(APPROVED_COURSE_OVERRIDES_KEY);
@@ -528,9 +546,7 @@ export default function A02FacultyMatching() {
 
       const currentReqs = readAllPendingChangeRequests();
       setPendingChangeRequests(currentReqs);
-      if (currentReqs.length > 0) {
-        setHadRequestsThisSession(true);
-      }
+      setHadRequestsThisSession(currentReqs.length > 0);
       setReassignedCourseByReq((prev) => {
         const next = { ...prev };
         currentReqs.forEach((req, idx) => {
@@ -822,9 +838,7 @@ export default function A02FacultyMatching() {
     const syncPending = () => {
       const latest = readAllPendingChangeRequests();
       setPendingChangeRequests(latest);
-      if (latest.length > 0) {
-        setHadRequestsThisSession(true);
-      }
+      setHadRequestsThisSession(latest.length > 0);
       try {
         const rawTransfers = localStorage.getItem(CYCLE_TRANSFER_STORAGE_KEY);
         setTransferredObservees(rawTransfers ? JSON.parse(rawTransfers) : {});
@@ -832,7 +846,26 @@ export default function A02FacultyMatching() {
         // Ignore storage errors
       }
     };
+
     const handleDemoReset = () => {
+      clearA02DemoStorage();
+      setPendingChangeRequests([]);
+      setHadRequestsThisSession(false);
+      setTransferredObservees({});
+      setExpandedRequestIds({});
+      setResolutionActionByReq({});
+      setReassignedCourseByReq({});
+      setAcNoteByReq({});
+      setUnlockedSignupIds({});
+      setMatchStatusFilter("all");
+      setMatchSearchQuery("");
+      setChangeReqSearchQuery("");
+      setConfirmedSearchQuery("");
+      setShowA03LinkBanner(false);
+      setMatchError("");
+      setMatchSuccess("");
+      window.dispatchEvent(new Event("course-change-request-updated"));
+      window.dispatchEvent(new Event("cycle-transfers-updated"));
       void loadMatchingData(() => cancelled);
     };
 
