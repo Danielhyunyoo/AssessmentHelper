@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Course, Cycle, MatchCandidate, Observation, Pairing, Signup, Template
+from .models import Course, Cycle, MatchCandidate, Notification, Observation, Pairing, Signup, Template
 
 User = get_user_model()
 
@@ -118,3 +118,59 @@ class WorkflowTests(APITestCase):
 
         self.assertNotIn(self.committee.pk, [c["id"] for c in pool.data["candidates"]])
         self.assertEqual(release.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def confirmed_pairing(self):
+        signup = self.released_signup()
+        pairing = Pairing.objects.create(cycle=self.cycle, observer=self.professor_b, observee=self.professor_a,
+                                         course=self.professor_a_course, status="confirmed",
+                                         confirmed_datetime=timezone.now() + timedelta(days=2))
+        return signup, pairing
+
+    def cancel_match(self, signup):
+        return self.client.post(f"/api/committee/signups/{signup.pk}/cancel-match/")
+
+    def test_committee_can_cancel_a_confirmed_match(self):
+        signup, pairing = self.confirmed_pairing()
+        self.as_user(self.committee)
+
+        response = self.cancel_match(signup)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(Pairing.objects.filter(pk=pairing.pk).exists())
+        self.assertFalse(MatchCandidate.objects.filter(signup=signup).exists())
+        signup.refresh_from_db()
+        self.assertIsNone(signup.course_id)
+        self.assertIsNone(signup.matches_released_at)
+        for person in (self.professor_a, self.professor_b):
+            self.assertTrue(Notification.objects.filter(user=person, title__contains="cancelled").exists())
+
+    def test_observee_can_pick_a_course_after_the_deadline_once_cancelled(self):
+        signup, _ = self.confirmed_pairing()
+        self.as_user(self.committee)
+        self.cancel_match(signup)
+        Cycle.objects.filter(pk=self.cycle.pk).update(signup_deadline=timezone.localdate() - timedelta(days=1))
+        self.as_user(self.professor_a)
+
+        response = self.client.patch("/api/signups/course/", {"course_id": self.professor_a_course.pk}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_signed_observations_cannot_be_cancelled(self):
+        signup, pairing = self.confirmed_pairing()
+        template = Template.objects.create(name="Peer observation", type="observation", status="published", questions=[])
+        Observation.objects.create(pairing=pairing, template=template, observer_signed=True)
+        self.as_user(self.committee)
+
+        response = self.cancel_match(signup)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Pairing.objects.filter(pk=pairing.pk).exists())
+
+    def test_faculty_cannot_cancel_matches(self):
+        signup, pairing = self.confirmed_pairing()
+        self.as_user(self.professor_b)
+
+        response = self.cancel_match(signup)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Pairing.objects.filter(pk=pairing.pk).exists())
