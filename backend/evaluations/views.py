@@ -1,5 +1,6 @@
 from io import StringIO
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
 from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -303,12 +304,28 @@ def my_courses(request):
     return Response(CourseSerializer(courses, many=True).data)
 
 
+def carried_forward_to(signup):
+    if signup is None:
+        return None
+    try:
+        return signup.carry_forward.target_cycle
+    except ObjectDoesNotExist:
+        return None
+
+
+def reject_carried_forward(signup):
+    target = carried_forward_to(signup)
+    if target is not None:
+        raise ValidationError({"detail": f"Your evaluation was moved to {target.semester}."})
+
+
 @api_view(["GET"])
 def registration_status(request):
     """Return registration and course-selection state for the active cycle."""
     professor = get_current_professor(request)
     cycle = get_current_cycle()
     signup = Signup.objects.filter(user=professor, cycle=cycle).first()
+    moved_to = carried_forward_to(signup)
     return Response({
         "cycle_id": cycle.pk,
         "cycle_name": cycle.semester,
@@ -317,7 +334,9 @@ def registration_status(request):
         "signup_deadline": cycle.signup_deadline,
         "observation_deadline": cycle.observation_deadline,
         "survey_deadline": cycle.survey_deadline,
-        "is_registered": signup is not None,
+        "is_registered": signup is not None and moved_to is None,
+        "carried_forward": moved_to is not None,
+        "target_cycle": moved_to.semester if moved_to else None,
         "has_selected_course": bool(signup and signup.course_id),
         "selected_course_id": signup.course_id if signup else None,
         "today": clock.today(),
@@ -338,8 +357,9 @@ def create_signup(request):
     if course_id is not None:
         course = get_object_or_404(current_courses(professor, cycle), pk=course_id)
 
-    already_registered = Signup.objects.filter(user=professor, cycle=cycle).exists()
-    if not already_registered and clock.today() > cycle.signup_deadline:
+    existing = Signup.objects.filter(user=professor, cycle=cycle).first()
+    reject_carried_forward(existing)
+    if existing is None and clock.today() > cycle.signup_deadline:
         raise ValidationError({"detail": "The signup deadline has passed. Contact the Assessment Committee to register late."})
 
     # get_or_create honors unique_user_cycle_signup, including concurrent clicks.
@@ -367,6 +387,7 @@ def select_signup_course(request):
     signup = Signup.objects.filter(user=professor, cycle=cycle).first()
     if signup is None:
         raise ValidationError({"detail": "Register for the cycle before selecting a course."})
+    reject_carried_forward(signup)
     serializer = CourseSelectionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     course = get_object_or_404(
@@ -412,7 +433,7 @@ def faculty_dashboard(request):
     evaluation_status_reason = evaluation["reason"]
 
     has_selected_course = bool(signup and signup.course_id)
-    is_registered = signup is not None
+    is_registered = signup is not None and carried_forward_to(signup) is None
     before_signup_deadline = today <= cycle.signup_deadline
     before_observation_deadline = today <= cycle.observation_deadline
     before_survey_deadline = today <= cycle.survey_deadline
