@@ -22,11 +22,11 @@ PROBLEM_TEXT = {
 DEFINITIONS = {
     "eligibility_accuracy": (
         "KPI-01 Eligibility Accuracy",
-        "Recommended observers who are not the observee, are in the same department, teach the same "
-        "course level, and have no class at the same time ÷ all recommended observers.",
+        "Recommended observers who are not the observee, are in the same department, taught the same "
+        "course level in the last two years, and have no class at the same time ÷ all recommended observers.",
     ),
     "list_sufficiency": ("KPI-02 List Sufficiency", "Eligible candidates per released list, counting at most 5."),
-    "participation_rate": ("KPI-03 Participation Rate", "Due or overdue faculty who signed up ÷ due or overdue faculty."),
+    "participation_rate": ("KPI-03 Participation Rate", "Faculty who signed up ÷ faculty who are due, overdue, or already observed this cycle."),
     "overdue_count": ("KPI-04 Overdue Count", "Faculty past their due year without a completed observation."),
     "observer_utilization": ("KPI-05 Observer Utilization Rate", "Observers in confirmed pairings ÷ faculty who signed up."),
     "missing_observations": (

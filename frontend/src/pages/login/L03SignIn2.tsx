@@ -41,6 +41,7 @@ export default function L03SignIn2() {
   const redirectTo = (location.state as LocationState | null)?.redirectTo;
 
   const [user, setUser] = useState<Professor | null>(null);
+  const [pendingWork, setPendingWork] = useState({ requests: 0, visits: false });
   const [registration, setRegistration] = useState<RegistrationStatus | null>(
     null
   );
@@ -113,6 +114,12 @@ export default function L03SignIn2() {
       }
 
       setRegistration(reg);
+
+      const dashboard = await facultyApi.dashboard().catch(() => null);
+      setPendingWork({
+        requests: dashboard?.incoming_requests ?? 0,
+        visits: Boolean(dashboard?.modules?.observation_record?.available),
+      });
     } catch (err) {
       setError(
         err instanceof Error
@@ -180,9 +187,10 @@ export default function L03SignIn2() {
   const firstName = (() => {
     if (!user) return "";
     const rec = user as unknown as Record<string, unknown>;
-    if (typeof rec.first_name === "string" && rec.first_name.trim()) {
-      return rec.first_name.trim();
-    }
+    const fullName = [rec.first_name, rec.last_name]
+      .filter((part): part is string => typeof part === "string" && part.trim() !== "")
+      .join(" ");
+    if (fullName) return fullName;
     if (typeof rec.full_name === "string" && rec.full_name.trim()) {
       return rec.full_name.trim().split(" ")[0];
     }
@@ -268,6 +276,22 @@ export default function L03SignIn2() {
         {error && (
           <div role="alert" className="empty-state-banner s04-zero-margin">
             <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        {(pendingWork.requests > 0 || pendingWork.visits) && (
+          <div className="l03-pending-work">
+            {pendingWork.requests > 0 && (
+              <Link to="/observer/observation-request" className="btn-primary">
+                Answer {pendingWork.requests} observation{" "}
+                {pendingWork.requests === 1 ? "request" : "requests"} →
+              </Link>
+            )}
+            {pendingWork.visits && (
+              <Link to="/shared/current-past-observations" className="btn-primary">
+                Open your observation visit →
+              </Link>
+            )}
           </div>
         )}
 

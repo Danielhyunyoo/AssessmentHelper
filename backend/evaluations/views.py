@@ -1518,7 +1518,7 @@ def _assert_survey_ready(pairing, user):
     today = clock.today()
     if today <= pairing.cycle.observation_deadline:
         raise ValidationError({
-            "detail": "Process surveys are not available until the observation period ends."
+            "detail": f"Surveys open after {pairing.cycle.observation_deadline:%b} {pairing.cycle.observation_deadline.day}, {pairing.cycle.observation_deadline.year}."
         })
     if today > pairing.cycle.survey_deadline:
         raise ValidationError({

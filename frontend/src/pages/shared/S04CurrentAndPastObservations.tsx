@@ -488,9 +488,10 @@ export default function S04CurrentAndPastObservations() {
     )
   );
 
-  const totalActiveCount = isCycleRegistered
-    ? allCurrentRecords.length + allActiveScheduledVisits.length
-    : 0;
+  const activeWorkCount =
+    allCurrentRecords.length + allActiveScheduledVisits.length;
+  const showActive = isCycleRegistered || activeWorkCount > 0;
+  const totalActiveCount = showActive ? activeWorkCount : 0;
 
   const pastRecordsBySemester = pastRecords.reduce<
     Record<string, ObservationRecord[]>
@@ -541,7 +542,7 @@ export default function S04CurrentAndPastObservations() {
         {!liveLoading && (
           <div className="committee-page-header-meta">
             <span className="a01-cycle-badge">
-              {isCycleRegistered
+              {showActive
                 ? `${totalActiveCount} Active - ${allPastRecords.length} Archived`
                 : `${allPastRecords.length} Archived`}
             </span>
@@ -642,7 +643,7 @@ export default function S04CurrentAndPastObservations() {
         </div>
       )}
 
-      {!liveLoading && !liveError && isCycleRegistered && (
+      {!liveLoading && !liveError && showActive && (
         <section className="s04-section-panel">
           <div className="s04-section-header">
             <div className="a01-phase-title-group">
@@ -660,7 +661,7 @@ export default function S04CurrentAndPastObservations() {
           {currentRecords.length === 0 && activeScheduledVisits.length === 0 ? (
             <div className="a07-state-box s04-zero-margin">
               {roleFilter === "all"
-                ? "No current observations or confirmed peer pairings yet."
+                ? "No active observations right now."
                 : `No ongoing observations in the ${roleFilter} role.`}
             </div>
           ) : (

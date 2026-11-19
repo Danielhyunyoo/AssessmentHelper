@@ -93,9 +93,6 @@ export default function E02ObserverSelection() {
   >({});
   const [candidateData, setCandidateData] = useState<CandidateRow[]>([]);
   const [responseData, setResponseData] = useState<ResponseRecord[]>([]);
-  const [selectedInvitationId, setSelectedInvitationId] = useState<
-    number | null
-  >(null);
   const [selectedDatesList, setSelectedDatesList] = useState<string[]>([]);
   const [availableDateTimes, setAvailableDateTimes] = useState<string[]>([]);
   const [released, setReleased] = useState(false);
@@ -498,14 +495,11 @@ export default function E02ObserverSelection() {
           <span className="bulk-btn-group">
             <button
               type="button"
-              className={
-                selectedInvitationId === row.id
-                  ? "primary-btn"
-                  : "btn-secondary"
-              }
-              onClick={() => setSelectedInvitationId(row.id)}
+              className="primary-btn"
+              onClick={() => void handleConfirmPairing(row.id)}
+              disabled={saving}
             >
-              {selectedInvitationId === row.id ? "✓ Selected" : "Select"}
+              Confirm
             </button>
             <button
               type="button"
@@ -543,7 +537,6 @@ export default function E02ObserverSelection() {
 
     try {
       await action();
-      setSelectedInvitationId(null);
       setSuccess(message);
       await reloadResponses();
     } catch (err) {
@@ -573,24 +566,15 @@ export default function E02ObserverSelection() {
     (row) => row.status === "pending" || row.status === "accepted"
   );
 
-  const handleConfirmPairing = async () => {
+  const handleConfirmPairing = async (invitationId: number) => {
     setSuccess("");
     setValidationError("");
     setMessageArea("responses");
-
-    if (selectedInvitationId === null) {
-      setValidationError(
-        "Please select an observer who has accepted an invitation."
-      );
-      return;
-    }
-
     setSaving(true);
 
     try {
-      await matchingApi.confirmPairing(selectedInvitationId);
+      await matchingApi.confirmPairing(invitationId);
       setSuccess("Observer and observation date confirmed.");
-      setSelectedInvitationId(null);
       const invitations = await matchingApi.sentInvitations();
       setResponseData(toResponseRows(invitations, observerNames));
     } catch (err) {
@@ -804,6 +788,13 @@ export default function E02ObserverSelection() {
             </div>
           )}
 
+          {!released ? (
+            <div className="e02-callout-notice">
+              <strong>Waiting for the Assessment Committee:</strong> you will
+              get a notification when your observers are released.
+            </div>
+          ) : (
+          <>
           <DataTable
             themeColor="orange"
             instructionText="Select candidates and customize their 4–8 proposed dates before sending requests."
@@ -865,6 +856,8 @@ export default function E02ObserverSelection() {
               {success}
             </div>
           )}
+          </>
+          )}
         </section>
       )}
 
@@ -918,14 +911,6 @@ export default function E02ObserverSelection() {
               disabled={saving}
             >
               Withdraw All Open Invitations
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => void handleConfirmPairing()}
-              disabled={saving || selectedInvitationId === null}
-            >
-              {saving ? "Confirming..." : "Confirm and Lock Pairing"}
             </button>
           </div>
         )}

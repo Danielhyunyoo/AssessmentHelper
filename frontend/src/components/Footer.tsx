@@ -120,14 +120,18 @@ export default function Footer() {
             <Link to="/shared/profile" className="footer-nav-link">
               Profile
             </Link>
-            <a
-              href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
-              className="footer-nav-link"
-              title="Opens your default email app to email assessment-committee@utdallas.edu"
-              aria-label="Email Assessment Committee via your email client"
-            >
-              Email Assessment Committee ↗
-            </a>
+            {currentUser ? (
+              <Link to="/shared/contact-committee" className="footer-nav-link">
+                Contact Assessment Committee
+              </Link>
+            ) : (
+              <a
+                href="mailto:assessment-committee@utdallas.edu?subject=UTD%20Assessment%20Helper%20Support"
+                className="footer-nav-link"
+              >
+                Email Assessment Committee ↗
+              </a>
+            )}
           </nav>
         </div>
       </div>

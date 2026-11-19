@@ -333,10 +333,21 @@ export default function S06PostEvaluationSurvey() {
   if (error && !template) {
     return (
       <div className="dashboard-container">
-        <p role="alert" className="empty-state-banner">{error}</p>
-        <Link to={backDestination} className="btn-secondary">
-          {backBottomLabel}
-        </Link>
+        <p
+          role={error.startsWith("Surveys open") ? "status" : "alert"}
+          className={
+            error.startsWith("Surveys open")
+              ? "e02-callout-notice"
+              : "empty-state-banner"
+          }
+        >
+          {error}
+        </p>
+        <div>
+          <Link to={backDestination} className="btn-secondary">
+            {backBottomLabel}
+          </Link>
+        </div>
       </div>
     );
   }

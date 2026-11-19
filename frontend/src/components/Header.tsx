@@ -14,6 +14,8 @@ import { isUserTransferredToNextCycle } from "../pages/committee/A02FacultyMatch
 interface NotificationPreview {
   id: string;
   title: string;
+  message: string;
+  destination: string;
   time: string;
   unread: boolean;
 }
@@ -296,7 +298,8 @@ export default function Header() {
       setHeaderError("Unable to mark this notification as read.");
     } finally {
       closeAllMenus();
-      navigate("/shared/notifications");
+      const target = notifications.find((n) => n.id === id)?.destination;
+      navigate(target?.startsWith("/") ? target : "/shared/notifications");
     }
   };
 
@@ -429,6 +432,8 @@ export default function Header() {
           previews.map((n) => ({
             id: String(n.notification_id),
             title: n.title,
+            message: n.message,
+            destination: n.destination,
             time: new Date(n.created_at).toLocaleString([], {
               month: "short",
               day: "numeric",
@@ -560,6 +565,7 @@ export default function Header() {
                         >
                           {n.title}
                         </p>
+                        <p className="notif-item-message">{n.message}</p>
                         <span
                           className={`notif-item-time ${
                             n.unread ? "text-unread" : "text-read"
@@ -584,25 +590,6 @@ export default function Header() {
                     View All Notifications
                   </button>
 
-                  <div className="notif-sim-row">
-                    <label className="notif-sim-label">
-                      <input
-                        type="checkbox"
-                        checked={hasUnreadNotifications}
-                        onChange={(e) => {
-                          setHasUnreadNotifications(e.target.checked);
-                          if (e.target.checked) {
-                            setNotifications((prev) =>
-                              prev.map((n, i) =>
-                                i < 2 ? { ...n, unread: true } : n
-                              )
-                            );
-                          }
-                        }}
-                      />
-                      <span>Simulate Active Bell Dot</span>
-                    </label>
-                  </div>
                 </div>
               </div>
             )}

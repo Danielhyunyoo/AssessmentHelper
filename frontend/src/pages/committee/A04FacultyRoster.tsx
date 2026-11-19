@@ -250,9 +250,6 @@ export default function A04FacultyRoster() {
         <div className="committee-page-title-block">
           <div className="committee-page-title-row">
             <h2>Faculty Registration and Communications</h2>
-            <span className="status-chip chip-draft">
-              {filteredFaculty.length} FACULTY
-            </span>
           </div>
         </div>
       </div>

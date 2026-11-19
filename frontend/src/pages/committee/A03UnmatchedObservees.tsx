@@ -437,18 +437,11 @@ export default function A03UnmatchedObservees() {
           {error}
         </div>
       )}
-      {message && (
-        <div role="status" className="feedback-banner-success">
-          {message}
-        </div>
-      )}
-
       {/* Info Alert Banner */}
       <div className="yellow-banner">
-        <strong>ALERT:</strong> The observees below either could not be matched
-        with the required minimum (5) of eligible observer candidates or were
-        deferred from Faculty Matching. Select faculty members below to transfer
-        them to the next evaluation cycle.
+        <strong>ALERT:</strong> The observees below have no eligible observers
+        this cycle or were deferred from Faculty Matching. Select faculty
+        members below to transfer them to the next evaluation cycle.
       </div>
 
       {/* Main Roster Table Card */}
@@ -667,6 +660,18 @@ export default function A03UnmatchedObservees() {
                   }to Next Evaluation Cycle`}
             </button>
           </div>
+
+          {selectedIds.length > 0 && !reason.trim() && (
+            <p className="font-slate font-sm a02-zero-margin">
+              Add a reason to enable the transfer.
+            </p>
+          )}
+
+          {message && (
+            <div role="status" className="feedback-banner-success">
+              {message}
+            </div>
+          )}
         </div>
       </section>
 

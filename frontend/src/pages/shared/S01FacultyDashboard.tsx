@@ -564,7 +564,20 @@ export default function S01FacultyDashboard() {
     currentUser.email ||
     "Faculty Member";
 
+  const modules = dashboard?.modules ?? {};
+  const nextStep = (dashboard?.incoming_requests ?? 0) > 0
+    ? { label: "Answer observation request →", to: "/observer/observation-request" }
+    : modules.observer_selection?.available
+    ? { label: "Invite observers →", to: "/observee/observer-selection" }
+    : modules.survey?.available
+    ? { label: "Submit your survey →", to: "/shared/current-past-observations" }
+    : modules.observation_record?.available
+    ? { label: "Open your observation record →", to: "/shared/current-past-observations" }
+    : null;
+
   const displayRank =
+    (typeof userRecord.academic_level === "string" &&
+      userRecord.academic_level.trim()) ||
     (typeof userRecord.hire_level === "string" &&
       userRecord.hire_level.trim()) ||
     (typeof userRecord.rank === "string" && userRecord.rank.trim()) ||
@@ -1131,6 +1144,12 @@ export default function S01FacultyDashboard() {
                       <span className="s01-stat-val">{displayRank}</span>
                     </div>
                   </div>
+                )}
+
+                {!isCommitteeMember && isRegistered && nextStep && (
+                  <Link to={nextStep.to} className="primary-btn">
+                    {nextStep.label}
+                  </Link>
                 )}
 
                 {isCommitteeMember ? (

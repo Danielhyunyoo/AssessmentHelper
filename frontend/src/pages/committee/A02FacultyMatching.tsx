@@ -424,6 +424,7 @@ export default function A02FacultyMatching() {
   const [cancellingSignupId, setCancellingSignupId] = useState<number | null>(
     null
   );
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
   const [matchError, setMatchError] = useState("");
   const [matchSuccess, setMatchSuccess] = useState("");
   const [showA03LinkBanner, setShowA03LinkBanner] = useState(false);
@@ -962,13 +963,7 @@ export default function A02FacultyMatching() {
     const observerSummary =
       observerNames.length > 0 ? observerNames.join(", ") : "their observer";
 
-    const confirmed = window.confirm(
-      `Cancel the confirmed observation pairing between ${person.name} and ${observerSummary}?\n\n` +
-        `• Both ${person.name} and ${observerSummary} will become unmatched.\n` +
-        `• ${observerSummary} will no longer be assigned as an observer for ${person.name}.\n` +
-        `• ${person.name} will remain registered for the cycle, with their class selection cleared so they can pick a course again.`
-    );
-    if (!confirmed) return;
+    setConfirmCancelId(null);
 
     setCancellingSignupId(signupId);
     setMatchError("");
@@ -2451,21 +2446,45 @@ export default function A02FacultyMatching() {
                             : ""}
                         </span>
 
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={isCancelling}
-                          onClick={() =>
-                            void handleCancelConfirmedMatch(
-                              person,
-                              displayObservers
-                            )
-                          }
-                        >
-                          {isCancelling
-                            ? "Cancelling..."
-                            : "Cancel Match & Clear Class"}
-                        </button>
+                        {confirmCancelId === person.signup_id ? (
+                          <>
+                            <span className="font-sm">
+                              Both become unmatched and {person.name} picks a
+                              course again.
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              disabled={isCancelling}
+                              onClick={() =>
+                                void handleCancelConfirmedMatch(
+                                  person,
+                                  displayObservers
+                                )
+                              }
+                            >
+                              {isCancelling ? "Cancelling..." : "Yes, cancel match"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => setConfirmCancelId(null)}
+                            >
+                              Keep
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={isCancelling}
+                            onClick={() =>
+                              setConfirmCancelId(person.signup_id ?? null)
+                            }
+                          >
+                            Cancel Match & Clear Class
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

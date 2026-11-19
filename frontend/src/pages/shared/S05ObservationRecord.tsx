@@ -754,6 +754,8 @@ export default function S05ObservationRecord() {
                             ? formatDateTime(record.observee_signed_at)
                             : "record"
                         }`
+                      : record.observer_signed
+                      ? "Ready for the observee to sign"
                       : "Unlocks once observer signs the record"}
                   </span>
                 </div>
