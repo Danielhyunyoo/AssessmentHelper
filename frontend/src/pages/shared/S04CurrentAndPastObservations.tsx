@@ -14,6 +14,9 @@ import type {
 } from "../../api/types";
 import { Link } from "react-router-dom";
 import { formatDateTime } from "../../api/format";
+import { isUserTransferredToNextCycle } from "../committee/A02FacultyMatching";
+
+const L03_ROUTE = "/login/signin2";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "In progress",
@@ -356,6 +359,7 @@ export default function S04CurrentAndPastObservations() {
     window.addEventListener("profile-changed", handleRefresh);
     window.addEventListener("simulated-date-changed", handleRefresh);
     window.addEventListener("demo-date-changed", handleRefresh);
+    window.addEventListener("cycle-transfers-updated", handleRefresh);
     window.addEventListener("demo-reset", handleRefresh);
 
     return () => {
@@ -364,6 +368,7 @@ export default function S04CurrentAndPastObservations() {
       window.removeEventListener("profile-changed", handleRefresh);
       window.removeEventListener("simulated-date-changed", handleRefresh);
       window.removeEventListener("demo-date-changed", handleRefresh);
+      window.removeEventListener("cycle-transfers-updated", handleRefresh);
       window.removeEventListener("demo-reset", handleRefresh);
     };
   }, []);
@@ -376,13 +381,18 @@ export default function S04CurrentAndPastObservations() {
   };
 
   const isCommitteeMember = currentUser?.role === "admin";
+  const isTransferredToNextCycle = isUserTransferredToNextCycle(
+    currentUser,
+    registration
+  );
   const isCycleRegistered =
-    isCommitteeMember || Boolean(registration?.is_registered);
+    isCommitteeMember ||
+    (Boolean(registration?.is_registered) && !isTransferredToNextCycle);
   const backDestination = isCommitteeMember
     ? "/committee/dashboard"
     : isCycleRegistered
     ? "/shared/faculty-dashboard"
-    : "/login/signin2";
+    : L03_ROUTE;
   const backTopLabel = isCycleRegistered
     ? "← Back to Dashboard"
     : "← Back to Cycle Registration";

@@ -7,11 +7,14 @@ import {
   matchingApi,
   observationApi,
 } from "../../api/endpoints";
-import type { ObservationRecord } from "../../api/types";
+import type { ObservationRecord, RegistrationStatus } from "../../api/types";
 import { formatDateTime } from "../../api/format";
 import { ApiError } from "../../api/http";
+import { isUserTransferredToNextCycle } from "../committee/A02FacultyMatching";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+
+const L03_ROUTE = "/login/signin2";
 
 function getInitials(name?: string | null) {
   if (!name) return "?";
@@ -208,12 +211,14 @@ export default function S05ObservationRecord() {
   };
 
   useEffect(() => {
-    async function loadRecord() {
-      const numericId = Number(observationId) || 1;
+    let cancelled = false;
 
+    async function refreshAccessStatus() {
       const sessionData = await authApi
         .session()
         .catch(() => ({ professor: null }));
+      if (cancelled) return;
+
       const sessionProf = sessionData?.professor ?? null;
       const adminUser = sessionProf?.role === "admin";
       setIsCommittee(adminUser);
@@ -223,12 +228,28 @@ export default function S05ObservationRecord() {
       } else if (sessionProf) {
         const reg = await facultyApi
           .registrationStatus()
-          .catch(() => ({ is_registered: false }));
-        setIsCycleRegistered(Boolean(reg.is_registered));
+          .catch(() => null);
+        if (cancelled) return;
+        const transferred = isUserTransferredToNextCycle(
+          sessionProf,
+          reg as RegistrationStatus | null
+        );
+        setIsCycleRegistered(Boolean(reg?.is_registered) && !transferred);
+      } else {
+        setIsCycleRegistered(false);
       }
+      return sessionProf;
+    }
+
+    async function loadRecord() {
+      setLoading(true);
+      const numericId = Number(observationId) || 1;
+      const sessionProf = (await refreshAccessStatus()) ?? null;
+      if (cancelled) return;
 
       try {
         const result = await observationApi.detail(numericId);
+        if (cancelled) return;
         setRecord(result);
         setResponses(result.responses ?? {});
         setIsDemoPreview(false);
@@ -238,6 +259,7 @@ export default function S05ObservationRecord() {
           matchingApi.incomingInvitations().catch(() => []),
           matchingApi.sentInvitations().catch(() => []),
         ]);
+        if (cancelled) return;
 
         const currentName = sessionProf
           ? `${sessionProf.first_name} ${sessionProf.last_name}`.trim() ||
@@ -284,11 +306,23 @@ export default function S05ObservationRecord() {
         setResponses({});
         setIsDemoPreview(true);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     void loadRecord();
+
+    const handleAccessSync = () => {
+      void refreshAccessStatus();
+    };
+
+    window.addEventListener("cycle-transfers-updated", handleAccessSync);
+    window.addEventListener("demo-reset", handleAccessSync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("cycle-transfers-updated", handleAccessSync);
+      window.removeEventListener("demo-reset", handleAccessSync);
+    };
   }, [observationId]);
 
   const handleSave = async () => {
@@ -382,13 +416,13 @@ export default function S05ObservationRecord() {
     ? "/committee/dashboard"
     : isCycleRegistered
     ? "/shared/faculty-dashboard"
-    : "/shared/current-past-observations";
+    : L03_ROUTE;
   const backTopLabel = isCycleRegistered
     ? "← Back to Dashboard"
-    : "← Back to Observations";
+    : "← Back to Cycle Registration";
   const backBottomLabel = isCycleRegistered
     ? "Return to Dashboard"
-    : "Return to Observations";
+    : "Return to Cycle Registration";
 
   if (loading) {
     return (
@@ -404,8 +438,8 @@ export default function S05ObservationRecord() {
         <p role="alert" className="empty-state-banner">
           {error || "The requested observation record could not be loaded."}
         </p>
-        <Link to="/shared/current-past-observations" className="btn-secondary">
-          Return to Observations
+        <Link to={backDestination} className="btn-secondary">
+          {backBottomLabel}
         </Link>
       </div>
     );
@@ -452,9 +486,7 @@ export default function S05ObservationRecord() {
         </div>
       )}
 
-      {/* Printable & Downloadable Report Area */}
       <div ref={reportRef} className="a07-report-stack">
-        {/* Header matching A03 to A08 */}
         <div className="committee-page-header">
           <h2>Observation Record</h2>
 
@@ -469,10 +501,8 @@ export default function S05ObservationRecord() {
           </div>
         </div>
 
-        {/* Pairing Summary Card */}
         <section className="s03-section-card s05-section-accent-primary">
           <div className="eval-pairing-summary-layout">
-            {/* Left Column: Entire Pairing Summary */}
             <div className="eval-pairing-summary-left">
               <div className="eval-pairing-header-block">
                 <div className="eval-pairing-title-row">
@@ -532,7 +562,6 @@ export default function S05ObservationRecord() {
               </div>
             </div>
 
-            {/* Right Column: How It Works Instructions (Hidden in Print & PDF) */}
             <div className="eval-pairing-summary-right no-print">
               <div className="eval-instructions-header">
                 <h4 className="eval-instructions-title">How It Works</h4>
@@ -565,7 +594,6 @@ export default function S05ObservationRecord() {
           </div>
         </section>
 
-        {/* Evaluation Form Main Container */}
         <section className="s03-section-card s05-section-accent-sage">
           <div className="s01-card-top-bar">
             <div>
@@ -680,7 +708,6 @@ export default function S05ObservationRecord() {
               })}
             </div>
 
-            {/* Signatures Section */}
             <div className="eval-signoff-box">
               <div className="s01-card-top-bar">
                 <h4>Participant Sign-Off</h4>
@@ -739,7 +766,6 @@ export default function S05ObservationRecord() {
               </p>
             </div>
 
-            {/* Form Submit / Sign Toolbar */}
             {(record.can_edit || record.can_sign) && (
               <div className="eval-form-actions">
                 {record.can_edit && (
@@ -768,7 +794,6 @@ export default function S05ObservationRecord() {
         </section>
       </div>
 
-      {/* Bottom Export and Report Actions */}
       <div className="kpi-export-actions-bottom">
         <button
           type="button"

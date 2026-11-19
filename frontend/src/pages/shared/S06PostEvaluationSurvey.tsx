@@ -7,9 +7,17 @@ import {
   observationApi,
   surveyApi,
 } from "../../api/endpoints";
-import type { ObservationRecord, Survey, Template } from "../../api/types";
+import type {
+  ObservationRecord,
+  RegistrationStatus,
+  Survey,
+  Template,
+} from "../../api/types";
+import { isUserTransferredToNextCycle } from "../committee/A02FacultyMatching";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+
+const L03_ROUTE = "/login/signin2";
 
 function getInitials(name?: string | null) {
   if (!name) return "?";
@@ -107,29 +115,46 @@ export default function S06PostEvaluationSurvey() {
   }
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function refreshAccessStatus() {
+      const sessionData = await authApi
+        .session()
+        .catch(() => ({ professor: null }));
+      if (cancelled) return;
+
+      const sessionProf = sessionData?.professor ?? null;
+      const adminUser = sessionProf?.role === "admin";
+      setIsCommittee(adminUser);
+
+      if (adminUser) {
+        setIsCycleRegistered(true);
+      } else if (sessionProf) {
+        const reg = await facultyApi
+          .registrationStatus()
+          .catch(() => null);
+        if (cancelled) return;
+        const transferred = isUserTransferredToNextCycle(
+          sessionProf,
+          reg as RegistrationStatus | null
+        );
+        setIsCycleRegistered(Boolean(reg?.is_registered) && !transferred);
+      } else {
+        setIsCycleRegistered(false);
+      }
+    }
+
     async function loadSurvey() {
       setLoading(true);
       setError("");
 
       try {
-        const sessionData = await authApi
-          .session()
-          .catch(() => ({ professor: null }));
-        const sessionProf = sessionData?.professor ?? null;
-        const adminUser = sessionProf?.role === "admin";
-        setIsCommittee(adminUser);
-
-        if (adminUser) {
-          setIsCycleRegistered(true);
-        } else if (sessionProf) {
-          const reg = await facultyApi
-            .registrationStatus()
-            .catch(() => ({ is_registered: false }));
-          setIsCycleRegistered(Boolean(reg.is_registered));
-        }
+        await refreshAccessStatus();
+        if (cancelled) return;
 
         if (surveyId) {
           const result = await surveyApi.detail(Number(surveyId));
+          if (cancelled) return;
           setSurvey(result);
           setRespondentType(result.respondent_type);
           setTemplate(
@@ -148,6 +173,7 @@ export default function S06PostEvaluationSurvey() {
           surveyApi.list(),
           observationApi.list(),
         ]);
+        if (cancelled) return;
 
         const existingSurvey = surveys.find(
           (item) => item.pairing_id === effectivePairingId
@@ -175,16 +201,31 @@ export default function S06PostEvaluationSurvey() {
 
         setRecord(matchingRecord);
         const result = await surveyApi.templateForPairing(effectivePairingId);
+        if (cancelled) return;
         setRespondentType(result.respondent_type);
         setTemplate(result.template);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Survey not available.");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Survey not available.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     void loadSurvey();
+
+    const handleAccessSync = () => {
+      void refreshAccessStatus();
+    };
+
+    window.addEventListener("cycle-transfers-updated", handleAccessSync);
+    window.addEventListener("demo-reset", handleAccessSync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("cycle-transfers-updated", handleAccessSync);
+      window.removeEventListener("demo-reset", handleAccessSync);
+    };
   }, [surveyId, pairingId]);
 
   async function saveSurvey(submit: boolean) {
@@ -273,13 +314,13 @@ export default function S06PostEvaluationSurvey() {
     ? "/committee/dashboard"
     : isCycleRegistered
     ? "/shared/faculty-dashboard"
-    : "/shared/current-past-observations";
+    : L03_ROUTE;
   const backTopLabel = isCycleRegistered
     ? "← Back to Dashboard"
-    : "← Back to Observations";
+    : "← Back to Cycle Registration";
   const backBottomLabel = isCycleRegistered
     ? "Return to Dashboard"
-    : "Return to Observations";
+    : "Return to Cycle Registration";
 
   if (loading) {
     return (
@@ -293,8 +334,8 @@ export default function S06PostEvaluationSurvey() {
     return (
       <div className="dashboard-container">
         <p role="alert" className="empty-state-banner">{error}</p>
-        <Link to="/shared/current-past-observations" className="btn-secondary">
-          Return to Observations
+        <Link to={backDestination} className="btn-secondary">
+          {backBottomLabel}
         </Link>
       </div>
     );
@@ -324,9 +365,7 @@ export default function S06PostEvaluationSurvey() {
         </div>
       )}
 
-      {/* Printable & Downloadable Report Area */}
       <div ref={reportRef} className="a07-report-stack">
-        {/* Header matching A03 to A08 */}
         <div className="committee-page-header">
           <h2>Post-Evaluation Survey</h2>
 
@@ -343,10 +382,8 @@ export default function S06PostEvaluationSurvey() {
           )}
         </div>
 
-        {/* Pairing Summary Card */}
         <section className="s03-section-card s05-section-accent-primary">
           <div className="eval-pairing-summary-layout">
-            {/* Left Column: Entire Pairing Summary */}
             <div className="eval-pairing-summary-left">
               <div className="eval-pairing-header-block">
                 <div className="eval-pairing-title-row">
@@ -410,7 +447,6 @@ export default function S06PostEvaluationSurvey() {
               </div>
             </div>
 
-            {/* Right Column: How It Works Instructions (Hidden in Print & PDF) */}
             <div className="eval-pairing-summary-right no-print">
               <div className="eval-instructions-header">
                 <h4 className="eval-instructions-title">How It Works</h4>
@@ -443,7 +479,6 @@ export default function S06PostEvaluationSurvey() {
           </div>
         </section>
 
-        {/* Survey Main Container */}
         <section className="s03-section-card s05-section-accent-sage">
           <div className="s01-card-top-bar">
             <div>
@@ -624,7 +659,6 @@ export default function S06PostEvaluationSurvey() {
         </section>
       </div>
 
-      {/* Bottom Export and Report Actions */}
       <div className="kpi-export-actions-bottom">
         <button
           type="button"
