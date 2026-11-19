@@ -635,6 +635,12 @@ export default function A03UnmatchedObservees() {
           </div>
         </div>
       </section>
+
+      <div className="dashboard-center-action">
+        <Link to="/committee/dashboard" className="btn-secondary">
+          Return to Dashboard
+        </Link>
+      </div>
     </div>
   );
 }

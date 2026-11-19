@@ -6911,199 +6911,676 @@ body[data-route-bg] {
 }
 
 .a01-phase-pill {
-  border-left: 3px solid var(--utd-orange);
-  color: var(--accent-soft-text);
+  border-left: 3px solid #c75b12;
+  color: #0b291d;
+  text-shadow: 0 1px 12px rgba(255, 255, 255, 0.95), 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
+html.dark-mode .a01-phase-pill {
+  border-left: 3px solid var(--utd-orange);
+  color: var(--accent-soft-text);
+  text-shadow: none;
+}
 
 /* ==========================================================================
-   24. PRINT STYLES & EXPORT FORMATTING
+   24. PRINT STYLES & SINGLE-PAGE EXPORT (S05, S06, A07 & GLOBAL)
    ========================================================================== */
+.print-only-answer {
+  display: none;
+}
+
 .rank-progress-track,
 .rank-progress-fill-due,
 .rank-progress-fill-overdue,
 .rank-progress-fill-unfilled,
 .rank-progress-fill-unsigned,
 .rank-progress-fill-completed,
-.rank-progress-fill-outstanding {
+.rank-progress-fill-outstanding,
+.legend-color-dot {
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
 }
 
+/* Direct PDF Capture Mode (mirrors print layout when html2canvas captures a page) */
+html body .pdf-capturing .no-print,
+html body .pdf-capturing .eval-pairing-summary-right,
+html body .pdf-capturing .eval-person-avatar,
+html body .pdf-capturing .eval-pairing-summary-left .s01-subtitle,
+html body .pdf-capturing .s01-card-top-bar .s01-subtitle,
+html body .pdf-capturing .eval-rating-wrapper,
+html body .pdf-capturing .eval-textarea,
+html body .pdf-capturing .eval-form-actions {
+  display: none;
+}
+
+html body .pdf-capturing .committee-page-header,
+html body .pdf-capturing .s03-section-card,
+html body .pdf-capturing .eval-question-card,
+html body .pdf-capturing .eval-signoff-box,
+html body .pdf-capturing .s05-signature-card {
+  background: #ffffff;
+  backdrop-filter: none;
+  box-shadow: none;
+  border-color: #cbd5e1;
+}
+
+html body .pdf-capturing .committee-page-header {
+  padding: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem 0;
+  border: none;
+  border-bottom: 2px solid #154734;
+  border-radius: 0;
+}
+
+html body .pdf-capturing .committee-page-header h2 {
+  font-size: 16pt;
+  color: #154734;
+}
+
+html body .pdf-capturing .s03-section-card {
+  padding: 0.75rem 0.95rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-top: 2.5px solid #154734;
+  border-radius: 6px;
+}
+
+html body .pdf-capturing .eval-pairing-summary-layout {
+  display: block;
+}
+
+html body .pdf-capturing .eval-pairing-summary-left {
+  width: 100%;
+  gap: 0.5rem;
+}
+
+html body .pdf-capturing .eval-pairing-title-row {
+  justify-content: space-between;
+  width: 100%;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+html body .pdf-capturing .eval-summary-stack {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+html body .pdf-capturing .eval-summary-person-row,
+html body .pdf-capturing .eval-summary-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 5px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+html body .pdf-capturing .eval-question-list {
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+}
+
+html body .pdf-capturing .eval-question-card {
+  padding: 0.55rem 0.75rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  gap: 0.35rem;
+}
+
+html body .pdf-capturing .print-only-answer {
+  display: block;
+  padding-left: 1.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: pre-wrap;
+}
+
+html body .pdf-capturing .print-only-answer.is-unanswered {
+  color: #64748b;
+  font-style: italic;
+  font-weight: 500;
+}
+
+html body .pdf-capturing .eval-signoff-box {
+  margin-top: 0.65rem;
+  padding: 0.6rem 0.8rem;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 3px solid #154734;
+}
+
+html body .pdf-capturing .s05-signature-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+html body .pdf-capturing .s05-signature-card {
+  padding: 0.5rem 0.7rem;
+  background-color: #ffffff;
+}
+
 @media print {
   @page {
-    size: portrait;
-    margin: 15mm;
+    size: letter portrait;
+    margin: 7mm 10mm;
   }
 
-  body {
-    background-color: #ffffff;
-    color: #000000;
-  }
-
-  /* Hide navigation elements, profile icon, hamburger menus, and buttons */
-  aside.dev-panel,
-  .nightmode-floating-btn,
-  .kpi-export-actions-bottom,
-  .back-dashboard-wrapper,
-  .dashboard-center-action,
-  header svg,
-  header button,
-  header .nav-icons,
-  header nav,
-  .global-nav-right,
-  .header-actions,
-  .user-profile,
-  .profile-icon,
-  .nav-hamburger,
-  .a07-cycle-control, 
-  .footer-right-col,
-  .footer-meta-row, 
-  .eval-form-actions,
-  .dashboard-center-action,
-  .kpi-export-actions-bottom,
-  button,
-  .btn-primary,
-  .btn-secondary {
-    display: none !important;
-  }
-
-  /* Add gap between the title section/header and the first summary section */
-  .committee-page-header {
-    margin-bottom: 2rem !important;
-  }
-
-  .report-page-break {
-    page-break-before: always;
-    break-before: page;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  .dashboard-container {
-    display: block;
+  /* Prevent app wrapper min-height: 100vh from pushing the footer onto page 2 */
+  html,
+  html body,
+  html body[data-route-bg],
+  html body #root,
+  html body #root > div,
+  html body main,
+  html body .app-shell,
+  html body .app-layout,
+  html body .page-wrapper,
+  html body .main-content {
+    background: #ffffff;
+    background-image: none;
+    color: #111111;
+    margin: 0;
+    padding: 0;
+    min-height: 0;
     height: auto;
+    display: block;
   }
 
-  .dashboard-phase:last-of-type {
-    margin-bottom: 0.5 rem;
+  html body {
+    font-size: 9pt;
+    line-height: 1.28;
+    padding: 4mm 6mm;
   }
 
-  .kpi-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-
-  .kpi-cards-grid .kpi-card:nth-child(5) {
-    grid-column: span 2;
-  }
-  
-  .table-container.summary-card-padding {
-    padding: 1rem;
-  }
-
-  .a07-definition-row {
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-  }
-
-  .s03-section-card + .s03-section-card {
-    margin-top: 1.25rem;
-  }
-
-  .version-pill {
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .eval-question-card,
-  .eval-signoff-box,
-  .s03-section-card,
-  .s05-signature-card,
-  .extra-metric-card {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  .eval-question-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  .eval-pairing-summary-layout {
-    display: block !important;
-  }
-
-  .eval-pairing-title-row {
-    justify-content: space-between !important;
-    width: 100%;
-  }
-
-  .eval-pairing-summary-right {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 1rem !important;
-    background: transparent !important;
-    padding: 0 !important;
-    margin-top: 1rem !important;
-  }
-
-  .eval-summary-row {
-    background-color: var(--bg-subtle) !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-radius: 8px !important;
-    padding: 0.85rem 1rem !important;
-  }
-
-  .eval-pairing-summary-left {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    border-bottom: 1px solid var(--border-subtle);
-    padding-bottom: 0.75rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .footer-inner {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 2rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    margin-top: 0.5rem;
-  }
-
-  .footer-right-col,
-  .footer-meta-row {
+  /* Hide global navigation, floating widgets, buttons, and screen-only helpers */
+  html body aside.dev-panel,
+  html body .nightmode-floating-btn,
+  html body .kpi-export-actions-bottom,
+  html body .back-dashboard-wrapper,
+  html body .dashboard-center-action,
+  html body .no-print,
+  html body header,
+  html body header svg,
+  html body header button,
+  html body header .nav-icons,
+  html body header nav,
+  html body .global-nav-right,
+  html body .header-actions,
+  html body .user-profile,
+  html body .profile-icon,
+  html body .nav-hamburger,
+  html body .a07-cycle-control,
+  html body .a07-section-hint,
+  html body .eval-form-actions,
+  html body .eval-form-actions.is-split,
+  html body button,
+  html body .btn-primary,
+  html body .btn-secondary,
+  html body .s05-readonly-banner,
+  html body .s05-completed-banner,
+  html body .empty-state-banner,
+  html body .feedback-banner-success {
     display: none;
   }
 
-  .footer-left-col {
+  /* Compact main container */
+  html body .dashboard-container {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+    height: auto;
+  }
+
+  /* Strip glassmorphism, shadows, and heavy borders for crisp ink output */
+  html body .committee-page-header,
+  html body .s03-section-card,
+  html body .eval-question-card,
+  html body .eval-signoff-box,
+  html body .s05-signature-card,
+  html body .table-container,
+  html body .kpi-card,
+  html body .kpi-chart-card,
+  html body .extra-metric-card,
+  html body .a07-definitions-list {
+    background: #ffffff;
+    backdrop-filter: none;
+    box-shadow: none;
+    border-color: #cbd5e1;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Page Title Header */
+  html body .dashboard-container .committee-page-header {
+    padding: 0 0 0.35rem 0;
+    margin: 0 0 0.45rem 0;
+    border: none;
+    border-bottom: 2px solid #154734;
+    border-radius: 0;
+  }
+
+  html body .dashboard-container .committee-page-header h2 {
+    font-size: 13pt;
+    margin: 0;
+    color: #154734;
+  }
+
+  html body .status-chip,
+  html body .version-pill {
+    padding: 0.12rem 0.5rem;
+    font-size: 7pt;
+    white-space: nowrap;
+  }
+
+  /* Section Cards (S05 / S06) */
+  html body .dashboard-container .s03-section-card {
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 0.65rem;
+    border: 1px solid #cbd5e1;
+    border-top: 2.5px solid #154734;
+    border-radius: 6px;
+  }
+
+  /* Pairing Summary: 4-column horizontal metadata strip */
+  html body .eval-pairing-summary-layout {
+    display: block;
+  }
+
+  html body .eval-pairing-summary-left {
+    width: 100%;
+    gap: 0.45rem;
+  }
+
+  html body .eval-pairing-title-row {
+    justify-content: space-between;
+    width: 100%;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  html body .eval-pairing-title-row h3 {
+    font-size: 10.5pt;
+  }
+
+  html body .eval-pairing-summary-left .s01-subtitle,
+  html body .eval-pairing-summary-right,
+  html body .eval-person-avatar {
+    display: none;
+  }
+
+  html body .eval-summary-stack {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  html body .eval-summary-person-row,
+  html body .eval-summary-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.12rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 5px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+  }
+
+  html body .summary-field-label {
+    font-size: 6.5pt;
+    color: #475569;
+  }
+
+  html body .summary-field-val {
+    font-size: 8.5pt;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  /* Evaluation Form Header & Questions */
+  html body .s01-card-top-bar {
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
+
+  html body .s01-card-top-bar h3 {
+    font-size: 10.5pt;
+  }
+
+  html body .s01-card-top-bar .s01-subtitle {
+    display: none;
+  }
+
+  html body .eval-question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-top: 0.4rem;
+  }
+
+  html body .eval-question-card {
+    padding: 0.5rem 0.7rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    gap: 0.35rem;
+  }
+
+  html body .eval-question-label {
+    font-size: 8.75pt;
+    line-height: 1.3;
+    gap: 0.45rem;
+  }
+
+  html body .eval-question-num {
+    min-width: 20px;
+    height: 18px;
+    font-size: 7pt;
+    background-color: #e2e8f0;
+    color: #0f172a;
+  }
+
+  /* Compact Rating Display: hide interactive buttons and show selected score */
+  html body .eval-rating-wrapper,
+  html body .eval-textarea {
+    display: none;
+  }
+
+  html body .print-only-answer {
+    display: block;
+    padding-left: 1.65rem;
+    font-size: 8.75pt;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: pre-wrap;
+  }
+
+  html body .print-only-answer.is-unanswered {
+    color: #64748b;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  /* Participant Sign-Off (S05) */
+  html body .eval-signoff-box {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-left: 3px solid #154734;
+  }
+
+  html body .eval-signoff-box .s01-card-top-bar {
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.35rem;
+  }
+
+  html body .eval-signoff-box h4 {
+    font-size: 9pt;
+  }
+
+  html body .s05-signature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-top: 0.25rem;
+  }
+
+  html body .s05-signature-card {
+    padding: 0.45rem 0.65rem;
+    gap: 0.1rem;
+    background-color: #ffffff;
+  }
+
+  html body .s05-signature-role {
+    font-size: 6.5pt;
+  }
+
+  html body .s05-signature-status {
+    font-size: 8.5pt;
+  }
+
+  html body .s05-signature-date {
+    font-size: 7pt;
+  }
+
+  html body .s05-signoff-note {
+    font-size: 7pt;
+    margin-top: 0.35rem;
+    line-height: 1.3;
+  }
+
+  /* ========================================================================
+     A07 KPI Overview Single-Page Print Layout
+     ======================================================================== */
+  html body .a07-report-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.42rem;
+  }
+
+  html body .dashboard-phase {
+    gap: 0;
+  }
+
+  html body .table-container.summary-card-padding {
+    padding: 0.45rem 0.65rem;
+    border-radius: 5px;
+  }
+
+  html body .a07-section-header {
+    margin-bottom: 0.35rem;
+  }
+
+  html body .kpi-section-heading {
+    font-size: 8.5pt;
+  }
+
+  /* 1. Summary Cards (5 across) */
+  html body .kpi-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  html body .kpi-card {
+    padding: 0.38rem 0.5rem;
+    border-radius: 4px;
+    background-color: #f8fafc;
+    min-height: 0;
+  }
+
+  html body .kpi-card-header {
+    margin-bottom: 0.15rem;
+  }
+
+  html body .kpi-card-label,
+  html body .extra-metric-title {
+    font-size: 6pt;
+    line-height: 1.15;
+  }
+
+  html body .kpi-card-value {
+    font-size: 12.5pt;
+    line-height: 1.1;
+    margin-bottom: 0.12rem;
+  }
+
+  html body .kpi-card-value.a07-kpi-value-compact {
+    font-size: 10pt;
+  }
+
+  html body .kpi-card-subtext {
+    font-size: 6.5pt;
+    line-height: 1.18;
+  }
+
+  /* 2. Rank Breakdowns (2 columns) */
+  html body .kpi-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  html body .kpi-chart-card {
+    padding: 0.42rem 0.6rem;
+    border-radius: 4px;
+    background-color: #f8fafc;
+  }
+
+  html body .kpi-chart-card h4 {
+    font-size: 8pt;
+    margin-bottom: 0.1rem;
+  }
+
+  html body .kpi-chart-subtitle {
+    font-size: 6.5pt;
+    margin-bottom: 0.38rem;
+  }
+
+  html body .rank-bar-group {
+    gap: 0.32rem;
+  }
+
+  html body .rank-bar-label-row {
+    font-size: 7pt;
+    margin-bottom: 0.12rem;
+  }
+
+  html body .rank-progress-track {
+    height: 7px;
+  }
+
+  html body .rank-bar-legend {
+    margin-top: 0.38rem;
+    padding-top: 0.28rem;
+    font-size: 6.5pt;
+  }
+
+  /* 3. Proposal KPIs (4 columns x 2 rows) */
+  html body .kpi-extra-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.38rem;
+  }
+
+  html body .extra-metric-card {
+    padding: 0.36rem 0.5rem;
+    border-radius: 4px;
+    background-color: #f8fafc;
+    gap: 0.12rem;
+    min-height: 0;
+  }
+
+  html body .extra-metric-value {
+    font-size: 11.5pt;
+    line-height: 1.1;
+  }
+
+  html body .extra-metric-formula {
+    font-size: 6.25pt;
+    line-height: 1.15;
+  }
+
+  /* 4. KPI Definitions & Methodology */
+  html body .a07-definitions-list {
+    border-radius: 4px;
+  }
+
+  html body .a07-definition-row {
+    grid-template-columns: minmax(175px, 28%) 1fr;
+    gap: 0.35rem 0.65rem;
+    padding: 0.26rem 0.5rem;
+  }
+
+  html body .a07-kpi-code-badge {
+    padding: 0.06rem 0.32rem;
+    font-size: 6pt;
+  }
+
+  html body .a07-definition-term {
+    font-size: 7pt;
+    gap: 0.35rem;
+  }
+
+  html body .a07-definition-desc {
+    font-size: 6.75pt;
+    line-height: 1.22;
+  }
+
+  /* Clean Single-Row Page Footer */
+  html body footer,
+  html body footer[class] {
+    margin-top: 0.6rem;
+    padding: 0.35rem 0 0 0;
+    border: none;
+    border-top: 1px solid #cbd5e1;
+    background: transparent;
+    min-height: 0;
+    height: auto;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  html body footer::before,
+  html body footer::after,
+  html body footer .footer-accent-bar,
+  html body footer .footer-top-bar {
+    display: none;
+  }
+
+  html body footer .footer-right-col,
+  html body footer .footer-meta-row {
+    display: none;
+  }
+
+  html body footer .footer-inner {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0;
+    margin: 0;
+  }
+
+  html body footer .footer-left-col {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 2rem;
-    width: 100%;
     justify-content: space-between;
+    width: 100%;
+    gap: 1rem;
   }
 
-  .footer-brand {
+  html body footer .footer-brand {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0;
+    gap: 0.4rem;
+    margin: 0;
   }
 
-  .footer-copyright-block {
+  html body footer .footer-brand-name {
+    font-size: 8pt;
+  }
+
+  html body footer .footer-copyright-block {
     text-align: right;
-    margin-bottom: 0;
+    margin: 0;
   }
 
-  .footer-copyright {
-    font-size: 0.75rem;
-    line-height: 1.1;
+  html body footer .footer-copyright {
+    font-size: 6.5pt;
+    line-height: 1.15;
+    color: #475569;
   }
 }
