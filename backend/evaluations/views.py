@@ -374,7 +374,8 @@ def select_signup_course(request):
     )
     if signup.matches_released_at or Invitation.objects.filter(cycle=cycle, sender=professor).exists():
         raise ValidationError({"detail": "Course selection is locked after matches are released."})
-    if clock.today() > cycle.signup_deadline:
+    # Allow selecting a course if the observee currently has no course assigned (e.g., after AC match cancellation)
+    if signup.course_id is not None and clock.today() > cycle.signup_deadline:
         raise ValidationError({"detail": "The course signup deadline has passed."})
     if signup.course_id != course.pk:
         signup.course = course
@@ -525,7 +526,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
-from .models import Invitation, ProposedDate, Pairing, MatchCandidate
+from .models import Invitation, ProposedDate, Pairing, MatchCandidate, Survey, EvaluationCarryForward
 from .serializers import (
     CandidateApprovalSerializer, InvitationCreateSerializer,
     InvitationResponseSerializer, PairingConfirmSerializer,
@@ -832,6 +833,111 @@ def committee_release_candidates(request, signup_id):
             signup.save(update_fields=["matches_released_at"])
             send_workflow_notification(signup.user, "Observer candidates available", "Your observer candidates are ready for selection.", "/observee/observer-selection")
     return Response({"signup_id": signup.pk, "released": True, "observer_ids": ids})
+
+
+@api_view(["POST"])
+def committee_cancel_match(request, signup_id):
+    """Cancel an observee's confirmed pairing and clear their course/match state while keeping them registered for the cycle."""
+    person = get_current_professor(request)
+    require_committee(person)
+    cycle = get_current_cycle()
+
+    with transaction.atomic():
+        signup = get_object_or_404(
+            Signup.objects.select_for_update().select_related("user", "course"),
+            pk=signup_id,
+            cycle=cycle,
+        )
+        observee = signup.user
+
+        if EvaluationCarryForward.objects.filter(source_signup=signup).exists():
+            raise ValidationError({
+                "detail": "Cannot cancel a match for a signup that has already been carried forward."
+            })
+
+        pairings = list(
+            Pairing.objects.select_for_update()
+            .filter(cycle=cycle, observee=observee)
+            .select_related("observer")
+        )
+
+        # Prevent deleting/cancelling if any observation has already been signed
+        if Observation.objects.filter(
+            pairing__in=pairings
+        ).filter(Q(observer_signed=True) | Q(observee_signed=True)).exists():
+            raise ValidationError({
+                "detail": "Cannot cancel a match after an observation record has been signed."
+            })
+
+        # Prevent deleting/cancelling if any post-observation survey has been submitted
+        if Survey.objects.filter(
+            pairing__in=pairings,
+            submitted_at__isnull=False,
+        ).exists():
+            raise ValidationError({
+                "detail": "Cannot cancel a match after a post-observation survey has been submitted."
+            })
+
+        observer_users = []
+        seen_observer_ids = set()
+        for pairing in pairings:
+            if pairing.observer_id not in seen_observer_ids:
+                seen_observer_ids.add(pairing.observer_id)
+                observer_users.append(pairing.observer)
+
+        # Delete any unsigned draft observations and surveys tied to these pairings
+        Observation.objects.filter(pairing__in=pairings).delete()
+        Survey.objects.filter(pairing__in=pairings).delete()
+
+        # Delete the pairings so both observer and observee are completely unmatched
+        Pairing.objects.filter(pk__in=[p.pk for p in pairings]).delete()
+
+        # Delete invitations sent by this observee in this cycle so course selection isn't locked
+        Invitation.objects.filter(
+            cycle=cycle,
+            sender=observee,
+        ).delete()
+
+        # Remove released candidates and reset course/availability while keeping the cycle Signup intact
+        MatchCandidate.objects.filter(signup=signup).delete()
+        observee_name = display_name(observee)
+
+        signup.course = None
+        signup.availability = ""
+        signup.matches_released_at = None
+        signup.status = "pending"
+        signup.save(update_fields=["course", "availability", "matches_released_at", "status"])
+
+        # Notify observee and former observer(s)
+        send_workflow_notification(
+            observee,
+            "Observation pairing cancelled",
+            (
+                f"Your observation pairing and course assignment for the {cycle.semester} "
+                "evaluation cycle were cancelled by the Assessment Committee. "
+                "You remain registered for the cycle—please select a course section."
+            ),
+            "/observee/course-selection",
+        )
+
+        for observer in observer_users:
+            send_workflow_notification(
+                observer,
+                "Observation assignment cancelled",
+                (
+                    f"Your observation pairing with {observee_name} for {cycle.semester} "
+                    "was cancelled by the Assessment Committee. You are now unmatched."
+                ),
+                "/shared/faculty-dashboard",
+            )
+
+    return Response({
+        "cancelled": True,
+        "observee_id": observee.pk,
+        "observee_name": observee_name,
+        "unmatched_observer_ids": [obs.pk for obs in observer_users],
+        "unmatched_observer_names": [display_name(obs) for obs in observer_users],
+    })
 
 
 @api_view(["GET"])
@@ -2031,7 +2137,6 @@ def committee_dashboard(request):
 
 # A03 - unmatched faculty and committee-approved carry-forward.
 # Only zero released candidates are conclusively "unmatched" in this MVP.
-from .models import EvaluationCarryForward
 from .serializers import CarryForwardSerializer
 
 
