@@ -1,4 +1,5 @@
 // src/pages/shared/S02Profile.tsx
+import { getInitials } from "../../utils/faculty";
 import React, { useEffect, useState, useRef } from "react";
 import { facultyApi, observationApi } from "../../api/endpoints";
 import type { Course, ScheduledVisit } from "../../api/types";
@@ -29,13 +30,6 @@ const AVAILABILITY_STORAGE_KEY = "observer_availability_v1";
 function formatLabel(value: string) {
   if (!value) return "Not provided";
   return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 function formatShortDate(isoDate: string): string {

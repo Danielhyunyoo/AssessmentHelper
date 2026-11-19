@@ -1,4 +1,5 @@
 // src/components/Header.tsx
+import { getInitials } from "../utils/faculty";
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import utdLogo from "../assets/icons/utd_logo.png";
@@ -174,13 +175,6 @@ function MenuShortcutIcon() {
       <path className="icon-stroke-primary" d="M5 19.5H23" />
     </svg>
   );
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0 || !parts[0]) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 function getStoredUserPhoto(user: Professor | null): string {
@@ -542,7 +536,7 @@ export default function Header() {
               {isNotifOpen && (
                 <div className="notif-popover">
                   <div className="notif-header">
-                    <span className="notif-header-title">NOTIFICATIONS</span>
+                    <span className="menu-section-label">NOTIFICATIONS</span>
                     <span className="notif-unread-badge">{unreadCount} New</span>
                   </div>
 
@@ -563,7 +557,7 @@ export default function Header() {
                           }`}
                         >
                           <p
-                            className={`notif-item-title ${
+                            className={`notification-title ${
                               n.unread ? "fw-bold" : "fw-medium"
                             }`}
                           >
@@ -588,7 +582,7 @@ export default function Header() {
                         closeAllMenus();
                         navigate("/shared/notifications");
                       }}
-                      className="menu-item-hover notif-action-btn"
+                      className="menu-item-hover popover-action"
                     >
                       View All Notifications
                     </button>
@@ -675,7 +669,7 @@ export default function Header() {
                 </div>
 
                 <div className="profile-links-section">
-                  <span className="profile-links-header">ACCOUNT</span>
+                  <span className="menu-section-label">ACCOUNT</span>
 
                   <button
                     type="button"
@@ -683,7 +677,7 @@ export default function Header() {
                       closeAllMenus();
                       navigate("/shared/profile");
                     }}
-                    className="menu-item-hover profile-link-btn"
+                    className="menu-item-hover popover-action"
                   >
                     Profile Settings
                   </button>
@@ -695,7 +689,7 @@ export default function Header() {
                         closeAllMenus();
                         navigate("/login/signin2");
                       }}
-                      className="menu-item-hover profile-link-btn"
+                      className="menu-item-hover popover-action"
                     >
                       Register for Cycle
                     </button>
@@ -704,7 +698,7 @@ export default function Header() {
                   <button
                     type="button"
                     onClick={() => void handleSignOut()}
-                    className="menu-item-hover menu-signout-item profile-link-btn profile-signout-btn"
+                    className="menu-item-hover menu-signout popover-action profile-signout-btn"
                   >
                     Sign Out
                   </button>

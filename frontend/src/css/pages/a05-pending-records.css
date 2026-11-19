@@ -1,0 +1,81 @@
+/* ==========================================================================
+   PAGE: AUDIT LOGS & MONITORING (A05)
+   ========================================================================== */
+body[data-route-bg="committee-ops"] {
+  background-image: var(--bg-wash-light), url("../../assets/backgrounds/utd_bkgr.jpg");
+}
+html.dark-mode body[data-route-bg="committee-ops"] {
+  background-image: var(--bg-wash-dark), url("../../assets/backgrounds/utd_bkgr.jpg");
+}
+
+.a05-controls-bar {
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
+}
+
+.a05-detail-modal {
+  max-width: 660px;
+  max-height: 85vh;
+  padding: 1.75rem;
+  gap: 1.15rem;
+}
+
+.a05-chip-info {
+  background-color: var(--accent-soft-bg);
+  color: var(--accent-soft-text);
+  border: 1px solid var(--accent-soft-border);
+}
+
+.a05-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.a05-responses-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.a05-responses-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.a05-responses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.a05-response-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.a05-response-question {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.a05-response-answer {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}

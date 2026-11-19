@@ -324,7 +324,7 @@ export default function E02ObserverSelection() {
   const candidateColumns: Column<CandidateRow>[] = [
     {
       header: "Select",
-      width: "84px",
+      headerClassName: "table-col-selection",
       render: (row) => {
         const status = openInvitationStatus[Number(row.id)];
         if (status) {
@@ -436,7 +436,7 @@ export default function E02ObserverSelection() {
               type="button"
               className={
                 selectedInvitationId === row.id
-                  ? "btn-accent-blue"
+                  ? "primary-btn"
                   : "btn-secondary"
               }
               onClick={() => setSelectedInvitationId(row.id)}

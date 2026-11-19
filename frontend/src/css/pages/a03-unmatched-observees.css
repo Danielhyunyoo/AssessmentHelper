@@ -1,0 +1,203 @@
+/* ==========================================================================
+   PAGE: UNMATCHED TRANSFERS & OVERRIDES (A03)
+   ========================================================================== */
+.unmatched-transfer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 550px;
+  margin: 1.5rem 0;
+}
+
+.unmatched-transfer-details .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.unmatched-transfer-details label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.unmatched-transfer-details select,
+.unmatched-transfer-details textarea,
+.a03-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.9rem;
+  resize: none;
+}
+
+.unmatched-transfer-details textarea {
+  min-height: 100px;
+}
+
+.unmatched-alert-banner {
+  background-color: var(--amber-soft-bg);
+  border: 1px solid var(--amber-soft-border);
+  color: var(--amber-soft-text);
+  padding: 0.9rem 1.25rem;
+  border-radius: 9999px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.unmatched-table-frame {
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.unmatched-table-instruction {
+  padding: 0.85rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  margin: 0;
+}
+
+.unmatched-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.unmatched-table th {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background-color: var(--bg-subtle);
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.unmatched-table td {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.unmatched-checkbox-cell {
+  width: 50px;
+  text-align: center;
+}
+
+.unmatched-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.unmatched-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2.5rem;
+}
+
+.unmatched-select-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.a03-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.a03-search-input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.a03-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.a03-table-frame {
+  margin-bottom: 0;
+}
+
+.a03-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.a03-candidate-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.a03-capitalize {
+  text-transform: capitalize;
+}
+
+.a03-reason-text {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.a03-empty-cell {
+  text-align: center;
+  padding: 1.75rem 1rem;
+  color: var(--text-muted);
+}
+
+.a03-transfer-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 38%) 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .a03-transfer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.a03-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.a03-field-group label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.a03-transfer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}

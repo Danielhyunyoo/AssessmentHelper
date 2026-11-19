@@ -1002,16 +1002,7 @@ export default function S01FacultyDashboard() {
 
       {/* Unified Collapsible Workspace (Cycle Overview + My Checklist together) */}
       <section className="dashboard-phase s01-planner-section">
-        <div
-          className="a01-phase-header"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "1rem",
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="a01-phase-header s01-workspace-header">
           <div className="a01-phase-title-group">
             <span className="a01-phase-pill">Workspace</span>
             <h3>
@@ -1143,7 +1134,7 @@ export default function S01FacultyDashboard() {
                 )}
 
                 {isCommitteeMember ? (
-                  <Link to="/committee/dashboard" className="btn-accent-blue">
+                  <Link to="/committee/dashboard" className="primary-btn">
                     Open Committee Command Center →
                   </Link>
                 ) : (
@@ -1152,7 +1143,7 @@ export default function S01FacultyDashboard() {
                   canUseFacultyModules && (
                     <Link
                       to="/observee/course-selection"
-                      className="btn-accent-blue"
+                      className="primary-btn"
                     >
                       Complete Registration →
                     </Link>
@@ -1163,24 +1154,11 @@ export default function S01FacultyDashboard() {
               <div className="s01-checklist-card s05-section-accent-sage">
                 <div className="s01-card-top-bar">
                   <h3>My Cycle To-Do and Notebook</h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
+                  <div className="s01-notebook-actions">
                     {hasManualOverrides && (
                       <button
                         type="button"
-                        className="s01-todo-go-link"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          fontSize: "0.8rem",
-                          padding: 0,
-                        }}
+                        className="s01-todo-go-link s01-notebook-sync"
                         onClick={resetManualOverrides}
                         title="Sync all checkboxes back to live system status"
                       >
@@ -1200,10 +1178,15 @@ export default function S01FacultyDashboard() {
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
-                  <div
+                  <svg
                     className="s01-progress-fill"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+                    width={`${progressPercent}%`}
+                    height="100%"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect width="100%" height="100%" />
+                  </svg>
                 </div>
 
                 <div className="s01-todo-list">

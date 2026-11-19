@@ -47,21 +47,6 @@ export function savePendingCourseChangeRequest(
   }
 }
 
-function getApprovedCourseOverrideForUser(fullName: string): Course | null {
-  if (!fullName) return null;
-  try {
-    const raw = localStorage.getItem("ac_approved_course_overrides");
-    if (!raw) return null;
-    const map = JSON.parse(raw) as Record<
-      string,
-      { course?: Course }
-    >;
-    return map[fullName.trim().toLowerCase()]?.course ?? null;
-  } catch {
-    return null;
-  }
-}
-
 function extractCourseStartTime(schedule: string): string {
   const match = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]/i);
 
@@ -685,7 +670,7 @@ useEffect(() => {
               <table className="custom-data-table">
                 <thead>
                   <tr>
-                    <th className="col-checkbox">Select</th>
+                    <th className="checkbox-col">Select</th>
                     <th>Course</th>
                     <th>Section</th>
                     <th>Meeting Times</th>

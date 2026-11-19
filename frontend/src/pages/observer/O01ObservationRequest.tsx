@@ -184,15 +184,6 @@ export default function O01ObservationRequest() {
       invitation.sender.username
     : "Faculty details unavailable";
 
-  const statusPillClass =
-    invitation?.status === "accepted" || invitation?.status === "confirmed"
-      ? "is-confirmed"
-      : invitation?.status === "declined" ||
-        invitation?.status === "expired" ||
-        invitation?.status === "rejected"
-      ? "is-declined"
-      : "is-pending";
-
   return (
     <div className="dashboard-container">
       <div className="back-dashboard-wrapper">
