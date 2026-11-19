@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import Layout from "./components/Layout";
 import { authApi, facultyApi } from "./api/endpoints";
+import { isUserTransferredToNextCycle } from "./pages/committee/A02FacultyMatching";
 
 // PAGES FOR DEMO
 import L01Home from "./pages/login/L01Home";
@@ -69,12 +70,14 @@ function RegistrationGate() {
         const reg = await facultyApi.registrationStatus();
         if (cancelled) return;
 
-        if (reg.is_registered) {
+        const isTransferred = isUserTransferredToNextCycle(professor, reg);
+
+        if (reg.is_registered && !isTransferred) {
           setStatus("allowed");
           return;
         }
 
-        // Unregistered faculty can view/edit Profile, L03, Observation Records, Surveys, and Contact Committee
+        // Unregistered or transferred faculty can only view Profile, L03, Observation Records, Surveys, and Contact Committee
         const isRecordDetail = location.pathname.startsWith(
           "/shared/observation-record/"
         );
@@ -135,7 +138,7 @@ export default function App() {
           <Route path="/" element={<L01Home />} />
           <Route path="/login/signin" element={<L02SignIn />} />
 
-          {/* Protected Routes (Enforces L03 Gate for Unregistered Faculty) */}
+          {/* Protected Routes (Enforces L03 Gate for Unregistered / Transferred Faculty) */}
           <Route element={<RegistrationGate />}>
             <Route path="/login/signin2" element={<L03SignIn2 />} />
 

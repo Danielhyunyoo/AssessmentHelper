@@ -5,7 +5,12 @@ import {
   demoApi,
   facultyApi,
 } from "../../api/endpoints";
-import type { Course, FacultyRow } from "../../api/types";
+import type {
+  Course,
+  FacultyRow,
+  Professor,
+  RegistrationStatus,
+} from "../../api/types";
 import { Link } from "react-router-dom";
 
 function formatDay(isoDate: string): string {
@@ -100,13 +105,113 @@ export function clearA02DemoStorage(): void {
 
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && key.startsWith("pending_course_change")) {
+      if (
+        key &&
+        (key.startsWith("pending_course_change") ||
+          key.startsWith("a03_") ||
+          key.includes("cycle_transfer") ||
+          key.includes("carried_forward"))
+      ) {
         localStorage.removeItem(key);
       }
     }
   } catch {
     // Ignore storage errors
   }
+}
+
+export function getCarriedForwardRecordForUser(
+  user?: Professor | null,
+  registration?: RegistrationStatus | null
+): CycleTransferRecord | null {
+  if (!user || user.role === "admin") return null;
+
+  const userRec = user as unknown as Record<string, unknown>;
+  const regRec = (registration ?? {}) as unknown as Record<string, unknown>;
+
+  const rawId = userRec.user_id ?? userRec.id ?? userRec.faculty_id;
+  const numericId =
+    rawId !== undefined && rawId !== null ? Number(rawId) : null;
+
+  const fullName = `${user.first_name ?? ""} ${user.last_name ?? ""}`
+    .trim()
+    .toLowerCase();
+  const username = (user.username ?? "").trim().toLowerCase();
+
+  try {
+    const raw = localStorage.getItem(CYCLE_TRANSFER_STORAGE_KEY);
+    const transfers = raw
+      ? (JSON.parse(raw) as Record<string, CycleTransferRecord>)
+      : {};
+
+    for (const rec of Object.values(transfers)) {
+      if (rec.status !== "carried_forward") continue;
+
+      const matchesId =
+        numericId !== null &&
+        rec.faculty_id !== null &&
+        rec.faculty_id !== undefined &&
+        Number(rec.faculty_id) === numericId;
+
+      const recName = (rec.professor_name ?? "").trim().toLowerCase();
+      const matchesName =
+        Boolean(recName) &&
+        ((Boolean(fullName) && recName === fullName) ||
+          (Boolean(username) && recName === username));
+
+      if (matchesId || matchesName) {
+        return rec;
+      }
+    }
+  } catch {
+    // Ignore storage parse errors
+  }
+
+  const statusStr = String(
+    regRec.status ??
+      regRec.signup_status ??
+      regRec.evaluation_status ??
+      userRec.evaluation_status ??
+      ""
+  ).toLowerCase();
+
+  const backendCarriedForward =
+    Boolean(regRec.carried_forward) ||
+    Boolean(regRec.already_carried_forward) ||
+    Boolean(regRec.transferred_to_next_cycle) ||
+    statusStr === "carried_forward" ||
+    statusStr === "transferred" ||
+    statusStr === "deferred";
+
+  if (backendCarriedForward) {
+    return {
+      professor_name:
+        `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
+        user.username ||
+        "Faculty Member",
+      target_cycle:
+        typeof regRec.target_cycle === "string" && regRec.target_cycle.trim()
+          ? regRec.target_cycle
+          : "Next Evaluation Cycle",
+      note:
+        typeof regRec.carry_forward_reason === "string"
+          ? regRec.carry_forward_reason
+          : typeof regRec.reason === "string"
+          ? regRec.reason
+          : "",
+      transferred_at: new Date().toISOString(),
+      status: "carried_forward",
+    };
+  }
+
+  return null;
+}
+
+export function isUserTransferredToNextCycle(
+  user?: Professor | null,
+  registration?: RegistrationStatus | null
+): boolean {
+  return getCarriedForwardRecordForUser(user, registration) !== null;
 }
 
 function readApprovedCourseOverrides(): Record<string, ApprovedCourseOverride> {

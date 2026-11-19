@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authApi, facultyApi } from "../../api/endpoints";
+import { isUserTransferredToNextCycle } from "../committee/A02FacultyMatching";
 
 interface LocationState {
   redirectTo?: string;
@@ -49,11 +50,16 @@ export default function L02SignIn(): React.ReactElement {
         return;
       }
 
-      // 2. Check faculty registration status for the current cycle
+      // 2. Check faculty registration status & next-cycle transfer status
       try {
         const regStatus = await facultyApi.registrationStatus();
-        if (regStatus.is_registered) {
-          // Already registered -> skip L03 and go straight to Faculty Dashboard
+        const isTransferred = isUserTransferredToNextCycle(
+          professor,
+          regStatus
+        );
+
+        if (regStatus.is_registered && !isTransferred) {
+          // Already registered & active -> skip L03 and go straight to Faculty Dashboard
           navigate(redirectTo || "/shared/faculty-dashboard", { replace: true });
           return;
         }
@@ -61,14 +67,16 @@ export default function L02SignIn(): React.ReactElement {
         // If status check fails, fall through to L03 setup
       }
 
-      // 3. Unregistered faculty -> force L03 registration/records gate
+      // 3. Unregistered or transferred faculty -> force L03 gate
       navigate("/login/signin2", {
         replace: true,
         state: redirectTo ? { redirectTo } : undefined,
       });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Invalid email or password. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Invalid email or password. Please try again."
       );
     } finally {
       setLoading(false);

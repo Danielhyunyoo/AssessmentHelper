@@ -9,6 +9,7 @@ import {
   hasUnseenCommitteeMessages,
   isCommitteeAccount,
 } from "../pages/shared/S07ContactCommittee";
+import { isUserTransferredToNextCycle } from "../pages/committee/A02FacultyMatching";
 
 interface NotificationPreview {
   id: string;
@@ -210,6 +211,8 @@ export default function Header() {
   const [notifications, setNotifications] = useState<NotificationPreview[]>([]);
   const [currentUser, setCurrentUser] = useState<Professor | null>(null);
   const [isCycleRegistered, setIsCycleRegistered] = useState<boolean>(false);
+  const [isTransferredToNextCycle, setIsTransferredToNextCycle] =
+    useState<boolean>(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [headerError, setHeaderError] = useState("");
@@ -218,7 +221,8 @@ export default function Header() {
   const isLoggedIn = currentUser !== null;
   const isCommitteeUser = isCommitteeAccount(currentUser);
   const isFacultyUser = isLoggedIn && !isCommitteeUser;
-  const hasFullPortalAccess = isCommitteeUser || isCycleRegistered;
+  const hasFullPortalAccess =
+    isCommitteeUser || (isCycleRegistered && !isTransferredToNextCycle);
 
   const customAvatarUrl = !avatarFailed ? getStoredUserPhoto(currentUser) : "";
   const hasCustomAvatar = Boolean(customAvatarUrl);
@@ -327,6 +331,7 @@ export default function Header() {
       closeAllMenus();
       setCurrentUser(null);
       setIsCycleRegistered(false);
+      setIsTransferredToNextCycle(false);
       setHasUnreadMessages(false);
       setAvatarFailed(false);
       navigate("/login/signin", { replace: true });
@@ -385,6 +390,7 @@ export default function Header() {
           setBackendUnreadCount(0);
           setCurrentUser(null);
           setIsCycleRegistered(false);
+          setIsTransferredToNextCycle(false);
           setAvatarFailed(false);
           return;
         }
@@ -448,11 +454,17 @@ export default function Header() {
           }))
         );
 
+        const transferred = isUserTransferredToNextCycle(
+          resolvedUser,
+          regResponse as never
+        );
+
         setHasUnreadNotifications(totalUnread > 0);
         setBackendUnreadCount(totalUnread);
         setAvatarFailed(false);
         setCurrentUser(resolvedUser);
-        setIsCycleRegistered(Boolean(regResponse.is_registered));
+        setIsTransferredToNextCycle(transferred);
+        setIsCycleRegistered(Boolean(regResponse.is_registered) && !transferred);
         setHasUnreadMessages(hasUnseenCommitteeMessages(resolvedUser));
         setHeaderError("");
       } catch {
@@ -467,6 +479,7 @@ export default function Header() {
     window.addEventListener("notifications-changed", loadHeaderData);
     window.addEventListener("profile-changed", loadHeaderData);
     window.addEventListener("registration-changed", loadHeaderData);
+    window.addEventListener("cycle-transfers-updated", loadHeaderData);
     window.addEventListener("demo-reset", loadHeaderData);
 
     return () => {
@@ -474,6 +487,7 @@ export default function Header() {
       window.removeEventListener("notifications-changed", loadHeaderData);
       window.removeEventListener("profile-changed", loadHeaderData);
       window.removeEventListener("registration-changed", loadHeaderData);
+      window.removeEventListener("cycle-transfers-updated", loadHeaderData);
       window.removeEventListener("demo-reset", loadHeaderData);
     };
   }, [location.pathname]);
@@ -661,7 +675,9 @@ export default function Header() {
                         : "Loading profile..."}
                     </h4>
                     <p className="profile-popover-role">
-                      {!hasFullPortalAccess
+                      {isTransferredToNextCycle
+                        ? "Transferred to Next Cycle"
+                        : !hasFullPortalAccess
                         ? "Unregistered"
                         : currentUser?.academic_level || currentUser?.role || ""}
                     </p>
@@ -682,7 +698,7 @@ export default function Header() {
                     Profile Settings
                   </button>
 
-                  {!hasFullPortalAccess && (
+                  {!hasFullPortalAccess && !isTransferredToNextCycle && (
                     <button
                       type="button"
                       onClick={() => {
@@ -692,6 +708,19 @@ export default function Header() {
                       className="menu-item-hover popover-action"
                     >
                       Register for Cycle
+                    </button>
+                  )}
+
+                  {isTransferredToNextCycle && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeAllMenus();
+                        navigate("/login/signin2");
+                      }}
+                      className="menu-item-hover popover-action"
+                    >
+                      Cycle Transfer Status
                     </button>
                   )}
 
@@ -825,11 +854,13 @@ export default function Header() {
                 </>
               )}
 
-              {isFacultyUser && !isCycleRegistered && (
+              {isFacultyUser && !hasFullPortalAccess && (
                 <div className="menu-section">
                   <h4>Cycle Access</h4>
                   <Link to="/login/signin2" onClick={closeAllMenus}>
-                    Register for Current Cycle
+                    {isTransferredToNextCycle
+                      ? "Cycle Transfer Status"
+                      : "Register for Current Cycle"}
                   </Link>
                   <Link
                     to="/shared/current-past-observations"
@@ -840,7 +871,7 @@ export default function Header() {
                 </div>
               )}
 
-              {isFacultyUser && isCycleRegistered && (
+              {isFacultyUser && hasFullPortalAccess && (
                 <>
                   <div className="menu-section">
                     <h4>Dashboard</h4>

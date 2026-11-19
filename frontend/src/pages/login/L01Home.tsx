@@ -7,6 +7,7 @@ import current_and_past_observations_card from "../../assets/card-stock-images/c
 import observation_record_management_card from "../../assets/card-stock-images/observation_record_management_card.jpg";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor } from "../../api/types";
+import { isUserTransferredToNextCycle } from "../committee/A02FacultyMatching";
 
 const UNREGISTERED_ALLOWED_PATHS = [
   "/login/signin2",
@@ -19,6 +20,7 @@ export default function L01Home() {
 
   const [user, setUser] = useState<Professor | null>(null);
   const [isRegistered, setIsRegistered] = useState<boolean>(false);
+  const [isTransferred, setIsTransferred] = useState<boolean>(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,34 +35,48 @@ export default function L01Home() {
         if (professor) {
           if (professor.role === "admin") {
             setIsRegistered(true);
+            setIsTransferred(false);
             return;
           }
 
           try {
             const status = await facultyApi.registrationStatus();
             if (!cancelled) {
-              setIsRegistered(Boolean(status.is_registered));
+              const transferred = isUserTransferredToNextCycle(
+                professor,
+                status
+              );
+              setIsTransferred(transferred);
+              setIsRegistered(Boolean(status.is_registered) && !transferred);
             }
           } catch {
             if (!cancelled) {
+              const transferred = isUserTransferredToNextCycle(professor, null);
+              setIsTransferred(transferred);
               setIsRegistered(false);
             }
           }
         } else {
           setIsRegistered(false);
+          setIsTransferred(false);
         }
       } catch {
         if (!cancelled) {
           setUser(null);
           setIsRegistered(false);
+          setIsTransferred(false);
         }
       }
     }
 
     void loadHomeState();
 
+    window.addEventListener("cycle-transfers-updated", loadHomeState);
+    window.addEventListener("demo-reset", loadHomeState);
     return () => {
       cancelled = true;
+      window.removeEventListener("cycle-transfers-updated", loadHomeState);
+      window.removeEventListener("demo-reset", loadHomeState);
     };
   }, []);
 
@@ -139,6 +155,8 @@ export default function L01Home() {
                 >
                   {hasFullPortalAccess
                     ? "Go to Faculty Dashboard"
+                    : isTransferred
+                    ? "View Cycle Transfer Status"
                     : "Complete Cycle Registration"}
                 </button>
               )}

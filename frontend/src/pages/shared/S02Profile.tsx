@@ -1,9 +1,9 @@
 // src/pages/shared/S02Profile.tsx
-import { getInitials } from "../../utils/faculty";
 import React, { useEffect, useState, useRef } from "react";
 import { facultyApi, observationApi } from "../../api/endpoints";
 import type { Course, ScheduledVisit } from "../../api/types";
 import { Link } from "react-router-dom";
+import { getCarriedForwardRecordForUser } from "../committee/A02FacultyMatching";
 
 const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -30,6 +30,13 @@ const AVAILABILITY_STORAGE_KEY = "observer_availability_v1";
 function formatLabel(value: string) {
   if (!value) return "Not provided";
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 function formatShortDate(isoDate: string): string {
@@ -141,6 +148,9 @@ export default function S02Profile(): React.ReactElement {
   const [evaluationCycle, setEvaluationCycle] = useState("");
   const [evaluationStatus, setEvaluationStatus] = useState("");
   const [lastEvaluated, setLastEvaluated] = useState("");
+  const [transferredTargetCycle, setTransferredTargetCycle] = useState<
+    string | null
+  >(null);
 
   const [registeredCourse, setRegisteredCourse] = useState<Course | null>(null);
   const [isRegisteredObservee, setIsRegisteredObservee] = useState(false);
@@ -232,6 +242,12 @@ export default function S02Profile(): React.ReactElement {
         const last = professor.last_name || "";
         setIsCommitteeUser(professor.role === "admin");
 
+        const transferRec = getCarriedForwardRecordForUser(
+          professor,
+          regStatus
+        );
+        setTransferredTargetCycle(transferRec?.target_cycle ?? null);
+
         const profId = professor.user_id ?? professor.id;
         const userKey = String(profId ?? professor.email ?? "");
         const phoneMarkerKey = `s02_phone_saved_${userKey}`;
@@ -247,7 +263,9 @@ export default function S02Profile(): React.ReactElement {
 
         setEvaluationCycle(result.evaluation_cycle || "Current Cycle");
         setEvaluationStatus(
-          String(result.evaluation_status || "undetermined")
+          transferRec
+            ? `transferred to ${transferRec.target_cycle}`
+            : String(result.evaluation_status || "undetermined")
         );
 
         const lastSemester = professor.last_evaluated_semester || "";
@@ -259,9 +277,6 @@ export default function S02Profile(): React.ReactElement {
             : "No previous evaluation recorded"
         );
 
-        // Detect demo reset without needing DevBar changes:
-        // DevBar removes s01_checklist_open_v1 / observer_availability_v1 / faculty_planner_* on reset.
-        // If phone exists on backend without our local saved marker (or after a reset cleared demo keys), reset it to empty.
         let rawStoredPhone = professor.phone || "";
         try {
           const hasLocalPhoneMarker = Boolean(
@@ -305,12 +320,14 @@ export default function S02Profile(): React.ReactElement {
         const availObj = availData as any;
         const dashObj = dashData as any;
 
-        const registeredFlag = Boolean(
-          regObj?.is_registered ||
-            regObj?.signup ||
-            regObj?.registered ||
-            dashObj?.is_registered
-        );
+        const registeredFlag =
+          !transferRec &&
+          Boolean(
+            regObj?.is_registered ||
+              regObj?.signup ||
+              regObj?.registered ||
+              dashObj?.is_registered
+          );
         setIsRegisteredObservee(registeredFlag);
 
         const directCourse =
@@ -399,6 +416,7 @@ export default function S02Profile(): React.ReactElement {
       setPhone("");
       setEditPhone("");
       setProfilePhoto("");
+      setTransferredTargetCycle(null);
       setAvailDays(["Tue", "Thu"]);
       setAvailWindows(["Morning (8:00 AM - 12:00 PM)"]);
       setSpecificDates([]);
@@ -648,17 +666,22 @@ export default function S02Profile(): React.ReactElement {
 
   const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
-  const hasFullPortalAccess = isCommitteeUser || isRegisteredObservee;
+  const hasFullPortalAccess =
+    isCommitteeUser || (isRegisteredObservee && !transferredTargetCycle);
   const backDestination = isCommitteeUser
     ? "/committee/dashboard"
-    : isRegisteredObservee
+    : hasFullPortalAccess
     ? "/shared/faculty-dashboard"
     : "/login/signin2";
   const backTopLabel = hasFullPortalAccess
     ? "← Back to Dashboard"
+    : transferredTargetCycle
+    ? "← Back to Cycle Status"
     : "← Back to Cycle Registration";
   const backBottomLabel = hasFullPortalAccess
     ? "Return to Dashboard"
+    : transferredTargetCycle
+    ? "Return to Cycle Status"
     : "Return to Cycle Registration";
 
   return (
@@ -1055,8 +1078,12 @@ export default function S02Profile(): React.ReactElement {
 
           <div className="profile-metric-box">
             <span className="status-label">Next Semester Due</span>
-            <span className="status-value muted-placeholder">
-              Pending cycle assignment
+            <span
+              className={`status-value ${
+                transferredTargetCycle ? "" : "muted-placeholder"
+              }`}
+            >
+              {transferredTargetCycle || "Pending cycle assignment"}
             </span>
           </div>
         </div>
@@ -1104,7 +1131,9 @@ export default function S02Profile(): React.ReactElement {
               )
             ) : (
               <p className="status-value muted-placeholder">
-                Not currently registered for a course observation.
+                {transferredTargetCycle
+                  ? `Carried forward to ${transferredTargetCycle}.`
+                  : "Not currently registered for a course observation."}
               </p>
             )}
           </div>

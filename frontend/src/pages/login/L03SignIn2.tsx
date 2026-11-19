@@ -4,6 +4,10 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor, RegistrationStatus } from "../../api/types";
 import { formatDate } from "../../api/format";
+import {
+  getCarriedForwardRecordForUser,
+  type CycleTransferRecord,
+} from "../committee/A02FacultyMatching";
 
 const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -40,6 +44,8 @@ export default function L03SignIn2() {
   const [registration, setRegistration] = useState<RegistrationStatus | null>(
     null
   );
+  const [transferRecord, setTransferRecord] =
+    useState<CycleTransferRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -98,7 +104,10 @@ export default function L03SignIn2() {
       setUser(sessionUser);
 
       const reg = await facultyApi.registrationStatus();
-      if (reg.is_registered) {
+      const carriedForward = getCarriedForwardRecordForUser(sessionUser, reg);
+      setTransferRecord(carriedForward);
+
+      if (reg.is_registered && !carriedForward) {
         navigate(redirectTo || "/shared/faculty-dashboard", { replace: true });
         return;
       }
@@ -122,25 +131,41 @@ export default function L03SignIn2() {
       setSelectedDays(["Tue", "Thu"]);
       setSelectedWindows(["Morning (8:00 AM - 12:00 PM)"]);
       setAvailabilityNotes("");
+      setTransferRecord(null);
+      void loadPage();
+    };
+
+    const handleTransferSync = () => {
+      void loadPage();
     };
 
     window.addEventListener("demo-reset", handleDemoReset);
-    return () => window.removeEventListener("demo-reset", handleDemoReset);
+    window.addEventListener("cycle-transfers-updated", handleTransferSync);
+    window.addEventListener("storage", handleTransferSync);
+    return () => {
+      window.removeEventListener("demo-reset", handleDemoReset);
+      window.removeEventListener("cycle-transfers-updated", handleTransferSync);
+      window.removeEventListener("storage", handleTransferSync);
+    };
   }, []);
 
   const toggleDay = (day: string) => {
+    if (transferRecord) return;
     setSelectedDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
   };
 
   const toggleWindow = (win: string) => {
+    if (transferRecord) return;
     setSelectedWindows((prev) =>
       prev.includes(win) ? prev.filter((w) => w !== win) : [...prev, win]
     );
   };
 
-  const isRegistered = registration?.is_registered ?? false;
+  const isTransferredToNextCycle = transferRecord !== null;
+  const isRegistered =
+    (registration?.is_registered ?? false) && !isTransferredToNextCycle;
 
   const isPastDeadline =
     !isRegistered &&
@@ -148,6 +173,8 @@ export default function L03SignIn2() {
     registration.today > registration.signup_deadline;
 
   const cycleName = registration?.cycle_name || "Current Evaluation Cycle";
+  const targetCycleName =
+    transferRecord?.target_cycle || "Next Evaluation Cycle";
   const facultyDestination = redirectTo || "/shared/faculty-dashboard";
 
   const firstName = (() => {
@@ -166,6 +193,13 @@ export default function L03SignIn2() {
   })();
 
   const handleRegister = async () => {
+    if (isTransferredToNextCycle) {
+      setError(
+        `Your evaluation has been transferred to ${targetCycleName}. Registration for ${cycleName} is disabled.`
+      );
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -218,11 +252,16 @@ export default function L03SignIn2() {
     <div className="dashboard-container">
       <div className="l03-wrapper">
         <div className="l03-hero-header">
-          <span className="a01-phase-pill">Cycle Registration Required</span>
+          <span className="a01-phase-pill">
+            {isTransferredToNextCycle
+              ? `Transferred to ${targetCycleName}`
+              : "Cycle Registration Required"}
+          </span>
           <h2>Welcome{firstName ? `, ${firstName}` : ""}</h2>
           <p className="l03-subtitle">
-            Register for {cycleName} and set your preferred observation times to
-            unlock your dashboard, or view your past observation records below.
+            {isTransferredToNextCycle
+              ? `The Assessment Committee has carried your evaluation forward to ${targetCycleName}. You cannot register for ${cycleName}, though you may still review past observation records, update your profile, or contact the committee.`
+              : `Register for ${cycleName} and set your preferred observation times to unlock your dashboard, or view your past observation records below.`}
           </p>
         </div>
 
@@ -248,9 +287,15 @@ export default function L03SignIn2() {
               </span>
 
               <div className="l03-date-pair">
-                <span className="l03-date-label">Signup Deadline:</span>
+                <span className="l03-date-label">
+                  {isTransferredToNextCycle
+                    ? "Assigned Cycle:"
+                    : "Signup Deadline:"}
+                </span>
                 <span className="l03-date-val">
-                  {formatDate(registration.signup_deadline)}
+                  {isTransferredToNextCycle
+                    ? targetCycleName
+                    : formatDate(registration.signup_deadline)}
                 </span>
               </div>
             </div>
@@ -310,8 +355,9 @@ export default function L03SignIn2() {
               </div>
 
               <p className="l03-avail-hint">
-                Share the days and times that usually work best for you to
-                observe a class before registering.
+                {isTransferredToNextCycle
+                  ? `Cycle registration is locked while your evaluation is deferred to ${targetCycleName}.`
+                  : "Share the days and times that usually work best for you to observe a class before registering."}
               </p>
 
               <div className="l03-field-block">
@@ -323,6 +369,7 @@ export default function L03SignIn2() {
                       <button
                         key={day}
                         type="button"
+                        disabled={isTransferredToNextCycle}
                         className={`l03-chip-btn ${
                           active ? "is-selected" : ""
                         }`}
@@ -344,6 +391,7 @@ export default function L03SignIn2() {
                       <button
                         key={win.value}
                         type="button"
+                        disabled={isTransferredToNextCycle}
                         className={`l03-window-btn ${
                           active ? "is-selected" : ""
                         }`}
@@ -364,6 +412,7 @@ export default function L03SignIn2() {
                 <input
                   id="l03-avail-notes"
                   type="text"
+                  disabled={isTransferredToNextCycle}
                   className="l03-notes-input"
                   placeholder="e.g., Free after 11:00 AM on Mon and Wed"
                   value={availabilityNotes}
@@ -373,7 +422,38 @@ export default function L03SignIn2() {
             </div>
           </div>
 
-          {isPastDeadline ? (
+          {isTransferredToNextCycle ? (
+            <div className="l03-footer-bar">
+              <div className="empty-state-banner s04-zero-margin">
+                <strong>Transferred to {targetCycleName}:</strong>{" "}
+                {transferRecord?.note
+                  ? `Your evaluation was carried forward (${transferRecord.note}). `
+                  : "Your evaluation has been carried forward to the next semester. "}
+                Registration for {cycleName} is unavailable.
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                <Link
+                  to="/shared/contact-committee"
+                  className="btn-secondary"
+                >
+                  Contact Assessment Committee
+                </Link>
+                <Link
+                  to="/shared/current-past-observations"
+                  className="btn-primary l03-primary-cta"
+                >
+                  View Observation Records →
+                </Link>
+              </div>
+            </div>
+          ) : isPastDeadline ? (
             <div className="l03-footer-bar">
               <div className="empty-state-banner s04-zero-margin">
                 <strong>Signup Closed:</strong> The registration window for{" "}

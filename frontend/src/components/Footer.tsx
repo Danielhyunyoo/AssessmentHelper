@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import utdLogo from "../assets/icons/utd_logo.png";
 import { authApi, facultyApi } from "../api/endpoints";
 import type { Professor } from "../api/types";
+import { isUserTransferredToNextCycle } from "../pages/committee/A02FacultyMatching";
 
 export default function Footer() {
   const location = useLocation();
@@ -34,7 +35,11 @@ export default function Footer() {
           .registrationStatus()
           .catch(() => ({ is_registered: false }));
         if (!cancelled) {
-          setIsCycleRegistered(Boolean(reg.is_registered));
+          const transferred = isUserTransferredToNextCycle(
+            professor,
+            reg as never
+          );
+          setIsCycleRegistered(Boolean(reg.is_registered) && !transferred);
         }
       } catch {
         if (!cancelled) {
@@ -47,11 +52,13 @@ export default function Footer() {
     void syncFooterAccess();
 
     window.addEventListener("registration-changed", syncFooterAccess);
+    window.addEventListener("cycle-transfers-updated", syncFooterAccess);
     window.addEventListener("demo-reset", syncFooterAccess);
 
     return () => {
       cancelled = true;
       window.removeEventListener("registration-changed", syncFooterAccess);
+      window.removeEventListener("cycle-transfers-updated", syncFooterAccess);
       window.removeEventListener("demo-reset", syncFooterAccess);
     };
   }, [location.pathname]);
@@ -62,16 +69,16 @@ export default function Footer() {
     location.pathname.startsWith("/committee") ||
     storedRole.toLowerCase().includes("committee");
 
-  const isUnregisteredFaculty =
+  const isRestrictedFaculty =
     currentUser !== null && !isCommitteeMode && !isCycleRegistered;
 
   const dashboardPath = isCommitteeMode
     ? "/committee/dashboard"
-    : isUnregisteredFaculty
+    : isRestrictedFaculty
     ? "/login/signin2"
     : "/shared/faculty-dashboard";
 
-  const notificationsPath = isUnregisteredFaculty
+  const notificationsPath = isRestrictedFaculty
     ? "/login/signin2"
     : "/shared/notifications";
 

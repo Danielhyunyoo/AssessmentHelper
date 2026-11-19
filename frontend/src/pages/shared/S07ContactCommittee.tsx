@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { authApi, facultyApi } from "../../api/endpoints";
 import type { Professor } from "../../api/types";
+import { isUserTransferredToNextCycle } from "../committee/A02FacultyMatching";
 
 export const COMMITTEE_INQUIRIES_KEY = "utd_committee_inquiries_v2";
 const PAGE_SIZE = 25;
@@ -311,7 +312,13 @@ export default function S07ContactCommittee() {
             try {
               const regRes = await facultyApi.registrationStatus();
               if (!cancelled) {
-                setIsCycleRegistered(Boolean(regRes.is_registered));
+                const transferred = isUserTransferredToNextCycle(
+                  resolvedUser,
+                  regRes
+                );
+                setIsCycleRegistered(
+                  Boolean(regRes.is_registered) && !transferred
+                );
               }
             } catch {
               if (!cancelled) {
@@ -359,6 +366,10 @@ export default function S07ContactCommittee() {
       setAllInquiries(loadStoredInquiries());
     };
 
+    const handleTransferSync = () => {
+      void loadUserAndSyncInbox();
+    };
+
     const handleReset = () => {
       localStorage.removeItem(COMMITTEE_INQUIRIES_KEY);
       setAllInquiries([]);
@@ -368,11 +379,13 @@ export default function S07ContactCommittee() {
     };
 
     window.addEventListener("committee-messages-changed", handleSync);
+    window.addEventListener("cycle-transfers-updated", handleTransferSync);
     window.addEventListener("storage", handleSync);
     window.addEventListener("demo-reset", handleReset);
     return () => {
       cancelled = true;
       window.removeEventListener("committee-messages-changed", handleSync);
+      window.removeEventListener("cycle-transfers-updated", handleTransferSync);
       window.removeEventListener("storage", handleSync);
       window.removeEventListener("demo-reset", handleReset);
     };
