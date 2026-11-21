@@ -1178,15 +1178,10 @@ export default function S01FacultyDashboard() {
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
-                  <svg
+                  <div
                     className="s01-progress-fill"
-                    width={`${progressPercent}%`}
-                    height="100%"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
-                    <rect width="100%" height="100%" />
-                  </svg>
+                    style={{ width: `${progressPercent}%` }}
+                  />
                 </div>
 
                 <div className="s01-todo-list">

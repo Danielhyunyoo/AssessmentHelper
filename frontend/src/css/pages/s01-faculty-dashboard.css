@@ -122,6 +122,7 @@ html.dark-mode body[data-route-bg="faculty"] {
 }
 
 .s01-progress-fill {
+  display: block;
   height: 100%;
   background-color: var(--accent-primary);
   border-radius: 9999px;
